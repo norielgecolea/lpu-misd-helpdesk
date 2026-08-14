@@ -25,7 +25,8 @@ import { TicketHistoryDialog } from '../../../shared/ticket-history-dialog/ticke
 
 const POLL_MS = 3000;
 const LIST_POLL_MS = 5000;
-const LAYOUT_STORAGE_KEY = 'admin-tickets-layout';
+const LAYOUT_STORAGE_KEY = 'admin-tickets-layout-v2';
+const PAGE_SIZE = 25;
 const GROUP_ORDER: TicketStatus[] = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -34,13 +35,6 @@ type StatusFilter = TicketStatus | '';
 /** all | unassigned | mine | admin:<id> */
 type ScopeFilter = string;
 type LayoutMode = 'split' | 'list' | 'chat';
-
-interface TicketGroup {
-  status: TicketStatus;
-  label: string;
-  tickets: Ticket[];
-  unread: number;
-}
 
 @Component({
   selector: 'app-admin-tickets',
@@ -68,9 +62,7 @@ export class AdminTickets implements OnInit, OnDestroy {
   /** When true, scope is fixed to Mine (My tickets route). */
   protected readonly scopeLocked = signal(false);
   protected readonly layoutMode = signal<LayoutMode>(this.readLayoutMode());
-  protected readonly collapsedGroups = signal<Set<TicketStatus>>(
-    new Set<TicketStatus>(['RESOLVED', 'CLOSED']),
-  );
+  protected readonly listPage = signal(1);
   protected readonly busyTicketIds = signal<Set<number>>(new Set());
 
   protected readonly selectedTicketId = signal<number | null>(null);
@@ -105,7 +97,11 @@ export class AdminTickets implements OnInit, OnDestroy {
   protected readonly filteredTickets = computed(() => {
     const scope = this.scopeFilter();
     const myId = this.auth.userId();
+    const statusFilter = this.statusFilter();
     return this.tickets().filter((ticket) => {
+      if (statusFilter && ticket.status !== statusFilter) {
+        return false;
+      }
       if (scope === 'mine') {
         return ticket.assignedAdminId != null && ticket.assignedAdminId === myId;
       }
@@ -120,19 +116,36 @@ export class AdminTickets implements OnInit, OnDestroy {
     });
   });
 
-  protected readonly ticketGroups = computed((): TicketGroup[] => {
-    const list = this.filteredTickets();
-    const statusFilter = this.statusFilter();
-    const statuses = statusFilter ? [statusFilter] : GROUP_ORDER;
-    return statuses.map((status) => {
-      const tickets = list.filter((t) => t.status === status);
-      return {
-        status,
-        label: this.statusLabel(status),
-        tickets,
-        unread: tickets.reduce((sum, t) => sum + (t.unreadCount ?? 0), 0),
-      };
+  protected readonly sortedTickets = computed(() => {
+    const rank = new Map(GROUP_ORDER.map((status, index) => [status, index]));
+    return [...this.filteredTickets()].sort((a, b) => {
+      const statusDiff = (rank.get(a.status) ?? 99) - (rank.get(b.status) ?? 99);
+      if (statusDiff !== 0) {
+        return statusDiff;
+      }
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
     });
+  });
+
+  protected readonly listTotalPages = computed(() =>
+    Math.max(1, Math.ceil(this.sortedTickets().length / PAGE_SIZE)),
+  );
+
+  protected readonly pagedTickets = computed(() => {
+    const page = Math.min(this.listPage(), this.listTotalPages());
+    const start = (page - 1) * PAGE_SIZE;
+    return this.sortedTickets().slice(start, start + PAGE_SIZE);
+  });
+
+  protected readonly listRangeLabel = computed(() => {
+    const total = this.sortedTickets().length;
+    if (total === 0) {
+      return '0 tickets';
+    }
+    const page = Math.min(this.listPage(), this.listTotalPages());
+    const start = (page - 1) * PAGE_SIZE + 1;
+    const end = Math.min(page * PAGE_SIZE, total);
+    return `${start}–${end} of ${total}`;
   });
 
   protected readonly selectedTicket = computed(() => {
@@ -211,28 +224,19 @@ export class AdminTickets implements OnInit, OnDestroy {
   }
 
   protected async onFilterChange(): Promise<void> {
+    this.listPage.set(1);
     await this.loadTickets(true);
     this.ensureSelectionVisible();
   }
 
   protected onScopeChange(): void {
+    this.listPage.set(1);
     this.ensureSelectionVisible();
   }
 
-  protected toggleGroup(status: TicketStatus): void {
-    this.collapsedGroups.update((current) => {
-      const next = new Set(current);
-      if (next.has(status)) {
-        next.delete(status);
-      } else {
-        next.add(status);
-      }
-      return next;
-    });
-  }
-
-  protected isGroupCollapsed(status: TicketStatus): boolean {
-    return this.collapsedGroups().has(status);
+  protected goToListPage(page: number): void {
+    const next = Math.min(Math.max(1, page), this.listTotalPages());
+    this.listPage.set(next);
   }
 
   protected setLayoutMode(mode: LayoutMode): void {
@@ -451,11 +455,7 @@ export class AdminTickets implements OnInit, OnDestroy {
       }
       return [ticket, ...list];
     });
-    this.collapsedGroups.update((set) => {
-      const next = new Set(set);
-      next.delete(ticket.status);
-      return next;
-    });
+    this.listPage.set(1);
     await this.selectTicket(ticket);
   }
 
@@ -700,6 +700,9 @@ export class AdminTickets implements OnInit, OnDestroy {
         selectedId != null && t.id === selectedId ? { ...t, unreadCount: 0 } : t,
       );
       this.tickets.set(normalized);
+      if (this.listPage() > this.listTotalPages()) {
+        this.listPage.set(this.listTotalPages());
+      }
 
       const otherUnread = normalized
         .filter((t) => t.id !== selectedId)
