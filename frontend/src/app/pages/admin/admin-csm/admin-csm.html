@@ -1,0 +1,259 @@
+<div class="flex flex-col gap-5">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <p class="text-sm text-gray-600">
+        CSM ratings by assigned admin, with ticket lists for Happy, Neh, and Sad.
+      </p>
+    </div>
+    <div class="inline-flex items-center gap-1 rounded-xl border border-zinc-200 bg-white p-1 shadow-sm">
+      <button
+        type="button"
+        (click)="shiftMonth(-1)"
+        class="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-zinc-100"
+        aria-label="Previous month"
+      >
+        <svg viewBox="0 0 20 20" fill="currentColor" class="size-4" aria-hidden="true">
+          <path
+            fill-rule="evenodd"
+            d="M12.79 5.23a.75.75 0 0 1-.02 1.06L8.832 10l3.938 3.71a.75.75 0 1 1-1.04 1.08l-4.5-4.25a.75.75 0 0 1 0-1.08l4.5-4.25a.75.75 0 0 1 1.06.02Z"
+            clip-rule="evenodd"
+          />
+        </svg>
+      </button>
+      <div class="relative min-w-[11rem]">
+        <div
+          class="pointer-events-none flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-zinc-900"
+          aria-hidden="true"
+        >
+          <span>{{ monthLabel() }}</span>
+          @if (loading()) {
+            <span class="border-primary/30 border-t-primary size-3.5 animate-spin rounded-full border-2"></span>
+          }
+        </div>
+        <input
+          type="month"
+          class="absolute inset-0 z-10 cursor-pointer opacity-0"
+          [ngModel]="month()"
+          (ngModelChange)="onMonthChange($event)"
+          [ngModelOptions]="{ standalone: true }"
+          aria-label="Select month"
+        />
+      </div>
+      <button
+        type="button"
+        (click)="shiftMonth(1)"
+        [disabled]="isCurrentMonth()"
+        class="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
+        aria-label="Next month"
+      >
+        <svg viewBox="0 0 20 20" fill="currentColor" class="size-4" aria-hidden="true">
+          <path
+            fill-rule="evenodd"
+            d="M7.21 14.77a.75.75 0 0 1 .02-1.06L11.168 10 7.23 6.29a.75.75 0 1 1 1.04-1.08l4.5 4.25a.75.75 0 0 1 0 1.08l-4.5 4.25a.75.75 0 0 1-1.06-.02Z"
+            clip-rule="evenodd"
+          />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  @if (error()) {
+    <p class="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-red-600" role="alert">
+      {{ error() }}
+    </p>
+  }
+
+  @if (loading() && byAssignee().length === 0) {
+    <div class="flex items-center justify-center rounded-2xl border border-zinc-950/10 bg-white p-16">
+      <span class="border-primary/30 border-t-primary h-6 w-6 animate-spin rounded-full border-2"></span>
+    </div>
+  } @else {
+    <div class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+      <div class="mb-3 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h3 class="text-sm font-semibold text-zinc-900">CSM ratio by admin</h3>
+          <p class="text-[11px] text-zinc-500">Stacked Happy / Neh / Sad — click a bar to inspect that admin</p>
+        </div>
+        <select
+          class="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-800"
+          [ngModel]="selectedAdminId() ?? ''"
+          (ngModelChange)="onAdminChange($event)"
+          [ngModelOptions]="{ standalone: true }"
+          aria-label="Select admin"
+        >
+          @if (byAssignee().length === 0) {
+            <option value="" disabled>No CSM data</option>
+          }
+          @for (admin of byAssignee(); track admin.adminId) {
+            <option [value]="admin.adminId">{{ admin.name }} ({{ admin.total }})</option>
+          }
+        </select>
+      </div>
+      @if (byAssignee().length === 0) {
+        <p class="py-12 text-center text-sm text-zinc-500">No CSM ratings in this month.</p>
+      } @else {
+        <div class="relative h-72">
+          <canvas #ratioCanvas></canvas>
+        </div>
+      }
+    </div>
+
+    @if (selectedAdmin(); as admin) {
+      <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+          <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">Admin</p>
+          <p class="mt-1 truncate text-lg font-bold text-zinc-900">{{ admin.name }}</p>
+        </div>
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 shadow-sm">
+          <p class="text-[11px] font-semibold tracking-wide text-emerald-700 uppercase">Happy</p>
+          <p class="mt-1 text-2xl font-bold text-emerald-800">{{ admin.happy }}</p>
+        </div>
+        <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm">
+          <p class="text-[11px] font-semibold tracking-wide text-amber-800 uppercase">Neh</p>
+          <p class="mt-1 text-2xl font-bold text-amber-900">{{ admin.neutral }}</p>
+        </div>
+        <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 shadow-sm">
+          <p class="text-[11px] font-semibold tracking-wide text-red-700 uppercase">Sad</p>
+          <p class="mt-1 text-2xl font-bold text-red-800">{{ admin.sad }}</p>
+        </div>
+      </div>
+
+      @if (detailError()) {
+        <p class="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-red-600" role="alert">
+          {{ detailError() }}
+        </p>
+      }
+
+      @if (detailLoading()) {
+        <div class="flex justify-center py-8">
+          <span class="border-primary/30 border-t-primary h-6 w-6 animate-spin rounded-full border-2"></span>
+        </div>
+      } @else {
+        <div class="grid gap-4 xl:grid-cols-2">
+          <section class="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm xl:col-span-2">
+            <div class="border-b border-zinc-100 px-4 py-3">
+              <h3 class="text-sm font-semibold text-zinc-900">Assigned tickets</h3>
+              <p class="text-[11px] text-zinc-500">Open, in progress, and closed in this month · {{ assignedTickets().length }}</p>
+            </div>
+            <div class="max-h-80 overflow-auto">
+              <table class="min-w-full text-left text-sm">
+                <thead class="sticky top-0 bg-zinc-50/95 text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+                  <tr>
+                    <th class="px-4 py-2.5">Ticket</th>
+                    <th class="px-4 py-2.5">Subject</th>
+                    <th class="px-4 py-2.5">Status</th>
+                    <th class="px-4 py-2.5">Requester</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-zinc-100">
+                  @for (item of assignedTickets(); track item.id) {
+                    <tr
+                      class="cursor-pointer transition-colors hover:bg-zinc-50"
+                      (click)="openTicket(item)"
+                    >
+                      <td class="px-4 py-2.5 font-semibold text-zinc-900">{{ item.ticketNumber }}</td>
+                      <td class="max-w-[16rem] truncate px-4 py-2.5 text-zinc-700">{{ item.subject }}</td>
+                      <td class="px-4 py-2.5 text-zinc-600">{{ statusLabel(item.status) }}</td>
+                      <td class="px-4 py-2.5 text-zinc-600">{{ item.requesterName }}</td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="4" class="px-4 py-8 text-center text-zinc-500">No assigned tickets</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-sm">
+            <div class="border-b border-emerald-100 bg-emerald-50/60 px-4 py-3">
+              <h3 class="text-sm font-semibold text-emerald-900">Happy tickets</h3>
+              <p class="text-[11px] text-emerald-800/80">{{ happyTickets().length }} ratings</p>
+            </div>
+            <div class="max-h-72 overflow-auto">
+              <ul class="divide-y divide-zinc-100">
+                @for (item of happyTickets(); track item.id) {
+                  <li>
+                    <button
+                      type="button"
+                      class="flex w-full cursor-pointer flex-col gap-0.5 px-4 py-3 text-left hover:bg-emerald-50/50"
+                      (click)="openTicket(item)"
+                    >
+                      <span class="text-sm font-semibold text-zinc-900">{{ item.ticketNumber }}</span>
+                      <span class="truncate text-xs text-zinc-600">{{ item.subject }}</span>
+                      <span class="text-[11px] text-zinc-500">
+                        {{ item.csmSubmittedAt | date: 'MMM d, y · h:mm a' }}
+                      </span>
+                    </button>
+                  </li>
+                } @empty {
+                  <li class="px-4 py-8 text-center text-sm text-zinc-500">No happy ratings</li>
+                }
+              </ul>
+            </div>
+          </section>
+
+          <section class="overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm">
+            <div class="border-b border-amber-100 bg-amber-50/60 px-4 py-3">
+              <h3 class="text-sm font-semibold text-amber-950">Neh tickets</h3>
+              <p class="text-[11px] text-amber-900/80">{{ neutralTickets().length }} ratings</p>
+            </div>
+            <div class="max-h-72 overflow-auto">
+              <ul class="divide-y divide-zinc-100">
+                @for (item of neutralTickets(); track item.id) {
+                  <li>
+                    <button
+                      type="button"
+                      class="flex w-full cursor-pointer flex-col gap-0.5 px-4 py-3 text-left hover:bg-amber-50/50"
+                      (click)="openTicket(item)"
+                    >
+                      <span class="text-sm font-semibold text-zinc-900">{{ item.ticketNumber }}</span>
+                      <span class="truncate text-xs text-zinc-600">{{ item.subject }}</span>
+                      <span class="text-[11px] text-zinc-500">
+                        {{ item.csmSubmittedAt | date: 'MMM d, y · h:mm a' }}
+                      </span>
+                    </button>
+                  </li>
+                } @empty {
+                  <li class="px-4 py-8 text-center text-sm text-zinc-500">No neh ratings</li>
+                }
+              </ul>
+            </div>
+          </section>
+
+          <section class="overflow-hidden rounded-2xl border border-red-200 bg-white shadow-sm xl:col-span-2">
+            <div class="border-b border-red-100 bg-red-50/60 px-4 py-3">
+              <h3 class="text-sm font-semibold text-red-900">Sad tickets</h3>
+              <p class="text-[11px] text-red-800/80">{{ sadTickets().length }} ratings</p>
+            </div>
+            <div class="max-h-80 overflow-auto">
+              <ul class="divide-y divide-zinc-100">
+                @for (item of sadTickets(); track item.id) {
+                  <li>
+                    <button
+                      type="button"
+                      class="flex w-full cursor-pointer flex-col gap-0.5 px-4 py-3 text-left hover:bg-red-50/40"
+                      (click)="openTicket(item)"
+                    >
+                      <span class="text-sm font-semibold text-zinc-900">{{ item.ticketNumber }}</span>
+                      <span class="truncate text-xs text-zinc-600">{{ item.subject }}</span>
+                      @if (item.csmComment) {
+                        <span class="line-clamp-2 text-xs text-zinc-600 italic">“{{ item.csmComment }}”</span>
+                      }
+                      <span class="text-[11px] text-zinc-500">
+                        {{ item.csmSubmittedAt | date: 'MMM d, y · h:mm a' }}
+                      </span>
+                    </button>
+                  </li>
+                } @empty {
+                  <li class="px-4 py-8 text-center text-sm text-zinc-500">No sad ratings</li>
+                }
+              </ul>
+            </div>
+          </section>
+        </div>
+      }
+    }
+  }
+</div>

@@ -1,0 +1,369 @@
+<div
+  class="relative flex min-h-dvh w-full flex-col overflow-hidden bg-[#8d2546]"
+  (click)="onPageActivate()"
+>
+
+  <form class="sr-only" (ngSubmit)="onScanSubmit($event)" aria-hidden="true">
+    <label for="rfidScan">RFID</label>
+    <input
+      #rfidInput
+      id="rfidScan"
+      name="rfidScan"
+      type="text"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="off"
+      spellcheck="false"
+      [ngModel]="scanBuffer()"
+      (ngModelChange)="scanBuffer.set($event)"
+      [ngModelOptions]="{ standalone: true }"
+      [disabled]="lookingUp() || submitting()"
+    />
+  </form>
+
+  @if (step() === 'idle' && !lookingUp()) {
+    <div
+      class="pointer-events-none absolute inset-x-0 top-6 z-20 flex justify-center px-4 sm:top-8"
+      aria-live="polite"
+    >
+      <div
+        class="rounded-full bg-white/12 px-5 py-2.5 text-center text-base font-semibold tracking-wide text-white ring-1 ring-white/20 backdrop-blur-md sm:px-7 sm:py-3 sm:text-xl"
+      >
+        {{ clockLabel() }}
+      </div>
+    </div>
+  }
+
+  @if (lookingUp()) {
+    <div
+      class="absolute top-5 right-5 z-20 flex items-center gap-2 rounded-full bg-white/12 px-3.5 py-2 text-sm font-medium text-white ring-1 ring-white/20 backdrop-blur-md sm:top-6 sm:right-8"
+    >
+      <span class="h-4 w-4 animate-spin rounded-full border-2 border-white/25 border-t-white"></span>
+      Looking up…
+    </div>
+  }
+
+  <main class="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center px-4 py-8 sm:px-8">
+    <!-- IDLE -->
+    @if (step() === 'idle') {
+      <div class="kiosk-enter flex w-full max-w-3xl flex-col items-center text-center">
+        <img
+          src="/logo.svg"
+          alt="Lyceum of the Philippines University"
+          class="kiosk-breathe h-36 w-36 object-contain drop-shadow-[0_18px_40px_rgba(0,0,0,0.45)] sm:h-44 sm:w-44"
+        />
+
+        <h1 class="mt-7 text-4xl font-extrabold tracking-tight text-white sm:text-6xl">
+          MISD Helpdesk
+        </h1>
+        <p class="mt-3 max-w-lg text-base font-medium text-white/80 sm:text-xl">
+          Tap your LPU ID to join the queue.
+        </p>
+
+        <div class="relative mt-10 flex h-28 w-28 items-center justify-center sm:h-32 sm:w-32">
+          <span class="kiosk-pulse-ring absolute inset-0 rounded-full border-2 border-white/45"></span>
+          <span
+            class="kiosk-pulse-ring absolute inset-0 rounded-full border border-white/25"
+            style="animation-delay: 0.8s"
+          ></span>
+          <div
+            class="relative flex h-20 w-20 items-center justify-center rounded-full bg-white text-[#8d2546] shadow-[0_20px_50px_-18px_rgba(0,0,0,0.55)] sm:h-24 sm:w-24"
+          >
+            <svg viewBox="0 0 64 64" class="h-11 w-11 sm:h-12 sm:w-12" fill="none" aria-hidden="true">
+              <rect x="14" y="10" width="36" height="44" rx="6" stroke="currentColor" stroke-width="3" />
+              <circle cx="32" cy="28" r="8" stroke="currentColor" stroke-width="3" />
+              <path d="M20 46c3.5-6 20.5-6 24 0" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+            </svg>
+          </div>
+        </div>
+
+        <div class="mt-8 h-px w-40 max-w-[50%] rounded-full kiosk-scan-line opacity-80" aria-hidden="true"></div>
+        <p class="mt-4 text-[11px] font-semibold tracking-[0.28em] text-white/55 uppercase">
+          Waiting for RFID
+        </p>
+
+        @if (error()) {
+          <p
+            class="mt-6 w-full max-w-md rounded-2xl border border-red-200/80 bg-red-50/95 px-4 py-3 text-sm font-semibold text-red-700 shadow-lg"
+            role="alert"
+          >
+            {{ error() }}
+          </p>
+        }
+      </div>
+    }
+
+    <!-- CSM -->
+    @if (step() === 'csm') {
+      @if (pendingCsm(); as csm) {
+        <div class="kiosk-enter w-full max-w-2xl rounded-[2rem] bg-white p-6 shadow-2xl sm:p-8">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="text-xs font-semibold tracking-[0.2em] text-[#8d2546] uppercase">Feedback</p>
+              <h2 class="mt-1 text-2xl font-extrabold text-[#14181f] sm:text-3xl">How was your visit?</h2>
+              <p class="mt-1 text-sm text-zinc-600">
+                Please rate ticket
+                <span class="font-mono font-semibold text-zinc-800">{{ csm.ticketNumber }}</span>
+                before creating a new one.
+              </p>
+            </div>
+            <button
+              type="button"
+              (click)="cancelForm()"
+              class="cursor-pointer rounded-lg px-3 py-1.5 text-sm font-semibold text-zinc-500 hover:bg-zinc-100"
+            >
+              Cancel
+            </button>
+          </div>
+
+          <p class="mt-3 line-clamp-2 text-sm text-zinc-500">{{ csm.subject }} · {{ csm.categoryLabel }}</p>
+
+          <div class="mt-6 grid grid-cols-3 gap-3 sm:gap-4">
+            <button
+              type="button"
+              (click)="selectCsmRating('SAD')"
+              class="flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 px-3 py-5 transition-colors"
+              [class.border-[#8d2546]]="csmRating() === 'SAD'"
+              [class.bg-[#8d2546]/[0.06]]="csmRating() === 'SAD'"
+              [class.border-zinc-200]="csmRating() !== 'SAD'"
+              [class.hover:border-zinc-300]="csmRating() !== 'SAD'"
+              [disabled]="submittingCsm()"
+            >
+              <span class="text-5xl leading-none" aria-hidden="true">☹️</span>
+              <span class="text-xs font-bold tracking-wide text-zinc-700 uppercase">Sad</span>
+            </button>
+            <button
+              type="button"
+              (click)="selectCsmRating('NEUTRAL')"
+              class="flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 px-3 py-5 transition-colors"
+              [class.border-[#8d2546]]="csmRating() === 'NEUTRAL'"
+              [class.bg-[#8d2546]/[0.06]]="csmRating() === 'NEUTRAL'"
+              [class.border-zinc-200]="csmRating() !== 'NEUTRAL'"
+              [class.hover:border-zinc-300]="csmRating() !== 'NEUTRAL'"
+              [disabled]="submittingCsm()"
+            >
+              <span class="text-5xl leading-none" aria-hidden="true">😐</span>
+              <span class="text-xs font-bold tracking-wide text-zinc-700 uppercase">Neh</span>
+            </button>
+            <button
+              type="button"
+              (click)="selectCsmRating('HAPPY')"
+              class="flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 px-3 py-5 transition-colors"
+              [class.border-[#8d2546]]="csmRating() === 'HAPPY'"
+              [class.bg-[#8d2546]/[0.06]]="csmRating() === 'HAPPY'"
+              [class.border-zinc-200]="csmRating() !== 'HAPPY'"
+              [class.hover:border-zinc-300]="csmRating() !== 'HAPPY'"
+              [disabled]="submittingCsm()"
+            >
+              <span class="text-5xl leading-none" aria-hidden="true">😊</span>
+              <span class="text-xs font-bold tracking-wide text-zinc-700 uppercase">Happy</span>
+            </button>
+          </div>
+
+          @if (csmRating() === 'SAD') {
+            <div class="mt-5">
+              <label class="text-sm font-semibold text-zinc-800" for="csmComment">
+                Tell us why <span class="font-normal text-zinc-500">(optional)</span>
+              </label>
+              <textarea
+                id="csmComment"
+                rows="3"
+                maxlength="2000"
+                placeholder="What went wrong?"
+                class="mt-2 w-full resize-none rounded-xl border border-zinc-300 px-3 py-2.5 text-sm focus:border-[#8d2546] focus:outline-none"
+                [ngModel]="csmComment()"
+                (ngModelChange)="onCsmCommentChange($event)"
+                [ngModelOptions]="{ standalone: true }"
+                [disabled]="submittingCsm()"
+              ></textarea>
+            </div>
+          }
+
+          @if (error()) {
+            <p class="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700" role="alert">
+              {{ error() }}
+            </p>
+          }
+
+          <button
+            type="button"
+            (click)="submitCsm()"
+            [disabled]="!csmRating() || submittingCsm()"
+            class="mt-6 w-full cursor-pointer rounded-xl bg-[#8d2546] px-4 py-3.5 text-base font-bold text-white hover:bg-[#7a1f3c] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {{ submittingCsm() ? 'Submitting…' : 'Submit feedback' }}
+          </button>
+        </div>
+      }
+    }
+
+    <!-- FORM -->
+    @if (step() === 'form' && person(); as p) {
+      <div
+        class="flex w-full max-w-5xl flex-col gap-4"
+        (click)="$event.stopPropagation()"
+        (keydown)="$event.stopPropagation()"
+      >
+        <!-- Identity strip -->
+        <section
+          class="kiosk-enter overflow-hidden rounded-[1.75rem] bg-white/95 shadow-[0_24px_60px_-28px_rgba(0,0,0,0.55)] ring-1 ring-white/70 backdrop-blur-md"
+        >
+          <div class="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-6">
+            <div
+              class="mx-auto h-28 w-28 shrink-0 overflow-hidden rounded-2xl bg-zinc-100 ring-2 ring-[#8d2546]/15 sm:mx-0 sm:h-32 sm:w-32"
+            >
+              @if (p.photo) {
+                <img [src]="p.photo" [alt]="p.name" class="h-full w-full object-cover" />
+              } @else {
+                <div class="flex h-full w-full items-center justify-center bg-[#8d2546]/8 text-4xl font-bold text-[#8d2546]">
+                  {{ p.name.charAt(0) }}
+                </div>
+              }
+            </div>
+
+            <div class="min-w-0 flex-1 text-center sm:text-left">
+              <p class="text-[11px] font-bold tracking-[0.2em] text-[#8d2546] uppercase">
+                {{ personTypeLabel(p.personType) }}
+              </p>
+              <h2 class="mt-1 truncate text-2xl font-extrabold tracking-tight text-[#14181f] sm:text-3xl">
+                {{ p.name }}
+              </h2>
+              <p class="mt-1 font-mono text-sm font-semibold text-zinc-600 sm:text-base">{{ p.personNo }}</p>
+              <div class="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm text-zinc-600 sm:justify-start">
+                <span class="max-w-full truncate">{{ p.email || 'No email on file' }}</span>
+                @if (p.department) {
+                  <span class="hidden text-zinc-300 sm:inline">·</span>
+                  <span class="max-w-full truncate">{{ p.department }}</span>
+                }
+                @if (p.course) {
+                  <span class="hidden text-zinc-300 sm:inline">·</span>
+                  <span class="max-w-full truncate">{{ p.course }}</span>
+                }
+                @if (p.position) {
+                  <span class="hidden text-zinc-300 sm:inline">·</span>
+                  <span class="max-w-full truncate">{{ p.position }}</span>
+                }
+              </div>
+            </div>
+
+            <button
+              type="button"
+              (click)="cancelForm()"
+              [disabled]="submitting()"
+              class="shrink-0 cursor-pointer self-center rounded-xl px-4 py-2.5 text-sm font-semibold text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-50 sm:self-start"
+            >
+              Cancel
+            </button>
+          </div>
+          <div class="h-1.5 w-full bg-[linear-gradient(90deg,#6b1a34,#8d2546,#c45a78)]" aria-hidden="true"></div>
+        </section>
+
+        <!-- Concern picker -->
+        <section
+          class="kiosk-enter-delay rounded-[1.75rem] bg-white/95 p-5 shadow-[0_24px_60px_-28px_rgba(0,0,0,0.55)] ring-1 ring-white/70 backdrop-blur-md sm:p-7"
+        >
+          <div class="mb-5">
+            <h3 class="text-xl font-extrabold tracking-tight text-[#14181f] sm:text-2xl">
+              What do you need help with?
+            </h3>
+            <p class="mt-1 text-sm text-zinc-500 sm:text-base">Choose one concern to get a queue number.</p>
+          </div>
+
+          @if (error()) {
+            <p
+              class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700"
+              role="alert"
+            >
+              {{ error() }}
+            </p>
+          }
+
+          <form (ngSubmit)="submitTicket()" class="flex flex-col gap-5" novalidate>
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              @for (option of categories(); track option.value) {
+                <button
+                  type="button"
+                  (click)="selectCategory(option.value)"
+                  [disabled]="submitting()"
+                  class="min-h-16 cursor-pointer rounded-2xl border px-5 py-4 text-left text-base font-semibold transition-all duration-200 disabled:opacity-50"
+                  [class.border-[#8d2546]]="category() === option.value"
+                  [class.bg-[#8d2546]]="category() === option.value"
+                  [class.text-white]="category() === option.value"
+                  [class.shadow-[0_12px_28px_-16px_rgba(141,37,70,0.85)]]="category() === option.value"
+                  [class.border-zinc-200]="category() !== option.value"
+                  [class.bg-zinc-50]="category() !== option.value"
+                  [class.text-zinc-800]="category() !== option.value"
+                  [class.hover:border-[#8d2546]/40]="category() !== option.value"
+                  [class.hover:bg-white]="category() !== option.value"
+                >
+                  {{ option.label }}
+                </button>
+              }
+            </div>
+
+            @if (requiresDetail) {
+              <div class="flex flex-col gap-2">
+                <label class="text-sm font-semibold text-zinc-800" for="concern">Describe your concern</label>
+                <textarea
+                  id="concern"
+                  name="concern"
+                  rows="3"
+                  placeholder="Type a short description…"
+                  class="w-full resize-none rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 text-base text-zinc-900 placeholder:text-zinc-400 focus:border-[#8d2546] focus:bg-white focus:outline-none"
+                  [ngModel]="concern()"
+                  (ngModelChange)="onConcernChange($event)"
+                  [ngModelOptions]="{ standalone: true }"
+                  [disabled]="submitting()"
+                ></textarea>
+              </div>
+            }
+
+            <button
+              type="submit"
+              [disabled]="submitting() || !person()?.email"
+              class="inline-flex min-h-14 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-[#8d2546] px-6 text-base font-bold text-white transition-colors hover:bg-[#7a1f3c] disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-16 sm:text-lg"
+            >
+              @if (submitting()) {
+                <span class="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white"></span>
+                <span>Creating ticket…</span>
+              } @else {
+                <span>Get queue number</span>
+              }
+            </button>
+          </form>
+        </section>
+      </div>
+    }
+
+    <!-- SUCCESS -->
+    @if (step() === 'success' && createdTicket(); as ticket) {
+      <div class="kiosk-success w-full max-w-lg">
+        <div
+          class="overflow-hidden rounded-[2rem] bg-white px-6 py-10 text-center shadow-[0_30px_80px_-30px_rgba(0,0,0,0.55)] sm:px-10 sm:py-12"
+        >
+          <p class="text-[11px] font-bold tracking-[0.28em] text-[#8d2546]/70 uppercase">You're in the queue</p>
+          <p class="mt-6 text-sm font-medium text-zinc-500">Your number</p>
+          <p
+            class="kiosk-number mt-1 text-[7.5rem] leading-none font-extrabold tracking-tight text-[#8d2546] tabular-nums sm:text-[9rem]"
+          >
+            {{ ticket.queueNumber ?? '—' }}
+          </p>
+          <div class="mx-auto mt-6 h-px w-24 bg-zinc-200" aria-hidden="true"></div>
+          <p class="mt-5 text-sm text-zinc-600">
+            Ticket <span class="font-semibold text-zinc-900">{{ ticket.ticketNumber }}</span>
+          </p>
+          <p class="mt-1 text-sm font-medium text-zinc-500">{{ ticket.categoryLabel }}</p>
+          <p class="mt-6 text-base font-semibold text-zinc-900">Please wait to be called.</p>
+
+          <button
+            type="button"
+            (click)="doneSuccess()"
+            class="mt-8 inline-flex min-h-12 cursor-pointer items-center justify-center rounded-2xl bg-[#8d2546] px-8 text-sm font-bold text-white transition-colors hover:bg-[#7a1f3c]"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    }
+  </main>
+</div>

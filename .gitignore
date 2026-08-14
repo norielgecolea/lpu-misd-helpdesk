@@ -1,0 +1,42 @@
+# Secrets / local env
+.env
+.env.local
+.env.*.local
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+*.iml
+.vscode/
+.metadata/
+*.swp
+*~
+
+# Java / Maven
+lpu-helpdesk/target/
+*.class
+*.jar
+# Ignore build WARs, but keep the deployed Tomcat WAR for git deploys
+*.war
+!data/tomcat/webapps/*.war
+
+# Angular / Node
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/out-tsc/
+npm-debug.log*
+yarn-error.log*
+
+# Runtime data (data/tomcat/webapps stays tracked for git deploys)
+data/postgres-data/
+data/pictures/*
+!data/pictures/.gitkeep
+data/tomcat/logs/
+data/cloudflared/*
+!data/cloudflared/.gitkeep
+
+# Logs
+*.log
+logs/

@@ -1,0 +1,270 @@
+<div class="flex flex-wrap items-center justify-between gap-3">
+  <p class="text-sm text-gray-600">Create MISD staff accounts and manage access.</p>
+  <button
+    type="button"
+    (click)="openForm()"
+    class="bg-primary hover:bg-primary/90 inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors"
+  >
+    <svg viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4" aria-hidden="true">
+      <path d="M10 4a1 1 0 0 1 1 1v4h4a1 1 0 1 1 0 2h-4v4a1 1 0 1 1-2 0v-4H5a1 1 0 1 1 0-2h4V5a1 1 0 0 1 1-1Z" />
+    </svg>
+    Create Admin
+  </button>
+</div>
+
+@if (error()) {
+  <p class="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-red-600" role="alert">
+    {{ error() }}
+  </p>
+}
+
+@if (showForm()) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="create-admin-title">
+    <button
+      type="button"
+      class="absolute inset-0 cursor-pointer bg-zinc-950/45 backdrop-blur-[2px]"
+      (click)="closeForm()"
+      aria-label="Close dialog"
+    ></button>
+    <div class="relative z-10 w-full max-w-lg rounded-2xl border border-zinc-950/10 bg-white p-5 shadow-2xl sm:p-6">
+      <div class="mb-4 flex items-center justify-between">
+        <h3 id="create-admin-title" class="text-base font-bold text-gray-950">New staff account</h3>
+        <button
+          type="button"
+          (click)="closeForm()"
+          class="cursor-pointer rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+          aria-label="Close"
+        >
+          <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5">
+            <path
+              d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z"
+            />
+          </svg>
+        </button>
+      </div>
+
+      @if (formError()) {
+        <p class="mb-4 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-red-600" role="alert">
+          {{ formError() }}
+        </p>
+      }
+
+      <form (ngSubmit)="submitForm()" class="flex flex-col gap-4" novalidate>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-sm font-semibold text-gray-800" for="name">Name</label>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              placeholder="Juan Dela Cruz"
+              class="focus:border-primary/55 focus:ring-primary/35 w-full rounded-lg border border-zinc-950/15 bg-white px-3 py-2.5 text-sm text-gray-900 transition-colors placeholder:text-gray-400 focus:outline-none focus:ring-2"
+              [ngModel]="name()"
+              (ngModelChange)="name.set($event)"
+              [ngModelOptions]="{ standalone: true }"
+              [disabled]="submitting()"
+            />
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label class="text-sm font-semibold text-gray-800" for="username">Username</label>
+            <input
+              id="username"
+              name="username"
+              type="text"
+              autocomplete="off"
+              placeholder="jdelacruz"
+              class="focus:border-primary/55 focus:ring-primary/35 w-full rounded-lg border border-zinc-950/15 bg-white px-3 py-2.5 text-sm text-gray-900 transition-colors placeholder:text-gray-400 focus:outline-none focus:ring-2"
+              [ngModel]="username()"
+              (ngModelChange)="username.set($event)"
+              [ngModelOptions]="{ standalone: true }"
+              [disabled]="submitting()"
+            />
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="text-sm font-semibold text-gray-800" for="email">Email</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            placeholder="juan.delacruz@lpulaguna.edu.ph"
+            class="focus:border-primary/55 focus:ring-primary/35 w-full rounded-lg border border-zinc-950/15 bg-white px-3 py-2.5 text-sm text-gray-900 transition-colors placeholder:text-gray-400 focus:outline-none focus:ring-2"
+            [ngModel]="email()"
+            (ngModelChange)="email.set($event)"
+            [ngModelOptions]="{ standalone: true }"
+            [disabled]="submitting()"
+          />
+        </div>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-sm font-semibold text-gray-800" for="password">Temporary password</label>
+            <input
+              id="password"
+              name="password"
+              type="text"
+              placeholder="At least 8 characters"
+              class="focus:border-primary/55 focus:ring-primary/35 w-full rounded-lg border border-zinc-950/15 bg-white px-3 py-2.5 text-sm text-gray-900 transition-colors placeholder:text-gray-400 focus:outline-none focus:ring-2"
+              [ngModel]="password()"
+              (ngModelChange)="password.set($event)"
+              [ngModelOptions]="{ standalone: true }"
+              [disabled]="submitting()"
+            />
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label class="text-sm font-semibold text-gray-800" for="role">Role</label>
+            <select
+              id="role"
+              name="role"
+              class="focus:border-primary/55 focus:ring-primary/35 w-full rounded-lg border border-zinc-950/15 bg-white px-3 py-2.5 text-sm text-gray-900 transition-colors focus:outline-none focus:ring-2"
+              [ngModel]="role()"
+              (ngModelChange)="role.set($event)"
+              [ngModelOptions]="{ standalone: true }"
+              [disabled]="submitting()"
+            >
+              <option value="ADMIN">Admin</option>
+              <option value="SUPER_ADMIN">Super Admin</option>
+              <option value="MONITORING">Monitoring</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-1">
+          <button
+            type="button"
+            (click)="closeForm()"
+            [disabled]="submitting()"
+            class="cursor-pointer rounded-lg px-4 py-2 text-sm font-semibold text-gray-600 transition-colors hover:bg-gray-100 disabled:pointer-events-none disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            [disabled]="submitting()"
+            class="bg-primary hover:bg-primary/90 inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors disabled:pointer-events-none disabled:opacity-50"
+          >
+            @if (submitting()) {
+              <span class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" aria-hidden="true"></span>
+              <span>Creating...</span>
+            } @else {
+              <span>Create account</span>
+            }
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+@if (loading()) {
+  <div class="flex items-center justify-center rounded-2xl border border-zinc-950/10 bg-white p-10">
+    <span class="border-primary/30 border-t-primary h-6 w-6 animate-spin rounded-full border-2" aria-hidden="true"></span>
+  </div>
+} @else if (admins().length === 0) {
+  <div class="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-zinc-950/15 bg-white/60 p-10 text-center">
+    <p class="text-sm font-semibold text-gray-700">No admin accounts yet</p>
+  </div>
+} @else {
+  <!-- Mobile: stacked cards -->
+  <div class="flex flex-col gap-3 md:hidden">
+    @for (admin of admins(); track admin.id) {
+      <article class="rounded-2xl border border-zinc-950/10 bg-white p-4 shadow-sm">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <p class="truncate font-semibold text-gray-900">
+              {{ admin.name }}
+              @if (isSelf(admin)) {
+                <span class="text-xs font-medium text-gray-400">(you)</span>
+              }
+            </p>
+            <p class="mt-0.5 font-mono text-xs text-gray-500">{{ admin.username || '—' }}</p>
+            <p class="mt-1 truncate text-sm text-gray-600">{{ admin.email }}</p>
+          </div>
+          <span
+            class="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold"
+            [class]="admin.active
+              ? 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200'
+              : 'bg-gray-100 text-gray-600 ring-1 ring-inset ring-gray-200'"
+          >
+            {{ admin.active ? 'Active' : 'Inactive' }}
+          </span>
+        </div>
+        <div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-3">
+          <div class="text-xs text-gray-500">
+            <p class="font-semibold text-gray-700">{{ roleLabel(admin.role) }}</p>
+            <p class="mt-0.5">
+              Last login:
+              {{ admin.lastLoginAt ? (admin.lastLoginAt | date: 'MMM d, y') : 'Never' }}
+            </p>
+          </div>
+          <button
+            type="button"
+            (click)="onToggleActive(admin)"
+            [disabled]="isBusy(admin.id) || isSelf(admin)"
+            class="cursor-pointer rounded-lg border border-zinc-950/15 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-50"
+          >
+            {{ admin.active ? 'Deactivate' : 'Activate' }}
+          </button>
+        </div>
+      </article>
+    }
+  </div>
+
+  <!-- Desktop: table -->
+  <div class="hidden overflow-x-auto rounded-2xl border border-zinc-950/10 bg-white shadow-sm md:block">
+    <table class="w-full min-w-[44rem] text-left text-sm">
+      <thead class="bg-gray-50 text-xs font-semibold tracking-wide text-gray-500 uppercase">
+        <tr>
+          <th class="px-4 py-3">Name</th>
+          <th class="px-4 py-3">Username</th>
+          <th class="px-4 py-3">Email</th>
+          <th class="px-4 py-3">Role</th>
+          <th class="px-4 py-3">Last login</th>
+          <th class="px-4 py-3">Status</th>
+          <th class="px-4 py-3 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-zinc-950/5">
+        @for (admin of admins(); track admin.id) {
+          <tr>
+            <td class="px-4 py-3 font-semibold text-gray-900">
+              {{ admin.name }}
+              @if (isSelf(admin)) {
+                <span class="ml-1 text-xs font-medium text-gray-400">(you)</span>
+              }
+            </td>
+            <td class="px-4 py-3 font-mono text-gray-600">{{ admin.username || '—' }}</td>
+            <td class="px-4 py-3 text-gray-600">{{ admin.email }}</td>
+            <td class="px-4 py-3 text-gray-600">{{ roleLabel(admin.role) }}</td>
+            <td class="px-4 py-3 text-gray-500">
+              {{ admin.lastLoginAt ? (admin.lastLoginAt | date: 'MMM d, y, h:mm a') : 'Never' }}
+            </td>
+            <td class="px-4 py-3">
+              <span
+                class="rounded-full px-2 py-0.5 text-xs font-semibold"
+                [class]="admin.active
+                  ? 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200'
+                  : 'bg-gray-100 text-gray-600 ring-1 ring-inset ring-gray-200'"
+              >
+                {{ admin.active ? 'Active' : 'Inactive' }}
+              </span>
+            </td>
+            <td class="px-4 py-3 text-right">
+              <button
+                type="button"
+                (click)="onToggleActive(admin)"
+                [disabled]="isBusy(admin.id) || isSelf(admin)"
+                class="cursor-pointer rounded-lg border border-zinc-950/15 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-50"
+              >
+                {{ admin.active ? 'Deactivate' : 'Activate' }}
+              </button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

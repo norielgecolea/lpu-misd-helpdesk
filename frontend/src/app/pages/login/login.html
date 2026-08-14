@@ -1,0 +1,230 @@
+<div
+  class="relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-[#f6f7fb] p-4 sm:p-6"
+>
+  <div
+    class="absolute inset-0 scale-105 bg-slate-200 bg-cover bg-center"
+    style="background-image: url('/background.webp')"
+    aria-hidden="true"
+  ></div>
+  <div
+    class="absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(141,37,70,0.28),transparent_30%),linear-gradient(120deg,rgba(255,255,255,0.92),rgba(255,255,255,0.68))]"
+    aria-hidden="true"
+  ></div>
+  <div
+    class="animate-float bg-primary/15 absolute -left-20 top-16 h-56 w-56 rounded-full blur-3xl"
+    aria-hidden="true"
+  ></div>
+  <div
+    class="animate-float absolute -right-24 bottom-8 h-72 w-72 rounded-full bg-amber-300/20 blur-3xl [animation-delay:1.2s]"
+    aria-hidden="true"
+  ></div>
+
+  <div
+    class="animate-rise relative z-10 grid w-full max-w-5xl overflow-hidden rounded-3xl bg-white/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_16px_40px_-12px_rgba(24,24,27,0.18)] ring-1 ring-inset ring-white/60 backdrop-blur-xl backdrop-saturate-150 md:grid-cols-[1.05fr_0.95fr]"
+  >
+    <!-- Hero imagery -->
+    <div class="relative hidden min-h-[38.75rem] overflow-hidden bg-slate-200 md:block">
+      @for (image of heroImages; track image.src; let i = $index) {
+        <img
+          [src]="image.src"
+          [alt]="image.alt"
+          class="absolute inset-0 h-full w-full object-cover transition-opacity duration-1000 ease-in-out"
+          [class.opacity-100]="activeImage() === i"
+          [class.opacity-0]="activeImage() !== i"
+        />
+      }
+      <div
+        class="from-primary/75 via-primary/25 absolute inset-0 bg-gradient-to-tr to-transparent"
+      ></div>
+      <div class="absolute bottom-0 left-0 right-0 p-8 text-white">
+        <div
+          class="mb-5 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] backdrop-blur"
+        >
+          <span class="h-2 w-2 rounded-full bg-emerald-300"></span>
+          MISD Helpdesk
+        </div>
+        <h2 class="max-w-sm text-4xl font-black leading-tight">
+          Learn Different. <br />Live Different.
+        </h2>
+      </div>
+    </div>
+
+    <!-- Sign-in panel -->
+    <div class="relative flex flex-col justify-center gap-8 px-6 py-10 sm:px-10 md:py-14">
+      <img
+        src="/logo.svg"
+        alt=""
+        aria-hidden="true"
+        class="pointer-events-none absolute right-5 top-5 h-28 w-28 object-contain opacity-[0.08] grayscale sm:h-36 sm:w-36"
+      />
+
+      <header class="relative flex flex-col gap-3">
+        <div class="flex items-center gap-3 md:hidden">
+          <img src="/logo.svg" alt="LPU Laguna" class="h-12 w-12 object-contain" />
+          <span class="text-primary text-sm font-bold uppercase tracking-[0.18em]">LPU Laguna</span>
+        </div>
+        <p class="text-primary/80 hidden text-sm font-bold uppercase tracking-[0.22em] md:block">
+          Welcome back
+        </p>
+        <h1 class="text-3xl font-black leading-tight text-gray-950 sm:text-4xl">
+          LPU - Laguna<br />MISD Helpdesk System
+        </h1>
+        <p class="text-sm font-medium text-gray-600">
+          Sign in with your LPU Laguna account to continue.
+        </p>
+      </header>
+
+      <div class="relative flex flex-col gap-5">
+        @if (error()) {
+          <p
+            class="animate-rise rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-red-600"
+            role="alert"
+          >
+            {{ error() }}
+          </p>
+        }
+
+        <button
+          type="button"
+          (click)="onSignInWithMicrosoft()"
+          [disabled]="loading()"
+          class="inline-flex w-full cursor-pointer select-none items-center justify-center gap-3 rounded-lg border border-zinc-950/15 bg-white/80 px-4 py-3 text-sm font-semibold leading-none text-gray-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_2px_8px_-3px_rgba(24,24,27,0.2)] ring-1 ring-inset ring-white/75 backdrop-blur-md backdrop-saturate-150 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+        >
+          @if (loading()) {
+            <span
+              class="border-primary/30 border-t-primary h-4 w-4 animate-spin rounded-full border-2"
+              aria-hidden="true"
+            ></span>
+            <span>Signing in...</span>
+          } @else {
+            <svg viewBox="0 0 21 21" class="h-4 w-4 shrink-0" aria-hidden="true">
+              <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+              <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+              <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+              <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+            </svg>
+            <span>Sign in with Microsoft</span>
+          }
+        </button>
+
+        <div class="relative flex items-center gap-3" aria-hidden="true">
+          <div class="h-px flex-1 bg-zinc-950/10"></div>
+          <span class="text-xs font-semibold uppercase tracking-wider text-gray-500">or</span>
+          <div class="h-px flex-1 bg-zinc-950/10"></div>
+        </div>
+
+        @if (step() === 'email') {
+          <form (ngSubmit)="onSendOtp()" class="flex flex-col gap-3" novalidate>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-sm font-semibold text-gray-800" for="email">Email</label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                inputmode="email"
+                autocomplete="email"
+                placeholder="juan.delacruz@lpulaguna.edu.ph"
+                class="focus:border-primary/55 focus:ring-primary/35 hover:border-primary/45 hover:ring-primary/25 w-full rounded-lg border border-zinc-950/15 bg-white/70 px-4 py-2 text-sm text-gray-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.75),inset_0_-1px_0_rgba(24,24,27,0.05),0_2px_8px_-3px_rgba(24,24,27,0.2)] ring-1 ring-inset ring-white/75 backdrop-blur-md backdrop-saturate-150 transition-all duration-200 placeholder:text-gray-500 focus:outline-none focus:ring-2 sm:px-3.5 sm:py-2.5"
+                [ngModel]="email()"
+                (ngModelChange)="email.set($event)"
+                [ngModelOptions]="{ standalone: true }"
+                [disabled]="sendingOtp()"
+              />
+            </div>
+
+            <button
+              type="submit"
+              [disabled]="sendingOtp()"
+              class="bg-primary border-primary hover:bg-primary/90 focus-visible:ring-primary/40 inline-flex w-full cursor-pointer select-none items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-semibold leading-none text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+            >
+              @if (sendingOtp()) {
+                <span
+                  class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"
+                  aria-hidden="true"
+                ></span>
+                <span>Sending code...</span>
+              } @else {
+                <span>Send login code</span>
+              }
+            </button>
+          </form>
+
+          <p class="text-center text-xs font-medium text-gray-500">
+            Only <span class="text-gray-700">&#64;lpulaguna.edu.ph</span> accounts are allowed to sign in.
+          </p>
+        } @else {
+          <form (ngSubmit)="onVerifyOtp()" class="animate-rise flex flex-col gap-3" novalidate>
+            <p class="text-sm text-gray-600">
+              We sent a {{ otpLength }}-digit code to
+              <span class="font-semibold text-gray-800">{{ email() }}</span
+              >.
+            </p>
+
+            <div class="flex flex-col gap-1.5">
+              <label class="text-sm font-semibold text-gray-800" for="otp">Login code</label>
+              <input
+                #otpInput
+                id="otp"
+                name="otp"
+                type="text"
+                inputmode="numeric"
+                autocomplete="one-time-code"
+                [attr.maxlength]="otpLength"
+                placeholder="000000"
+                class="focus:border-primary/55 focus:ring-primary/35 hover:border-primary/45 hover:ring-primary/25 w-full rounded-lg border border-zinc-950/15 bg-white/70 px-4 py-2 text-center text-lg font-semibold tracking-[0.5em] text-gray-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.75),inset_0_-1px_0_rgba(24,24,27,0.05),0_2px_8px_-3px_rgba(24,24,27,0.2)] ring-1 ring-inset ring-white/75 backdrop-blur-md backdrop-saturate-150 transition-all duration-200 placeholder:tracking-[0.5em] placeholder:text-gray-400 focus:outline-none focus:ring-2 sm:px-3.5 sm:py-2.5"
+                [ngModel]="otp()"
+                (ngModelChange)="otp.set($event)"
+                [ngModelOptions]="{ standalone: true }"
+                [disabled]="verifyingOtp()"
+              />
+            </div>
+
+            <button
+              type="submit"
+              [disabled]="verifyingOtp()"
+              class="bg-primary border-primary hover:bg-primary/90 focus-visible:ring-primary/40 inline-flex w-full cursor-pointer select-none items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-semibold leading-none text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+            >
+              @if (verifyingOtp()) {
+                <span
+                  class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"
+                  aria-hidden="true"
+                ></span>
+                <span>Verifying...</span>
+              } @else {
+                <span>Verify &amp; sign in</span>
+              }
+            </button>
+
+            <div class="flex items-center justify-between text-xs font-semibold">
+              <button
+                type="button"
+                (click)="onChangeEmail()"
+                class="hover:text-primary cursor-pointer text-gray-600 transition-colors"
+              >
+                &larr; Change email
+              </button>
+              <button
+                type="button"
+                (click)="onResendOtp()"
+                [disabled]="resendCooldown() > 0 || sendingOtp()"
+                class="hover:text-primary cursor-pointer text-gray-600 transition-colors disabled:cursor-not-allowed disabled:text-gray-400"
+              >
+                @if (resendCooldown() > 0) {
+                  Resend code in {{ resendCooldown() }}s
+                } @else {
+                  Resend code
+                }
+              </button>
+            </div>
+          </form>
+        }
+      </div>
+    </div>
+  </div>
+
+  <p
+    class="absolute bottom-3 left-0 right-0 z-10 px-4 text-center text-[11px] leading-relaxed text-gray-600/90 sm:bottom-4 sm:text-xs"
+  >
+    © 2026 LPU - Laguna. Developed by MIS Department. All Rights Reserved.
+  </p>
+</div>

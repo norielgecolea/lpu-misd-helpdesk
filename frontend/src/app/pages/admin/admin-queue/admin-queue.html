@@ -1,0 +1,524 @@
+<div class="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+  <!-- Controller header -->
+  <div
+    class="flex shrink-0 flex-col gap-3 rounded-2xl border border-zinc-950/10 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-5"
+  >
+    <div class="min-w-0">
+      <div class="flex flex-wrap items-center gap-2">
+        <p class="text-[11px] font-bold tracking-[0.18em] text-zinc-500 uppercase">Queue controller</p>
+        <span
+          class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset"
+          [class.bg-emerald-50]="!myServing()"
+          [class.text-emerald-800]="!myServing()"
+          [class.ring-emerald-200]="!myServing()"
+          [class.bg-primary/10]="!!myServing()"
+          [class.text-primary]="!!myServing()"
+          [class.ring-primary/20]="!!myServing()"
+        >
+          {{ controllerStatus() }}
+        </span>
+      </div>
+      <div class="mt-2 flex flex-wrap items-center gap-2">
+        <div class="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5">
+          <p class="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase">Waiting</p>
+          <p class="text-lg font-black tabular-nums text-zinc-900">{{ waiting().length }}</p>
+        </div>
+        <div class="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5">
+          <p class="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase">Serving</p>
+          <p class="text-lg font-black tabular-nums text-zinc-900">{{ nowServing().length }}</p>
+        </div>
+        @if (incomingTransfers().length > 0) {
+          <div class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5">
+            <p class="text-[10px] font-semibold tracking-wide text-amber-700 uppercase">Transfers</p>
+            <p class="text-lg font-black tabular-nums text-amber-950">{{ incomingTransfers().length }}</p>
+          </div>
+        }
+        @if (nextWaiting(); as next) {
+          <div class="hidden rounded-xl border border-zinc-200 bg-white px-3 py-1.5 sm:block">
+            <p class="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase">Next up</p>
+            <p class="text-lg font-black tabular-nums text-primary">Q-{{ next.queueNumber }}</p>
+          </div>
+        }
+      </div>
+    </div>
+
+   
+  </div>
+
+  @if (error()) {
+    <p class="shrink-0 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-red-600" role="alert">
+      {{ error() }}
+    </p>
+  }
+
+  @if (success()) {
+    <p class="shrink-0 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700" role="status">
+      {{ success() }}
+    </p>
+  }
+
+  @if (showWalkInForm()) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="walk-in-title">
+      <button
+        type="button"
+        class="absolute inset-0 cursor-pointer bg-zinc-950/45 backdrop-blur-[2px]"
+        (click)="closeWalkInForm()"
+        aria-label="Close dialog"
+      ></button>
+      <div class="relative z-10 w-full max-w-lg rounded-2xl border border-zinc-950/10 bg-white p-5 shadow-2xl sm:p-6">
+        <div class="mb-4 flex items-center justify-between">
+          <div>
+            <p class="text-[11px] font-bold tracking-[0.16em] text-zinc-500 uppercase">Queue</p>
+            <h3 id="walk-in-title" class="text-base font-bold text-gray-950">New walk-in ticket</h3>
+          </div>
+          <button
+            type="button"
+            (click)="closeWalkInForm()"
+            class="cursor-pointer rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+            aria-label="Close"
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5">
+              <path
+                d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z"
+              />
+            </svg>
+          </button>
+        </div>
+
+        @if (walkInError()) {
+          <p class="mb-4 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-red-600" role="alert">
+            {{ walkInError() }}
+          </p>
+        }
+
+        <form (ngSubmit)="submitWalkIn()" class="flex flex-col gap-4" novalidate>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div class="flex flex-col gap-1.5">
+              <label class="text-sm font-semibold text-gray-800" for="walkInName">Name</label>
+              <input
+                id="walkInName"
+                name="walkInName"
+                type="text"
+                placeholder="Juan Dela Cruz"
+                class="focus:border-primary/55 focus:ring-primary/35 w-full rounded-lg border border-zinc-950/15 bg-white px-3 py-2.5 text-sm text-gray-900 transition-colors placeholder:text-gray-400 focus:outline-none focus:ring-2"
+                [ngModel]="walkInName()"
+                (ngModelChange)="walkInName.set($event)"
+                [ngModelOptions]="{ standalone: true }"
+                [disabled]="submittingWalkIn()"
+              />
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+              <label class="text-sm font-semibold text-gray-800" for="walkInEmail">Email</label>
+              <input
+                id="walkInEmail"
+                name="walkInEmail"
+                type="email"
+                placeholder="juan.delacruz@lpulaguna.edu.ph"
+                class="focus:border-primary/55 focus:ring-primary/35 w-full rounded-lg border border-zinc-950/15 bg-white px-3 py-2.5 text-sm text-gray-900 transition-colors placeholder:text-gray-400 focus:outline-none focus:ring-2"
+                [ngModel]="walkInEmail()"
+                (ngModelChange)="walkInEmail.set($event)"
+                [ngModelOptions]="{ standalone: true }"
+                [disabled]="submittingWalkIn()"
+              />
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label class="text-sm font-semibold text-gray-800" for="walkInCategory">Category</label>
+            <select
+              id="walkInCategory"
+              name="walkInCategory"
+              class="focus:border-primary/55 focus:ring-primary/35 w-full rounded-lg border border-zinc-950/15 bg-white px-3 py-2.5 text-sm text-gray-900 transition-colors focus:outline-none focus:ring-2"
+              [ngModel]="walkInCategory()"
+              (ngModelChange)="walkInCategory.set($event)"
+              [ngModelOptions]="{ standalone: true }"
+              [disabled]="submittingWalkIn()"
+            >
+              @for (option of categories(); track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label class="text-sm font-semibold text-gray-800" for="walkInSubject">Subject</label>
+            <input
+              id="walkInSubject"
+              name="walkInSubject"
+              type="text"
+              maxlength="200"
+              placeholder="e.g. Printer not working"
+              class="focus:border-primary/55 focus:ring-primary/35 w-full rounded-lg border border-zinc-950/15 bg-white px-3 py-2.5 text-sm text-gray-900 transition-colors placeholder:text-gray-400 focus:outline-none focus:ring-2"
+              [ngModel]="walkInSubject()"
+              (ngModelChange)="walkInSubject.set($event)"
+              [ngModelOptions]="{ standalone: true }"
+              [disabled]="submittingWalkIn()"
+            />
+          </div>
+
+          <div class="flex items-center justify-end gap-3 pt-1">
+            <button
+              type="button"
+              (click)="closeWalkInForm()"
+              [disabled]="submittingWalkIn()"
+              class="cursor-pointer rounded-lg px-4 py-2 text-sm font-semibold text-gray-600 transition-colors hover:bg-gray-100 disabled:pointer-events-none disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              [disabled]="submittingWalkIn()"
+              class="bg-primary hover:bg-primary/90 inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors disabled:pointer-events-none disabled:opacity-50"
+            >
+              @if (submittingWalkIn()) {
+                <span class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" aria-hidden="true"></span>
+                <span>Adding...</span>
+              } @else {
+                <span>Add to queue</span>
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="flex flex-1 items-center justify-center rounded-2xl border border-zinc-950/10 bg-white">
+      <span class="border-primary/30 border-t-primary h-6 w-6 animate-spin rounded-full border-2" aria-hidden="true"></span>
+    </div>
+  } @else {
+    @if (incomingTransfers().length > 0) {
+      <div class="shrink-0 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-white px-4 py-3 shadow-sm">
+        <div class="mb-2.5 flex items-center justify-between gap-2">
+          <div>
+            <p class="text-[11px] font-bold tracking-[0.16em] text-amber-700 uppercase">Incoming transfers</p>
+            <p class="text-sm font-semibold text-amber-950">Approve to take over a ticket at your counter</p>
+          </div>
+          <span class="rounded-full bg-amber-200/80 px-2.5 py-0.5 text-[11px] font-bold text-amber-950">
+            {{ incomingTransfers().length }}
+          </span>
+        </div>
+        <ul class="flex flex-col gap-2">
+          @for (transfer of incomingTransfers(); track transfer.id) {
+            <li class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200/80 bg-white px-3 py-2.5">
+              <div class="min-w-0 leading-tight">
+                <p class="font-mono text-base font-black text-zinc-950 tabular-nums">
+                  Q-{{ transfer.queueNumber }}
+                  <span class="ml-1.5 font-sans text-sm font-semibold text-zinc-700">{{ transfer.requesterName }}</span>
+                </p>
+                <p class="mt-0.5 text-xs text-zinc-500">From {{ transfer.fromAdminName }}</p>
+              </div>
+              <div class="flex shrink-0 items-center gap-1.5">
+                <button
+                  type="button"
+                  (click)="onApproveTransfer(transfer.id)"
+                  [disabled]="!!myServing() || isTransferBusy(transfer.id)"
+                  class="cursor-pointer rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  (click)="onRejectTransfer(transfer.id)"
+                  [disabled]="isTransferBusy(transfer.id)"
+                  class="cursor-pointer rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  Decline
+                </button>
+              </div>
+            </li>
+          }
+        </ul>
+        @if (myServing()) {
+          <p class="mt-2 text-xs font-medium text-amber-800">Finish or requeue your current ticket before approving.</p>
+        }
+      </div>
+    }
+
+    <div class="grid min-h-0 flex-1 gap-4 overflow-hidden xl:grid-cols-[minmax(18rem,24rem)_minmax(0,1fr)_minmax(15rem,19rem)]">
+      <!-- Now Serving console -->
+      <section class="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-zinc-950/10 bg-white shadow-sm">
+        <div class="flex shrink-0 items-center justify-between border-b border-zinc-100 px-4 py-3">
+          <div>
+            <p class="text-[11px] font-bold tracking-[0.16em] text-zinc-500 uppercase">Your counter</p>
+            <h2 class="text-sm font-bold text-zinc-950">Now Serving</h2>
+          </div>
+          @if (myServing()) {
+            <span class="rounded-full bg-sky-50 px-2.5 py-0.5 text-[11px] font-bold text-sky-700 ring-1 ring-inset ring-sky-200">
+              Live
+            </span>
+          } @else {
+            <span class="rounded-full bg-zinc-100 px-2.5 py-0.5 text-[11px] font-bold text-zinc-600">Idle</span>
+          }
+        </div>
+
+        <div class="min-h-0 flex-1 overflow-y-auto p-4">
+          @if (myServing(); as entry) {
+            <div class="flex h-full flex-col">
+              <div class="rounded-2xl bg-primary px-4 py-5 text-white shadow-inner">
+                <p class="text-[11px] font-bold tracking-[0.22em] text-white/70 uppercase">Queue number</p>
+                <p class="mt-1 text-5xl font-black tracking-tight tabular-nums sm:text-6xl">
+                  Q-{{ entry.ticket.queueNumber }}
+                </p>
+              </div>
+
+              <div class="mt-4 space-y-1.5">
+                @if (personId(entry.ticket); as idNo) {
+                  <p class="font-mono text-sm font-bold text-zinc-700">{{ idNo }}</p>
+                }
+                <p class="text-lg font-bold text-zinc-950">{{ entry.ticket.requesterName }}</p>
+                <p class="truncate text-sm text-zinc-500">{{ entry.ticket.requesterEmail }}</p>
+                <div class="mt-3 rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2.5">
+                  <p class="text-sm font-semibold text-zinc-900">{{ entry.ticket.subject }}</p>
+                  <p class="mt-0.5 text-xs text-zinc-500">{{ entry.ticket.categoryLabel }}</p>
+                </div>
+              </div>
+
+              <div class="mt-4 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  (click)="onComplete(entry.ticket.id)"
+                  [disabled]="isBusy(entry.ticket.id)"
+                  class="cursor-pointer rounded-xl bg-emerald-600 px-3 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  Complete
+                </button>
+                <button
+                  type="button"
+                  (click)="onRequeue(entry.ticket.id)"
+                  [disabled]="isBusy(entry.ticket.id)"
+                  class="cursor-pointer rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  Requeue
+                </button>
+              </div>
+
+              <button
+                type="button"
+                (click)="openSummary(entry.ticket)"
+                class="mt-2 w-full cursor-pointer rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
+              >
+                View summary
+              </button>
+
+              @if (pendingForTicket(entry.ticket.id); as pending) {
+                <div class="mt-2 flex items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+                  <p class="text-xs font-semibold text-amber-900">Pending → {{ pending.toAdminName }}</p>
+                  <button
+                    type="button"
+                    (click)="onCancelTransfer(pending.id)"
+                    [disabled]="isTransferBusy(pending.id)"
+                    class="cursor-pointer text-xs font-bold text-amber-900 underline disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              } @else {
+                <select
+                  class="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-800 disabled:opacity-50"
+                  [ngModel]="''"
+                  (ngModelChange)="onTransfer(entry.ticket.id, $event)"
+                  [ngModelOptions]="{ standalone: true }"
+                  [disabled]="isBusy(entry.ticket.id) || transferTargets().length === 0"
+                  aria-label="Request transfer to another admin"
+                >
+                  <option value="" disabled>Transfer to…</option>
+                  @for (admin of transferTargets(); track admin.id) {
+                    <option [value]="admin.id">{{ admin.name }}</option>
+                  }
+                </select>
+              }
+            </div>
+          } @else {
+            <div class="flex h-full min-h-48 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/80 px-5 text-center">
+              <div class="flex size-12 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-zinc-200">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="size-6 text-zinc-400" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 7v5l3 2" />
+                </svg>
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-zinc-800">Counter idle</p>
+                <p class="mt-1 text-xs text-zinc-500">Call next from the waiting list, or serve a specific guest.</p>
+              </div>
+              <button
+                type="button"
+                (click)="onCallNext()"
+                [disabled]="callingNext() || waiting().length === 0"
+                class="bg-primary hover:bg-primary/90 inline-flex cursor-pointer items-center justify-center rounded-xl px-4 py-2 text-sm font-bold text-white disabled:pointer-events-none disabled:opacity-50"
+              >
+                Call Next
+              </button>
+            </div>
+          }
+        </div>
+      </section>
+
+      <!-- Waiting list -->
+      <section class="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-zinc-950/10 bg-white shadow-sm">
+        <div class="flex shrink-0 items-center justify-between border-b border-zinc-100 px-4 py-3">
+          <div>
+            <p class="text-[11px] font-bold tracking-[0.16em] text-zinc-500 uppercase">Line</p>
+            <h2 class="text-sm font-bold text-zinc-950">Waiting</h2>
+          </div>
+          <span class="rounded-full bg-zinc-100 px-2.5 py-0.5 text-[11px] font-bold text-zinc-700">
+            {{ waiting().length }}
+          </span>
+        </div>
+
+        <div class="min-h-0 flex-1 overflow-y-auto">
+          @if (waiting().length === 0) {
+            <div class="flex h-full min-h-40 flex-col items-center justify-center px-4 text-center">
+              <p class="text-sm font-semibold text-zinc-700">No one is waiting</p>
+              <p class="mt-1 text-xs text-zinc-500">Walk-ins and RFID taps will appear here.</p>
+            </div>
+          } @else {
+            <ol class="divide-y divide-zinc-100">
+              @for (ticket of waiting(); track ticket.id; let i = $index) {
+                <li
+                  class="flex items-center gap-3 px-3 py-3 transition-colors sm:px-4"
+                  [class.bg-primary/5]="i === 0"
+                >
+                  <div class="flex w-14 shrink-0 flex-col items-center">
+                    <span class="text-[10px] font-bold tracking-wide text-zinc-400 uppercase">#{{ waitingPosition(i) }}</span>
+                    <span
+                      class="mt-0.5 font-mono text-base font-black tabular-nums"
+                      [class.text-primary]="i === 0"
+                      [class.text-zinc-900]="i !== 0"
+                    >
+                      Q-{{ ticket.queueNumber }}
+                    </span>
+                  </div>
+                  <div class="min-w-0 flex-1 leading-tight">
+                    @if (i === 0) {
+                      <p class="mb-0.5 text-[10px] font-bold tracking-wide text-primary uppercase">Next up</p>
+                    }
+                    @if (personId(ticket); as idNo) {
+                      <p class="truncate font-mono text-[11px] font-semibold text-zinc-500">{{ idNo }}</p>
+                    }
+                    <p class="truncate text-sm font-bold text-zinc-900">{{ ticket.requesterName }}</p>
+                    <p class="truncate text-xs text-zinc-500">{{ ticket.subject }}</p>
+                  </div>
+                  <div class="flex shrink-0 flex-col items-stretch gap-1.5 sm:flex-row sm:items-center">
+                    <button
+                      type="button"
+                      (click)="openSummary(ticket)"
+                      class="cursor-pointer rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-zinc-700 hover:bg-zinc-50"
+                    >
+                      Summary
+                    </button>
+                    @if (pendingForTicket(ticket.id); as pending) {
+                      <span class="max-w-[7rem] truncate rounded-lg bg-amber-50 px-2 py-1.5 text-[10px] font-bold text-amber-800 ring-1 ring-inset ring-amber-200">
+                        → {{ pending.toAdminName }}
+                      </span>
+                      @if (pending.fromAdminId === auth.userId()) {
+                        <button
+                          type="button"
+                          (click)="onCancelTransfer(pending.id)"
+                          [disabled]="isTransferBusy(pending.id)"
+                          class="cursor-pointer text-[10px] font-bold text-amber-900 underline disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                      }
+                    } @else {
+                      <button
+                        type="button"
+                        (click)="onServe(ticket.id)"
+                        [disabled]="!!myServing() || isBusy(ticket.id) || callingNext()"
+                        class="bg-primary hover:bg-primary/90 cursor-pointer rounded-lg px-3 py-1.5 text-xs font-bold text-white disabled:pointer-events-none disabled:opacity-50"
+                      >
+                        Serve
+                      </button>
+                      <select
+                        class="max-w-[8rem] rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-[11px] text-zinc-800 disabled:opacity-50"
+                        [ngModel]="''"
+                        (ngModelChange)="onTransfer(ticket.id, $event)"
+                        [ngModelOptions]="{ standalone: true }"
+                        [disabled]="isBusy(ticket.id) || transferTargets().length === 0"
+                        aria-label="Request transfer of waiting ticket"
+                      >
+                        <option value="" disabled>Transfer…</option>
+                        @for (admin of transferTargets(); track admin.id) {
+                          <option [value]="admin.id">{{ admin.name }}</option>
+                        }
+                      </select>
+                    }
+                  </div>
+                </li>
+              }
+            </ol>
+          }
+        </div>
+      </section>
+
+      <!-- Counter board -->
+      <section class="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-zinc-950/10 bg-white shadow-sm">
+        <div class="flex shrink-0 items-center justify-between border-b border-zinc-100 px-4 py-3">
+          <div>
+            <p class="text-[11px] font-bold tracking-[0.16em] text-zinc-500 uppercase">Floor</p>
+            <h2 class="text-sm font-bold text-zinc-950">Counters</h2>
+          </div>
+          <span class="rounded-full bg-zinc-100 px-2.5 py-0.5 text-[11px] font-bold text-zinc-700">
+            {{ nowServing().length }}
+          </span>
+        </div>
+
+        <div class="min-h-0 flex-1 overflow-y-auto p-3">
+          @if (nowServing().length === 0) {
+            <div class="flex h-full min-h-32 flex-col items-center justify-center rounded-xl border border-dashed border-zinc-200 px-3 text-center">
+              <p class="text-sm font-semibold text-zinc-700">No counters active</p>
+              <p class="mt-1 text-xs text-zinc-500">Active servings will show here.</p>
+            </div>
+          } @else {
+            <ul class="flex flex-col gap-2.5">
+              @for (entry of nowServing(); track entry.adminId) {
+                <li
+                  class="rounded-xl border px-3.5 py-3"
+                  [class.border-primary/30]="entry.adminId === auth.userId()"
+                  [class.bg-primary/5]="entry.adminId === auth.userId()"
+                  [class.border-zinc-200]="entry.adminId !== auth.userId()"
+                  [class.bg-zinc-50/80]="entry.adminId !== auth.userId()"
+                >
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="truncate text-[11px] font-bold tracking-wide text-zinc-500 uppercase">
+                      {{ entry.adminName }}
+                      @if (entry.adminId === auth.userId()) {
+                        <span class="text-primary"> · you</span>
+                      }
+                    </p>
+                    <span class="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-zinc-600 ring-1 ring-zinc-200">
+                      Live
+                    </span>
+                  </div>
+                  <p class="mt-1 text-2xl font-black tabular-nums text-zinc-950">Q-{{ entry.ticket.queueNumber }}</p>
+                  <p class="truncate text-xs font-medium text-zinc-600">{{ entry.ticket.requesterName }}</p>
+                  <button
+                    type="button"
+                    (click)="openSummary(entry.ticket)"
+                    class="mt-2 cursor-pointer text-[11px] font-bold text-primary underline-offset-2 hover:underline"
+                  >
+                    Summary
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      </section>
+    </div>
+  }
+</div>
+
+<app-ticket-summary-dialog
+  [ticket]="summaryTicket()"
+  (closed)="closeSummary()"
+  (viewHistory)="openHistory($event)"
+/>
+<app-ticket-history-dialog
+  [ticket]="historyTicket()"
+  (closed)="closeHistory()"
+  (ticketSelected)="onHistoryTicketSelected($event)"
+/>

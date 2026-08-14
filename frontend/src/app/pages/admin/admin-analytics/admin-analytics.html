@@ -1,0 +1,408 @@
+<div class="flex flex-col gap-5">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <p class="text-sm text-gray-600">
+        Monthly recap of ticket volume, CSM feedback, and queue load.
+      </p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        (click)="openReportDialog()"
+        class="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-sm font-semibold text-zinc-800 shadow-sm transition-colors hover:bg-zinc-50"
+      >
+        <svg viewBox="0 0 20 20" fill="currentColor" class="size-4 text-zinc-500" aria-hidden="true">
+          <path
+            d="M10.75 2.75a.75.75 0 0 0-1.5 0v8.69L6.3 8.49a.75.75 0 0 0-1.1 1.02l4.25 4.5a.75.75 0 0 0 1.1 0l4.25-4.5a.75.75 0 1 0-1.1-1.02l-2.95 3.12V2.75Z"
+          />
+          <path
+            d="M3.5 12.75a.75.75 0 0 0-1.5 0v2.5A2.75 2.75 0 0 0 4.75 18h10.5A2.75 2.75 0 0 0 18 15.25v-2.5a.75.75 0 0 0-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5Z"
+          />
+        </svg>
+        Generate report
+      </button>
+    <div class="inline-flex items-center gap-1 rounded-xl border border-zinc-200 bg-white p-1 shadow-sm">
+      <button
+        type="button"
+        (click)="shiftMonth(-1)"
+        class="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-zinc-100"
+        aria-label="Previous month"
+      >
+        <svg viewBox="0 0 20 20" fill="currentColor" class="size-4" aria-hidden="true">
+          <path
+            fill-rule="evenodd"
+            d="M12.79 5.23a.75.75 0 0 1-.02 1.06L8.832 10l3.938 3.71a.75.75 0 1 1-1.04 1.08l-4.5-4.25a.75.75 0 0 1 0-1.08l4.5-4.25a.75.75 0 0 1 1.06.02Z"
+            clip-rule="evenodd"
+          />
+        </svg>
+      </button>
+      <div class="relative min-w-[11rem]">
+        <div
+          class="pointer-events-none flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-zinc-900"
+          aria-hidden="true"
+        >
+          <span>{{ monthLabel() }}</span>
+          @if (loading()) {
+            <span class="border-primary/30 border-t-primary size-3.5 animate-spin rounded-full border-2"></span>
+          } @else {
+            <svg viewBox="0 0 20 20" fill="currentColor" class="size-3.5 text-zinc-400">
+              <path
+                fill-rule="evenodd"
+                d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          }
+        </div>
+        <input
+          id="month"
+          type="month"
+          class="absolute inset-0 z-10 cursor-pointer opacity-0"
+          [ngModel]="month()"
+          (ngModelChange)="onMonthChange($event)"
+          (change)="onMonthChange($any($event.target).value)"
+          [ngModelOptions]="{ standalone: true }"
+          aria-label="Select month"
+        />
+      </div>
+      <button
+        type="button"
+        (click)="shiftMonth(1)"
+        [disabled]="isCurrentMonth()"
+        class="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
+        aria-label="Next month"
+      >
+        <svg viewBox="0 0 20 20" fill="currentColor" class="size-4" aria-hidden="true">
+          <path
+            fill-rule="evenodd"
+            d="M7.21 14.77a.75.75 0 0 1 .02-1.06L11.168 10 7.23 6.29a.75.75 0 1 1 1.04-1.08l4.5 4.25a.75.75 0 0 1 0 1.08l-4.5 4.25a.75.75 0 0 1-1.06-.02Z"
+            clip-rule="evenodd"
+          />
+        </svg>
+      </button>
+    </div>
+    </div>
+  </div>
+
+  @if (error()) {
+    <p class="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-red-600" role="alert">
+      {{ error() }}
+    </p>
+  }
+
+  @if (loading() && !summary()) {
+    <div class="flex items-center justify-center rounded-2xl border border-zinc-950/10 bg-white p-16">
+      <span class="border-primary/30 border-t-primary h-6 w-6 animate-spin rounded-full border-2"></span>
+    </div>
+  } @else if (summary(); as data) {
+    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
+      <div class="rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+        <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">Created</p>
+        <p class="mt-1 text-2xl font-bold text-zinc-900">{{ data.totals.created }}</p>
+      </div>
+      <div class="rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+        <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">Closed</p>
+        <p class="mt-1 text-2xl font-bold text-zinc-900">{{ data.totals.closed }}</p>
+      </div>
+      <div class="rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+        <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">Open</p>
+        <p class="mt-1 text-2xl font-bold text-amber-700">{{ data.totals.open }}</p>
+      </div>
+      <div class="rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+        <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">In progress</p>
+        <p class="mt-1 text-2xl font-bold text-sky-700">{{ data.totals.inProgress }}</p>
+      </div>
+      <div class="rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+        <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">Unassigned</p>
+        <p class="mt-1 text-2xl font-bold text-zinc-900">{{ data.totals.unassignedOpen }}</p>
+      </div>
+      <div class="rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+        <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">Avg resolve</p>
+        <p class="mt-1 text-2xl font-bold text-zinc-900">{{ formatHours(data.totals.avgResolveHours) }}</p>
+      </div>
+      <div class="rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+        <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">CSM happy</p>
+        <p class="mt-1 text-2xl font-bold text-emerald-700">
+          {{ formatPercent(data.totals.csmHappyPercent) }}
+        </p>
+        <p class="text-[11px] text-zinc-500">{{ data.totals.csmCount }} ratings</p>
+      </div>
+    </div>
+
+    <div
+      class="flex flex-wrap items-center gap-4 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm shadow-sm"
+    >
+      <span class="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Queue now</span>
+      <span class="font-semibold text-zinc-900">
+        {{ data.queueToday.waiting }}
+        <span class="font-normal text-zinc-500">waiting</span>
+      </span>
+      <span class="font-semibold text-zinc-900">
+        {{ data.queueToday.serving }}
+        <span class="font-normal text-zinc-500">serving</span>
+      </span>
+    </div>
+
+    <div class="grid gap-4 xl:grid-cols-2">
+      <div class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <h3 class="mb-3 text-sm font-semibold text-zinc-900">Daily volume</h3>
+        <div class="relative h-64">
+          <canvas #volumeCanvas></canvas>
+        </div>
+      </div>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <h3 class="mb-3 text-sm font-semibold text-zinc-900">Status mix</h3>
+          <div class="relative h-56">
+            <canvas #statusCanvas></canvas>
+          </div>
+        </div>
+        <div class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <h3 class="mb-3 text-sm font-semibold text-zinc-900">Channel mix</h3>
+          <div class="relative h-56">
+            <canvas #channelCanvas></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h3 class="text-sm font-semibold text-zinc-900">CSM faces</h3>
+          <div class="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              (click)="openCsmTickets('SAD')"
+              class="cursor-pointer rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-bold text-red-800 hover:bg-red-100"
+            >
+              Sad {{ data.totals.csmByRating['SAD'] ?? 0 }}
+            </button>
+            <button
+              type="button"
+              (click)="openCsmTickets('NEUTRAL')"
+              class="cursor-pointer rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-900 hover:bg-amber-100"
+            >
+              Neh {{ data.totals.csmByRating['NEUTRAL'] ?? 0 }}
+            </button>
+            <button
+              type="button"
+              (click)="openCsmTickets('HAPPY')"
+              class="cursor-pointer rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100"
+            >
+              Happy {{ data.totals.csmByRating['HAPPY'] ?? 0 }}
+            </button>
+          </div>
+        </div>
+        <p class="mb-2 text-[11px] text-zinc-500">Click a bar or chip to list those tickets</p>
+        <div class="relative h-64">
+          <canvas #csmCanvas></canvas>
+        </div>
+      </div>
+      <div class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <h3 class="mb-3 text-sm font-semibold text-zinc-900">Top categories</h3>
+        <div class="relative h-64">
+          <canvas #categoryCanvas></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid gap-4 xl:grid-cols-2">
+      <div class="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+        <div class="border-b border-zinc-100 px-4 py-3">
+          <h3 class="text-sm font-semibold text-zinc-900">Categories</h3>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-left text-sm">
+            <thead class="bg-zinc-50/80 text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+              <tr>
+                <th class="px-4 py-2.5">Category</th>
+                <th class="px-4 py-2.5 text-right">Count</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-zinc-100">
+              @for (row of data.byCategory; track row.key) {
+                <tr>
+                  <td class="px-4 py-2.5 font-medium text-zinc-900">{{ row.label }}</td>
+                  <td class="px-4 py-2.5 text-right tabular-nums text-zinc-700">{{ row.count }}</td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="2" class="px-4 py-6 text-center text-zinc-500">No tickets in range</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+        <div class="border-b border-zinc-100 px-4 py-3">
+          <h3 class="text-sm font-semibold text-zinc-900">Assignee load</h3>
+          <p class="mt-0.5 text-[11px] text-zinc-500">Click a row to see that admin’s tickets</p>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-left text-sm">
+            <thead class="bg-zinc-50/80 text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+              <tr>
+                <th class="px-4 py-2.5">Admin</th>
+                <th class="px-4 py-2.5 text-right">Open</th>
+                <th class="px-4 py-2.5 text-right">In progress</th>
+                <th class="px-4 py-2.5 text-right">Closed</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-zinc-100">
+              @for (row of data.byAssignee; track row.adminId) {
+                <tr
+                  class="cursor-pointer transition-colors hover:bg-zinc-50"
+                  (click)="openAssigneeTickets(row)"
+                >
+                  <td class="px-4 py-2.5 font-medium text-zinc-900">{{ row.name }}</td>
+                  <td class="px-4 py-2.5 text-right tabular-nums text-zinc-700">{{ row.open }}</td>
+                  <td class="px-4 py-2.5 text-right tabular-nums text-zinc-700">{{ row.inProgress }}</td>
+                  <td class="px-4 py-2.5 text-right tabular-nums text-zinc-700">{{ row.closed }}</td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="4" class="px-4 py-6 text-center text-zinc-500">No assignee activity</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  }
+</div>
+
+@if (ticketListOpen()) {
+  <app-analytics-ticket-list-dialog
+    [list]="ticketList()"
+    [loading]="ticketListLoading()"
+    [error]="ticketListError()"
+    (closed)="closeTicketList()"
+    (ticketSelected)="onTicketSelected($event)"
+  />
+}
+
+@if (reportOpen()) {
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="analytics-report-title"
+  >
+    <button
+      type="button"
+      class="absolute inset-0 cursor-pointer bg-zinc-950/45 backdrop-blur-[2px]"
+      (click)="closeReportDialog()"
+      aria-label="Close report dialog"
+    ></button>
+
+    <div
+      class="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-zinc-950/10 bg-white shadow-2xl"
+    >
+      <div class="flex items-start justify-between gap-3 border-b border-zinc-100 px-5 py-4">
+        <div>
+          <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">CSV export</p>
+          <h3 id="analytics-report-title" class="mt-0.5 text-base font-bold text-gray-950">
+            Generate report
+          </h3>
+          <p class="mt-1 text-sm text-zinc-500">
+            Tickets in range, commonly submitted categories, overall CSM faces, and CSM per admin.
+          </p>
+        </div>
+        <button
+          type="button"
+          (click)="closeReportDialog()"
+          class="cursor-pointer rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+          aria-label="Close"
+        >
+          <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5">
+            <path
+              d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z"
+            />
+          </svg>
+        </button>
+      </div>
+
+      <div class="space-y-4 px-5 py-4">
+        <fieldset class="space-y-2">
+          <legend class="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Period</legend>
+          <label class="flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-200 px-3 py-2.5 has-[:checked]:border-primary/40 has-[:checked]:bg-primary/5">
+            <input
+              type="radio"
+              name="report-mode"
+              class="accent-primary"
+              [checked]="reportMode() === 'all'"
+              (change)="reportMode.set('all')"
+            />
+            <span class="text-sm font-medium text-zinc-900">All time</span>
+          </label>
+          <label class="flex cursor-pointer items-start gap-2 rounded-xl border border-zinc-200 px-3 py-2.5 has-[:checked]:border-primary/40 has-[:checked]:bg-primary/5">
+            <input
+              type="radio"
+              name="report-mode"
+              class="mt-1 accent-primary"
+              [checked]="reportMode() === 'range'"
+              (change)="reportMode.set('range')"
+            />
+            <span class="flex min-w-0 flex-1 flex-col gap-2">
+              <span class="text-sm font-medium text-zinc-900">Date span</span>
+              <span class="grid grid-cols-2 gap-2">
+                <label class="block">
+                  <span class="mb-1 block text-[11px] font-semibold text-zinc-500 uppercase">From</span>
+                  <input
+                    type="date"
+                    class="w-full rounded-lg border border-zinc-300 bg-white px-2.5 py-2 text-sm text-zinc-800 disabled:opacity-50"
+                    [ngModel]="reportFrom()"
+                    (ngModelChange)="reportFrom.set($event)"
+                    [ngModelOptions]="{ standalone: true }"
+                    [disabled]="reportMode() !== 'range'"
+                  />
+                </label>
+                <label class="block">
+                  <span class="mb-1 block text-[11px] font-semibold text-zinc-500 uppercase">To</span>
+                  <input
+                    type="date"
+                    class="w-full rounded-lg border border-zinc-300 bg-white px-2.5 py-2 text-sm text-zinc-800 disabled:opacity-50"
+                    [ngModel]="reportTo()"
+                    (ngModelChange)="reportTo.set($event)"
+                    [ngModelOptions]="{ standalone: true }"
+                    [disabled]="reportMode() !== 'range'"
+                  />
+                </label>
+              </span>
+            </span>
+          </label>
+        </fieldset>
+
+        @if (reportError()) {
+          <p class="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-red-600" role="alert">
+            {{ reportError() }}
+          </p>
+        }
+      </div>
+
+      <div class="flex justify-end gap-2 border-t border-zinc-100 px-5 py-3">
+        <button
+          type="button"
+          (click)="closeReportDialog()"
+          class="cursor-pointer rounded-lg px-3.5 py-2 text-sm font-semibold text-zinc-600 hover:bg-zinc-100"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          (click)="generateReport()"
+          [disabled]="reportLoading()"
+          class="bg-primary inline-flex cursor-pointer items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          @if (reportLoading()) {
+            <span class="size-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white"></span>
+            Generating…
+          } @else {
+            Download CSV
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+}

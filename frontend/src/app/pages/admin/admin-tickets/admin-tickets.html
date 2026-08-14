@@ -1,0 +1,582 @@
+<div class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden lg:flex-row lg:gap-4">
+  <!-- Ticket list -->
+  <aside
+    class="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white"
+    [ngClass]="{
+      'max-lg:hidden': selectedTicketId() !== null && layoutMode() !== 'list',
+      'lg:hidden': layoutMode() === 'chat',
+      'lg:w-[22rem] lg:max-w-[22rem] lg:flex-none lg:shrink-0': layoutMode() === 'split',
+    }"
+  >
+    <div class="flex shrink-0 flex-col gap-2 border-b border-zinc-100 px-4 py-3">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <h2 class="text-sm font-semibold text-zinc-900">
+            {{ scopeLocked() ? 'My tickets' : 'Tickets' }}
+          </h2>
+          <p class="text-xs text-zinc-500">
+            @if (scopeLocked()) {
+              Assigned to you · {{ filteredTickets().length }} shown
+            } @else {
+              {{ filteredTickets().length }} shown
+            }
+          </p>
+        </div>
+        <div class="flex items-center gap-1.5">
+          @if (layoutMode() === 'split') {
+            <button
+              type="button"
+              (click)="setLayoutMode('list')"
+              class="hidden cursor-pointer rounded-md border border-zinc-300 px-2 py-1.5 text-[11px] font-semibold text-zinc-700 hover:bg-zinc-50 lg:inline-flex"
+              title="Maximize ticket list"
+            >
+              Expand list
+            </button>
+          }
+          @if (layoutMode() === 'list') {
+            <button
+              type="button"
+              (click)="setLayoutMode('split')"
+              class="hidden cursor-pointer rounded-md border border-zinc-300 px-2 py-1.5 text-[11px] font-semibold text-zinc-700 hover:bg-zinc-50 lg:inline-flex"
+              title="Show chat pane"
+            >
+              Show chat
+            </button>
+          }
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        @if (!scopeLocked()) {
+          <select
+            class="rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-xs text-zinc-800 focus:border-[#8d2546] focus:outline-none"
+            [ngModel]="scopeFilter()"
+            (ngModelChange)="scopeFilter.set($event); onScopeChange()"
+            aria-label="Filter by assignment"
+          >
+            @for (option of scopeOptions(); track option.value) {
+              <option [value]="option.value">{{ option.label }}</option>
+            }
+          </select>
+        }
+        <select
+          class="rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-xs text-zinc-800 focus:border-[#8d2546] focus:outline-none"
+          [ngModel]="statusFilter()"
+          (ngModelChange)="statusFilter.set($event); onFilterChange()"
+          aria-label="Filter by status"
+        >
+          @for (option of statusOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    @if (error()) {
+      <p class="m-3 shrink-0 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+        {{ error() }}
+      </p>
+    }
+
+    @if (loading()) {
+      <div class="flex min-h-0 flex-1 items-center justify-center py-16">
+        <span class="h-5 w-5 animate-spin rounded-full border-2 border-zinc-200 border-t-[#8d2546]"></span>
+      </div>
+    } @else if (filteredTickets().length === 0) {
+      <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-1 px-6 py-16 text-center">
+        @if (scopeLocked()) {
+          <p class="text-sm font-medium text-zinc-800">No tickets assigned to you</p>
+          <p class="text-xs text-zinc-500">
+            Open
+            <a routerLink="/admin/tickets" class="font-semibold text-[#8d2546] hover:underline">Tickets</a>
+            to pick up unassigned work.
+          </p>
+        } @else {
+          <p class="text-sm font-medium text-zinc-800">No tickets found</p>
+          <p class="text-xs text-zinc-500">Try a different filter.</p>
+        }
+      </div>
+    } @else {
+      <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        @for (group of ticketGroups(); track group.status) {
+          @if (group.tickets.length > 0) {
+            <section class="border-b border-zinc-100 last:border-b-0">
+              <button
+                type="button"
+                (click)="toggleGroup(group.status)"
+                class="flex w-full cursor-pointer items-center justify-between gap-2 bg-zinc-50/90 px-4 py-2 text-left hover:bg-zinc-100/90"
+              >
+                <span class="flex items-center gap-2">
+                  <svg
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    class="h-3.5 w-3.5 text-zinc-400 transition-transform"
+                    [class.rotate-90]="!isGroupCollapsed(group.status)"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M7.21 14.77a.75.75 0 0 1 .02-1.06L11.168 10 7.23 6.29a.75.75 0 1 1 1.04-1.08l4.5 4.25a.75.75 0 0 1 0 1.08l-4.5 4.25a.75.75 0 0 1-1.06-.02Z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                  <span class="text-[11px] font-semibold tracking-wide text-zinc-600 uppercase">
+                    {{ group.label }}
+                  </span>
+                  <span class="rounded-full bg-zinc-200/80 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-700">
+                    {{ group.tickets.length }}
+                  </span>
+                </span>
+                @if (group.unread > 0) {
+                  <span
+                    class="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-[#8d2546] px-1.5 py-0.5 text-[10px] font-bold text-white"
+                  >
+                    {{ unreadLabel(group.unread) }}
+                  </span>
+                }
+              </button>
+
+              @if (!isGroupCollapsed(group.status)) {
+                <ul>
+                  @for (ticket of group.tickets; track ticket.id) {
+                    <li>
+                      <button
+                        type="button"
+                        (click)="selectTicket(ticket)"
+                        class="relative flex w-full cursor-pointer flex-col gap-1 border-b border-zinc-100 px-4 py-3.5 pr-10 text-left transition-colors last:border-b-0 hover:bg-zinc-50"
+                        [class.bg-[#8d2546]/[0.06]]="selectedTicketId() === ticket.id"
+                        [class.border-l-2]="selectedTicketId() === ticket.id"
+                        [class.border-l-[#8d2546]]="selectedTicketId() === ticket.id"
+                      >
+                        @if ((ticket.unreadCount ?? 0) > 0) {
+                          <span
+                            class="absolute top-3 right-3 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-[#8d2546] px-1.5 py-0.5 text-[10px] font-bold text-white"
+                          >
+                            {{ unreadLabel(ticket.unreadCount) }}
+                          </span>
+                        }
+                        <div class="flex items-center justify-between gap-2">
+                          <span class="font-mono text-[11px] text-zinc-500">{{ ticket.ticketNumber }}</span>
+                          <span
+                            class="rounded px-1.5 py-0.5 text-[10px] font-semibold"
+                            [class]="statusBadgeClass(ticket.status)"
+                          >
+                            {{ statusLabel(ticket.status) }}
+                          </span>
+                        </div>
+                        <p class="line-clamp-1 text-sm font-medium text-zinc-900">{{ ticket.subject }}</p>
+                        <p class="line-clamp-1 text-xs text-zinc-500">
+                          {{ ticket.requesterName }} · {{ channelLabel(ticket.channel) }} ·
+                          {{ ticket.categoryLabel }}
+                          @if (ticket.assignedAdminName) {
+                            · {{ ticket.assignedAdminName }}
+                          } @else {
+                            · Unassigned
+                          }
+                        </p>
+                      </button>
+                    </li>
+                  }
+                </ul>
+              }
+            </section>
+          }
+        }
+      </div>
+    }
+  </aside>
+
+  <!-- Full ticket + conversation -->
+  <section
+    class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white"
+    [ngClass]="{
+      'max-lg:hidden': selectedTicketId() === null,
+      'lg:hidden': layoutMode() === 'list',
+    }"
+  >
+    @if (!selectedTicket()) {
+      <div class="flex flex-1 items-center justify-center px-6 text-center">
+        <p class="text-sm text-zinc-500">Select a ticket</p>
+      </div>
+    } @else {
+      @if (selectedTicket(); as ticket) {
+        <div class="shrink-0 border-b border-zinc-100 px-4 py-3 sm:px-5">
+          <button
+            type="button"
+            (click)="clearSelection()"
+            class="mb-2 cursor-pointer text-xs font-medium text-[#8d2546] lg:hidden"
+          >
+            ← Back to tickets
+          </button>
+
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="font-mono text-xs text-zinc-500">{{ ticket.ticketNumber }}</span>
+                <span class="rounded px-2 py-0.5 text-[11px] font-semibold" [class]="statusBadgeClass(ticket.status)">
+                  {{ statusLabel(ticket.status) }}
+                </span>
+                <span class="rounded bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600">
+                  {{ ticket.categoryLabel }}
+                </span>
+                <span class="rounded bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600">
+                  {{ channelLabel(ticket.channel) }}
+                </span>
+                @if (live()) {
+                  <span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-700">
+                    <span class="relative flex h-1.5 w-1.5">
+                      <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60"></span>
+                      <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                    </span>
+                    Live
+                  </span>
+                }
+              </div>
+              <h2 class="mt-1 text-base font-semibold text-zinc-900">{{ ticket.subject }}</h2>
+              <p class="mt-0.5 text-xs text-zinc-500">
+                {{ ticket.requesterName }} &lt;{{ ticket.requesterEmail }}&gt;
+                · {{ ticket.createdAt | date: 'MMM d, y, h:mm a' }}
+              </p>
+            </div>
+
+            <div class="flex flex-wrap items-end gap-2">
+              @if (layoutMode() === 'split') {
+                <button
+                  type="button"
+                  (click)="setLayoutMode('chat')"
+                  class="hidden cursor-pointer rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 lg:inline-flex"
+                  title="Maximize chat"
+                >
+                  Expand chat
+                </button>
+              }
+              @if (layoutMode() === 'chat') {
+                <button
+                  type="button"
+                  (click)="setLayoutMode('split')"
+                  class="hidden cursor-pointer rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 lg:inline-flex"
+                >
+                  Split view
+                </button>
+                <button
+                  type="button"
+                  (click)="setLayoutMode('list')"
+                  class="hidden cursor-pointer rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 lg:inline-flex"
+                >
+                  Show list
+                </button>
+              }
+              <button
+                type="button"
+                (click)="openSummary(ticket)"
+                class="cursor-pointer rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 transition-colors hover:bg-zinc-50"
+              >
+                View summary
+              </button>
+              <button
+                type="button"
+                (click)="openHistory(ticket)"
+                class="cursor-pointer rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 transition-colors hover:bg-zinc-50"
+              >
+                View history
+              </button>
+              <div class="flex flex-col gap-1">
+                <label class="text-[11px] font-medium text-zinc-500">Assign</label>
+                <select
+                  class="min-w-[9rem] rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-xs disabled:opacity-50"
+                  [ngModel]="ticket.assignedAdminId ?? ''"
+                  (ngModelChange)="onAssign(ticket, $event)"
+                  [ngModelOptions]="{ standalone: true }"
+                  [disabled]="isBusy(ticket.id)"
+                >
+                  <option value="">Unassigned</option>
+                  @for (admin of assignees(); track admin.id) {
+                    <option [value]="admin.id">{{ admin.name }}</option>
+                  }
+                </select>
+              </div>
+              <div class="flex flex-col gap-1">
+                <label class="text-[11px] font-medium text-zinc-500">Status</label>
+                <select
+                  class="min-w-[8rem] rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-xs disabled:opacity-50"
+                  [ngModel]="ticket.status"
+                  (ngModelChange)="onStatusChange(ticket, $event)"
+                  [ngModelOptions]="{ standalone: true }"
+                  [disabled]="isBusy(ticket.id)"
+                >
+                  <option value="OPEN">Open</option>
+                  <option value="IN_PROGRESS">In Progress</option>
+                  <option value="RESOLVED">Resolved</option>
+                  <option value="CLOSED">Closed</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex min-h-0 flex-1 flex-col overflow-hidden xl:flex-row">
+          <!-- Ticket details + ID -->
+          @if (layoutMode() !== 'chat') {
+            <div
+              class="flex max-h-[36%] min-h-0 shrink-0 flex-col overflow-y-auto overscroll-contain border-b border-zinc-100 xl:max-h-none xl:w-[22rem] xl:shrink-0 xl:border-b-0 xl:border-r"
+            >
+              <div class="space-y-4 px-4 py-4 sm:px-5">
+                <div>
+                  <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">Description</p>
+                  <p class="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-zinc-800">
+                    {{ ticket.description }}
+                  </p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <p class="font-medium text-zinc-500">Requester</p>
+                    <p class="mt-0.5 font-medium text-zinc-900">{{ ticket.requesterName }}</p>
+                    <p class="break-all text-zinc-600">{{ ticket.requesterEmail }}</p>
+                
+                  </div>
+                  <div>
+                    <p class="font-medium text-zinc-500">Updated</p>
+                    <p class="mt-0.5 text-zinc-800">{{ ticket.updatedAt | date: 'MMM d, h:mm a' }}</p>
+                  </div>
+                  @if (ticket.resolvedAt) {
+                    <div>
+                      <p class="font-medium text-zinc-500">Resolved</p>
+                      <p class="mt-0.5 text-zinc-800">{{ ticket.resolvedAt | date: 'MMM d, h:mm a' }}</p>
+                    </div>
+                  }
+                  @if (ticket.queueNumber != null) {
+                    <div>
+                      <p class="font-medium text-zinc-500">Queue</p>
+                      <p class="mt-0.5 font-medium text-zinc-900">#{{ ticket.queueNumber }}</p>
+                    </div>
+                  }
+                </div>
+
+                <div>
+                  <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">ID photo</p>
+                  @if (!ticket.hasIdPhoto) {
+                    <p class="mt-2 text-xs text-zinc-500">None uploaded</p>
+                  } @else if (idPhotoLoading()) {
+                    <div class="mt-2 flex justify-center py-10">
+                      <span class="h-5 w-5 animate-spin rounded-full border-2 border-zinc-200 border-t-[#8d2546]"></span>
+                    </div>
+                  } @else if (idPhotoError()) {
+                    <p class="mt-2 text-xs text-red-600">{{ idPhotoError() }}</p>
+                  } @else if (idPhotoUrl(); as photoUrl) {
+                    @if (idPhotoIsPdf()) {
+                      <a
+                        [href]="photoUrl"
+                        target="_blank"
+                        rel="noopener"
+                        class="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-medium text-[#8d2546] hover:bg-zinc-100"
+                      >
+                        Open PDF
+                      </a>
+                    } @else {
+                      <button
+                        type="button"
+                        (click)="openIdLightbox()"
+                        class="mt-2 block w-full cursor-pointer overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50 hover:border-zinc-300"
+                      >
+                        <img
+                          [src]="photoUrl"
+                          alt="Requester ID photo"
+                          class="max-h-56 w-full object-contain"
+                        />
+                      </button>
+                    }
+                  }
+                </div>
+              </div>
+            </div>
+          }
+
+          <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <div class="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+              @if (loadingMessages()) {
+                <div class="flex justify-center py-10">
+                  <span class="h-5 w-5 animate-spin rounded-full border-2 border-zinc-200 border-t-[#8d2546]"></span>
+                </div>
+              } @else if (messageError() && messages().length === 0) {
+                <p class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {{ messageError() }}
+                </p>
+              } @else if (messages().length === 0) {
+                <p class="py-8 text-center text-sm text-zinc-500">No messages yet</p>
+              } @else {
+                @for (message of messages(); track message.id) {
+                  <div
+                    class="flex"
+                    [class.justify-end]="isMine(message)"
+                    [class.justify-start]="!isMine(message)"
+                  >
+                    <div
+                      class="max-w-[85%] rounded-lg px-3.5 py-2.5 sm:max-w-[75%]"
+                      [class.bg-[#8d2546]]="isMine(message)"
+                      [class.text-white]="isMine(message)"
+                      [class.bg-zinc-100]="!isMine(message)"
+                      [class.text-zinc-900]="!isMine(message)"
+                    >
+                      <div
+                        class="mb-1 flex flex-wrap items-baseline gap-x-2 text-[11px]"
+                        [class.text-white/75]="isMine(message)"
+                        [class.text-zinc-500]="!isMine(message)"
+                      >
+                        <span class="font-semibold">
+                          {{ isMine(message) ? 'You' : message.authorName }}
+                        </span>
+                        <span>{{ message.createdAt | date: 'MMM d, h:mm a' }}</span>
+                      </div>
+                      @if (message.body) {
+                        <p class="whitespace-pre-wrap text-sm leading-relaxed">{{ message.body }}</p>
+                      }
+                      @if (message.hasAttachment) {
+                        @if (attachmentUrl(message.id); as photoUrl) {
+                          <button
+                            type="button"
+                            class="mt-2 block cursor-pointer overflow-hidden rounded-md focus:outline-none focus:ring-2 focus:ring-white/50"
+                            (click)="openAttachmentLightbox(photoUrl)"
+                          >
+                            <img
+                              [src]="photoUrl"
+                              [alt]="message.attachmentOriginalName || 'Attachment'"
+                              class="max-h-48 max-w-full rounded-md object-contain"
+                            />
+                          </button>
+                        } @else {
+                          <p
+                            class="mt-2 text-xs"
+                            [class.text-white/80]="isMine(message)"
+                            [class.text-zinc-500]="!isMine(message)"
+                          >
+                            Loading picture…
+                          </p>
+                        }
+                      }
+                    </div>
+                  </div>
+                }
+                <div #messageEnd></div>
+              }
+            </div>
+
+            <form (ngSubmit)="sendMessage()" class="shrink-0 border-t border-zinc-100 px-4 py-3 sm:px-5">
+              @if (!canMessage(ticket)) {
+                <p class="text-center text-xs text-zinc-500">Messaging is disabled for closed tickets.</p>
+              } @else {
+                @if (messageError() && messages().length > 0) {
+                  <p class="mb-2 text-xs text-red-600">{{ messageError() }}</p>
+                }
+                @if (draftAttachmentPreview(); as preview) {
+                  <div class="mb-2 flex items-center gap-2">
+                    <img [src]="preview" alt="Selected picture" class="h-14 w-14 rounded-md object-cover ring-1 ring-zinc-200" />
+                    <button
+                      type="button"
+                      (click)="clearDraftAttachment()"
+                      class="cursor-pointer text-xs font-medium text-zinc-500 hover:text-zinc-800"
+                    >
+                      Remove picture
+                    </button>
+                  </div>
+                }
+                <div class="flex items-end gap-2">
+                  <label
+                    class="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-zinc-300 text-zinc-600 transition-colors hover:bg-zinc-50"
+                    title="Attach picture"
+                  >
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                      class="sr-only"
+                      (change)="onDraftAttachmentSelected($event)"
+                      [disabled]="sending()"
+                    />
+                    <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5" aria-hidden="true">
+                      <path
+                        fill-rule="evenodd"
+                        d="M1 5.25A2.25 2.25 0 0 1 3.25 3h13.5A2.25 2.25 0 0 1 19 5.25v9.5A2.25 2.25 0 0 1 16.75 17H3.25A2.25 2.25 0 0 1 1 14.75v-9.5Zm4.03 2.28a.75.75 0 0 0-1.06 1.06l2.72 2.72a.75.75 0 0 0 1.06 0l3.47-3.47 2.22 2.22a.75.75 0 1 0 1.06-1.06l-2.75-2.75a.75.75 0 0 0-1.06 0L7.28 9.72 5.03 7.53Z"
+                        clip-rule="evenodd"
+                      />
+                    </svg>
+                    <span class="sr-only">Attach picture</span>
+                  </label>
+                  <textarea
+                    rows="2"
+                    maxlength="5000"
+                    placeholder="Write a reply…"
+                    class="min-h-[2.75rem] max-h-28 flex-1 resize-none rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[#8d2546] focus:outline-none"
+                    [ngModel]="draft()"
+                    (ngModelChange)="draft.set($event)"
+                    (keydown)="onComposerKeydown($event)"
+                    [ngModelOptions]="{ standalone: true }"
+                    [disabled]="sending()"
+                  ></textarea>
+                  <button
+                    type="submit"
+                    [disabled]="sending() || (!draft().trim() && !draftAttachment())"
+                    class="cursor-pointer rounded-lg bg-[#8d2546] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#7a1f3c] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {{ sending() ? '…' : 'Send' }}
+                  </button>
+                </div>
+              }
+            </form>
+          </div>
+        </div>
+      }
+    }
+  </section>
+</div>
+
+@if (idLightboxOpen() && idPhotoUrl(); as photoUrl) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+    <button
+      type="button"
+      class="absolute inset-0 cursor-pointer bg-zinc-950/70"
+      (click)="closeIdLightbox()"
+      aria-label="Close ID photo"
+    ></button>
+    <div class="relative z-10 max-h-[90dvh] max-w-4xl overflow-auto rounded-lg bg-white p-2 shadow-xl">
+      <img [src]="photoUrl" alt="Requester ID photo full size" class="max-h-[85dvh] w-auto object-contain" />
+      <button
+        type="button"
+        (click)="closeIdLightbox()"
+        class="absolute top-3 right-3 cursor-pointer rounded-md bg-white/90 px-2.5 py-1 text-xs font-medium text-zinc-700 shadow hover:bg-white"
+      >
+        Close
+      </button>
+    </div>
+  </div>
+}
+
+@if (attachmentLightboxUrl(); as photoUrl) {
+  <div class="fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+    <button
+      type="button"
+      class="absolute inset-0 cursor-pointer bg-zinc-950/70"
+      (click)="closeAttachmentLightbox()"
+      aria-label="Close picture"
+    ></button>
+    <div class="relative z-10 max-h-[90dvh] max-w-4xl overflow-auto rounded-lg bg-white p-2 shadow-xl">
+      <img [src]="photoUrl" alt="Attachment full size" class="max-h-[85dvh] w-auto object-contain" />
+      <button
+        type="button"
+        (click)="closeAttachmentLightbox()"
+        class="absolute top-3 right-3 cursor-pointer rounded-md bg-white/90 px-2.5 py-1 text-xs font-medium text-zinc-700 shadow hover:bg-white"
+      >
+        Close
+      </button>
+    </div>
+  </div>
+}
+
+<app-ticket-summary-dialog
+  [ticket]="summaryTicket()"
+  (closed)="closeSummary()"
+  (viewHistory)="openHistory($event)"
+/>
+<app-ticket-history-dialog
+  [ticket]="historyTicket()"
+  (closed)="closeHistory()"
+  (ticketSelected)="onHistoryTicketSelected($event)"
+/>

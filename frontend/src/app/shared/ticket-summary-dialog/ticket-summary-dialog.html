@@ -1,0 +1,110 @@
+@if (ticket(); as current) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="ticket-summary-title">
+    <button
+      type="button"
+      class="absolute inset-0 cursor-pointer bg-zinc-950/45 backdrop-blur-[2px]"
+      (click)="onBackdropClick()"
+      aria-label="Close summary"
+    ></button>
+
+    <div class="relative z-10 w-full max-w-md rounded-2xl border border-zinc-950/10 bg-white p-5 shadow-2xl sm:p-6">
+      <div class="mb-4 flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">Ticket summary</p>
+          <h3 id="ticket-summary-title" class="mt-0.5 truncate text-base font-bold text-gray-950">
+            {{ current.ticketNumber }}
+          </h3>
+          <p class="mt-0.5 truncate text-sm text-gray-600">{{ current.subject }}</p>
+        </div>
+        <button
+          type="button"
+          (click)="close()"
+          class="cursor-pointer rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+          aria-label="Close"
+        >
+          <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5">
+            <path
+              d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z"
+            />
+          </svg>
+        </button>
+      </div>
+
+      @if (loading()) {
+        <div class="flex justify-center py-10">
+          <span class="border-primary/30 border-t-primary h-6 w-6 animate-spin rounded-full border-2"></span>
+        </div>
+      } @else {
+        @if (error()) {
+          <p class="mb-3 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+            {{ error() }} Showing ticket details only.
+          </p>
+        } @else if (profile(); as p) {
+          @if (!p.found) {
+            <p class="mb-3 rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+              Not found in the student/employee directory. Showing ticket details.
+            </p>
+          } @else {
+            <p class="mb-3 text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+              {{ p.personType === 'EMPLOYEE' ? 'Employee' : 'Student' }}
+            </p>
+          }
+        }
+
+        <dl class="divide-y divide-zinc-100 rounded-xl border border-zinc-950/10">
+          @for (row of rows(); track row.label) {
+            <div class="grid grid-cols-[8.5rem_minmax(0,1fr)] gap-3 px-3.5 py-2.5 sm:grid-cols-[9.5rem_minmax(0,1fr)]">
+              <dt class="text-xs font-semibold text-zinc-500">{{ row.label }}</dt>
+              <dd class="flex min-w-0 items-start gap-2">
+                <span class="min-w-0 flex-1 break-words text-sm font-medium text-zinc-900">{{ row.value }}</span>
+                @if (row.copyValue) {
+                  <button
+                    type="button"
+                    (click)="copyValue(row)"
+                    class="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-md border border-zinc-200 bg-white px-1.5 py-1 text-[10px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+                    [attr.aria-label]="'Copy ' + row.label"
+                    [title]="copiedKey() === row.label ? 'Copied' : 'Copy'"
+                  >
+                    @if (copiedKey() === row.label) {
+                      <svg viewBox="0 0 20 20" fill="currentColor" class="size-3.5 text-emerald-600" aria-hidden="true">
+                        <path
+                          fill-rule="evenodd"
+                          d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z"
+                          clip-rule="evenodd"
+                        />
+                      </svg>
+                      <span class="text-emerald-700">Copied</span>
+                    } @else {
+                      <svg viewBox="0 0 20 20" fill="currentColor" class="size-3.5" aria-hidden="true">
+                        <path d="M7 3.5A1.5 1.5 0 0 1 8.5 2h3.879a1.5 1.5 0 0 1 1.06.44l3.122 3.12A1.5 1.5 0 0 1 17 6.622V12.5a1.5 1.5 0 0 1-1.5 1.5h-1v-1h1a.5.5 0 0 0 .5-.5V6.622a.5.5 0 0 0-.146-.353l-3.122-3.122A.5.5 0 0 0 12.379 3H8.5a.5.5 0 0 0-.5.5V5H7V3.5Z" />
+                        <path d="M3.5 6A1.5 1.5 0 0 0 2 7.5v9A1.5 1.5 0 0 0 3.5 18h8a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 11.5 6h-8ZM3 7.5a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9Z" />
+                      </svg>
+                      <span>Copy</span>
+                    }
+                  </button>
+                }
+              </dd>
+            </div>
+          }
+        </dl>
+      }
+
+      <div class="mt-5 flex flex-wrap justify-end gap-2">
+        <button
+          type="button"
+          (click)="openHistory()"
+          class="cursor-pointer rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition-colors hover:bg-zinc-50"
+        >
+          View history
+        </button>
+        <button
+          type="button"
+          (click)="close()"
+          class="bg-primary hover:bg-primary/90 cursor-pointer rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+}

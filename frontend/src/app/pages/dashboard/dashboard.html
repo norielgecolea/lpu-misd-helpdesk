@@ -1,0 +1,660 @@
+<div class="flex h-dvh flex-col overflow-hidden bg-[#f4f4f5] text-zinc-900">
+  <header class="shrink-0 border-b border-zinc-200 bg-white">
+    <div class="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+      <div class="flex items-center gap-3">
+        <img src="/logo.svg" alt="LPU Laguna" class="h-8 w-8 object-contain" />
+        <div class="leading-tight">
+          <p class="text-sm font-semibold tracking-tight">MISD Helpdesk</p>
+          <p class="text-[11px] text-zinc-500">Online helpdesk</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="hidden text-right sm:block">
+          <p class="text-sm font-medium">{{ displayName() || auth.user()?.name || 'User' }}</p>
+          <p class="text-xs text-zinc-500">{{ auth.user()?.email }}</p>
+        </div>
+        <button
+          type="button"
+          (click)="signOut()"
+          class="cursor-pointer rounded-md border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
+        >
+          Sign out
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div
+    class="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col gap-4 overflow-hidden px-4 py-4 sm:px-6 lg:flex-row lg:gap-5 lg:py-5"
+    [class.max-w-none]="layoutMode() !== 'split'"
+  >
+    <!-- Ticket list -->
+    <aside
+      class="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white"
+      [ngClass]="{
+        'max-lg:hidden': selectedTicketId() !== null && layoutMode() !== 'list',
+        'lg:hidden': layoutMode() === 'chat',
+        'lg:w-[22rem] lg:flex-none lg:shrink-0': layoutMode() === 'split',
+      }"
+    >
+      <div class="flex items-center justify-between gap-3 border-b border-zinc-100 px-4 py-3">
+        <div>
+          <h1 class="text-sm font-semibold">My tickets</h1>
+          <p class="text-xs text-zinc-500">
+            {{ openCount() }} open · {{ inProgressCount() }} in progress · {{ tickets().length }} total
+          </p>
+        </div>
+        <div class="flex items-center gap-1.5">
+          @if (layoutMode() === 'split') {
+            <button
+              type="button"
+              (click)="setLayoutMode('list')"
+              class="hidden cursor-pointer rounded-md border border-zinc-300 px-2 py-1.5 text-[11px] font-semibold text-zinc-700 hover:bg-zinc-50 lg:inline-flex"
+              title="Maximize ticket list"
+            >
+              Expand list
+            </button>
+          }
+          @if (layoutMode() === 'list') {
+            <button
+              type="button"
+              (click)="setLayoutMode('split')"
+              class="hidden cursor-pointer rounded-md border border-zinc-300 px-2 py-1.5 text-[11px] font-semibold text-zinc-700 hover:bg-zinc-50 lg:inline-flex"
+            >
+              Show chat
+            </button>
+          }
+          <button
+            type="button"
+            (click)="openForm()"
+            class="cursor-pointer rounded-md bg-[#8d2546] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#7a1f3c]"
+          >
+            New
+          </button>
+        </div>
+      </div>
+
+      @if (loadingTickets()) {
+        <div class="flex flex-1 items-center justify-center py-16">
+          <span class="h-5 w-5 animate-spin rounded-full border-2 border-zinc-200 border-t-[#8d2546]"></span>
+        </div>
+      } @else if (loadError()) {
+        <p class="m-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{{ loadError() }}</p>
+      } @else if (tickets().length === 0) {
+        <div class="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-16 text-center">
+          <p class="text-sm font-medium">No tickets yet</p>
+          <button
+            type="button"
+            (click)="openForm()"
+            class="mt-2 cursor-pointer rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium hover:bg-zinc-50"
+          >
+            New ticket
+          </button>
+        </div>
+      } @else {
+        <div class="min-h-0 flex-1 overflow-y-auto">
+          @for (group of ticketGroups(); track group.status) {
+            @if (group.tickets.length > 0) {
+              <section class="border-b border-zinc-100 last:border-b-0">
+                <button
+                  type="button"
+                  (click)="toggleGroup(group.status)"
+                  class="flex w-full cursor-pointer items-center justify-between gap-2 bg-zinc-50/90 px-4 py-2 text-left hover:bg-zinc-100/90"
+                >
+                  <span class="flex items-center gap-2">
+                    <svg
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      class="h-3.5 w-3.5 text-zinc-400 transition-transform"
+                      [class.rotate-90]="!isGroupCollapsed(group.status)"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fill-rule="evenodd"
+                        d="M7.21 14.77a.75.75 0 0 1 .02-1.06L11.168 10 7.23 6.29a.75.75 0 1 1 1.04-1.08l4.5 4.25a.75.75 0 0 1 0 1.08l-4.5 4.25a.75.75 0 0 1-1.06-.02Z"
+                        clip-rule="evenodd"
+                      />
+                    </svg>
+                    <span class="text-[11px] font-semibold tracking-wide text-zinc-600 uppercase">
+                      {{ group.label }}
+                    </span>
+                    <span class="rounded-full bg-zinc-200/80 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-700">
+                      {{ group.tickets.length }}
+                    </span>
+                  </span>
+                  @if (group.unread > 0) {
+                    <span
+                      class="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-[#8d2546] px-1.5 py-0.5 text-[10px] font-bold text-white"
+                    >
+                      {{ unreadLabel(group.unread) }}
+                    </span>
+                  }
+                </button>
+
+                @if (!isGroupCollapsed(group.status)) {
+                  <ul>
+                    @for (ticket of group.tickets; track ticket.id) {
+                      <li>
+                        <button
+                          type="button"
+                          (click)="selectTicket(ticket)"
+                          class="relative flex w-full cursor-pointer flex-col gap-1 border-b border-zinc-100 px-4 py-3.5 pr-10 text-left transition-colors last:border-b-0 hover:bg-zinc-50"
+                          [class.bg-[#8d2546]/[0.06]]="selectedTicketId() === ticket.id"
+                          [class.border-l-2]="selectedTicketId() === ticket.id"
+                          [class.border-l-[#8d2546]]="selectedTicketId() === ticket.id"
+                        >
+                          @if ((ticket.unreadCount ?? 0) > 0) {
+                            <span
+                              class="absolute top-3 right-3 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-[#8d2546] px-1.5 py-0.5 text-[10px] font-bold text-white"
+                            >
+                              {{ unreadLabel(ticket.unreadCount) }}
+                            </span>
+                          }
+                          <div class="flex items-center justify-between gap-2">
+                            <span class="font-mono text-[11px] text-zinc-500">{{ ticket.ticketNumber }}</span>
+                            <span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-zinc-600">
+                              <span class="h-1.5 w-1.5 rounded-full" [class]="statusDotClass(ticket.status)"></span>
+                              {{ statusLabel(ticket.status) }}
+                            </span>
+                          </div>
+                          <p class="line-clamp-1 text-sm font-medium">{{ ticket.subject }}</p>
+                          <p class="line-clamp-1 text-xs text-zinc-500">
+                            {{ ticket.assignedAdminName || 'Unassigned' }}
+                            · {{ ticket.createdAt | date: 'MMM d' }}
+                          </p>
+                        </button>
+                      </li>
+                    }
+                  </ul>
+                }
+              </section>
+            }
+          }
+        </div>
+      }
+    </aside>
+
+    <!-- Conversation pane -->
+    <section
+      class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white"
+      [ngClass]="{
+        'max-lg:hidden': selectedTicketId() === null,
+        'lg:hidden': layoutMode() === 'list',
+      }"
+    >
+      @if (!selectedTicket()) {
+        <div class="flex flex-1 items-center justify-center px-6 text-center">
+          <p class="text-sm text-zinc-500">Select a ticket</p>
+        </div>
+      } @else {
+        @if (selectedTicket(); as ticket) {
+          <div class="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-100 px-4 py-3 sm:px-5">
+            <div class="min-w-0">
+              <button
+                type="button"
+                (click)="clearSelection()"
+                class="mb-1 cursor-pointer text-xs font-medium text-[#8d2546] lg:hidden"
+              >
+                ← Back to tickets
+              </button>
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="font-mono text-xs text-zinc-500">{{ ticket.ticketNumber }}</span>
+                <span class="inline-flex items-center gap-1.5 text-xs text-zinc-600">
+                  <span class="h-1.5 w-1.5 rounded-full" [class]="statusDotClass(ticket.status)"></span>
+                  {{ statusLabel(ticket.status) }}
+                </span>
+                <span class="text-xs text-zinc-400">{{ ticket.categoryLabel }}</span>
+              </div>
+              <h2 class="mt-0.5 truncate text-base font-semibold">{{ ticket.subject }}</h2>
+              @if (ticket.assignedAdminName || live()) {
+                <p class="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
+                  @if (ticket.assignedAdminName) {
+                    <span>{{ ticket.assignedAdminName }}</span>
+                  }
+                  @if (live()) {
+                    <span class="inline-flex items-center gap-1 font-medium text-emerald-700">
+                      <span class="relative flex h-1.5 w-1.5">
+                        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60"></span>
+                        <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                      </span>
+                      Live
+                    </span>
+                  }
+                </p>
+              }
+            </div>
+            <div class="flex shrink-0 flex-wrap items-center gap-1.5">
+              @if (layoutMode() === 'split') {
+                <button
+                  type="button"
+                  (click)="setLayoutMode('chat')"
+                  class="hidden cursor-pointer rounded-md border border-zinc-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-zinc-800 hover:bg-zinc-50 lg:inline-flex"
+                >
+                  Expand chat
+                </button>
+              }
+              @if (layoutMode() === 'chat') {
+                <button
+                  type="button"
+                  (click)="setLayoutMode('split')"
+                  class="hidden cursor-pointer rounded-md border border-zinc-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-zinc-800 hover:bg-zinc-50 lg:inline-flex"
+                >
+                  Split view
+                </button>
+                <button
+                  type="button"
+                  (click)="setLayoutMode('list')"
+                  class="hidden cursor-pointer rounded-md border border-zinc-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-zinc-800 hover:bg-zinc-50 lg:inline-flex"
+                >
+                  Show list
+                </button>
+              }
+            </div>
+          </div>
+
+          @if (layoutMode() !== 'chat') {
+            <div class="border-b border-zinc-100 bg-zinc-50/80 px-4 py-3 sm:px-5 shrink-0">
+              <p class="line-clamp-3 text-sm leading-relaxed text-zinc-700">{{ ticket.description }}</p>
+            </div>
+          }
+
+          <div class="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4 sm:px-5">
+            @if (loadingMessages()) {
+              <div class="flex justify-center py-10">
+                <span class="h-5 w-5 animate-spin rounded-full border-2 border-zinc-200 border-t-[#8d2546]"></span>
+              </div>
+            } @else if (messageError()) {
+              <p class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{{ messageError() }}</p>
+            } @else if (messages().length === 0) {
+              <p class="py-8 text-center text-sm text-zinc-500">No messages yet</p>
+            } @else {
+              @for (message of messages(); track message.id) {
+                <div
+                  class="flex"
+                  [class.justify-end]="isMine(message)"
+                  [class.justify-start]="!isMine(message)"
+                >
+                  <div
+                    class="max-w-[85%] rounded-lg px-3.5 py-2.5 sm:max-w-[75%]"
+                    [class.bg-[#8d2546]]="isMine(message)"
+                    [class.text-white]="isMine(message)"
+                    [class.bg-zinc-100]="!isMine(message)"
+                    [class.text-zinc-900]="!isMine(message)"
+                  >
+                    <div
+                      class="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[11px]"
+                      [class.text-white/75]="isMine(message)"
+                      [class.text-zinc-500]="!isMine(message)"
+                    >
+                      <span class="font-semibold">
+                        {{ isMine(message) ? 'You' : message.authorName }}
+                      </span>
+                      <span>{{ message.createdAt | date: 'MMM d, h:mm a' }}</span>
+                    </div>
+                    @if (message.body) {
+                      <p class="whitespace-pre-wrap text-sm leading-relaxed">{{ message.body }}</p>
+                    }
+                    @if (message.hasAttachment) {
+                      @if (attachmentUrl(message.id); as photoUrl) {
+                        <button
+                          type="button"
+                          class="mt-2 block cursor-pointer overflow-hidden rounded-md focus:outline-none focus:ring-2 focus:ring-white/50"
+                          (click)="openAttachmentLightbox(photoUrl)"
+                        >
+                          <img
+                            [src]="photoUrl"
+                            [alt]="message.attachmentOriginalName || 'Attachment'"
+                            class="max-h-48 max-w-full rounded-md object-contain"
+                          />
+                        </button>
+                      } @else {
+                        <p
+                          class="mt-2 text-xs"
+                          [class.text-white/80]="isMine(message)"
+                          [class.text-zinc-500]="!isMine(message)"
+                        >
+                          Loading picture…
+                        </p>
+                      }
+                    }
+                  </div>
+                </div>
+              }
+              <div #messageEnd></div>
+            }
+          </div>
+
+          <form
+            (ngSubmit)="sendMessage()"
+            class="shrink-0 border-t border-zinc-100 bg-white px-4 py-3 sm:px-5"
+          >
+            @if (!canMessage(ticket)) {
+              <p class="text-center text-xs text-zinc-500">This ticket is closed. Messaging is disabled.</p>
+            } @else {
+              @if (messageError() && messages().length > 0) {
+                <p class="mb-2 text-xs text-red-600">{{ messageError() }}</p>
+              }
+              @if (draftAttachmentPreview(); as preview) {
+                <div class="mb-2 flex items-center gap-2">
+                  <img [src]="preview" alt="Selected picture" class="h-14 w-14 rounded-md object-cover ring-1 ring-zinc-200" />
+                  <button
+                    type="button"
+                    (click)="clearDraftAttachment()"
+                    class="cursor-pointer text-xs font-medium text-zinc-500 hover:text-zinc-800"
+                  >
+                    Remove picture
+                  </button>
+                </div>
+              }
+              <div class="flex items-end gap-2">
+                <label
+                  class="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-zinc-300 text-zinc-600 transition-colors hover:bg-zinc-50"
+                  title="Attach picture"
+                >
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                    class="sr-only"
+                    (change)="onDraftAttachmentSelected($event)"
+                    [disabled]="sendingMessage()"
+                  />
+                  <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5" aria-hidden="true">
+                    <path
+                      fill-rule="evenodd"
+                      d="M1 5.25A2.25 2.25 0 0 1 3.25 3h13.5A2.25 2.25 0 0 1 19 5.25v9.5A2.25 2.25 0 0 1 16.75 17H3.25A2.25 2.25 0 0 1 1 14.75v-9.5Zm4.03 2.28a.75.75 0 0 0-1.06 1.06l2.72 2.72a.75.75 0 0 0 1.06 0l3.47-3.47 2.22 2.22a.75.75 0 1 0 1.06-1.06l-2.75-2.75a.75.75 0 0 0-1.06 0L7.28 9.72 5.03 7.53Z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                  <span class="sr-only">Attach picture</span>
+                </label>
+                <textarea
+                  rows="2"
+                  maxlength="5000"
+                  placeholder="Write a message…"
+                  class="min-h-[2.75rem] max-h-28 flex-1 resize-none rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[#8d2546] focus:outline-none"
+                  [ngModel]="draft()"
+                  (ngModelChange)="draft.set($event)"
+                  (keydown)="onComposerKeydown($event)"
+                  [ngModelOptions]="{ standalone: true }"
+                  [disabled]="sendingMessage()"
+                ></textarea>
+                <button
+                  type="submit"
+                  [disabled]="sendingMessage() || (!draft().trim() && !draftAttachment())"
+                  class="cursor-pointer rounded-lg bg-[#8d2546] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#7a1f3c] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  @if (sendingMessage()) {
+                    Sending…
+                  } @else {
+                    Send
+                  }
+                </button>
+              </div>
+            }
+          </form>
+        }
+      }
+    </section>
+  </div>
+
+  <!-- New ticket modal -->
+  @if (showForm()) {
+    <div class="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true">
+      <button type="button" class="absolute inset-0 cursor-pointer bg-zinc-900/40" (click)="closeForm()" aria-label="Close"></button>
+      <div class="relative z-10 max-h-[92dvh] w-full overflow-y-auto rounded-t-xl border border-zinc-200 bg-white sm:max-w-lg sm:rounded-xl">
+        <div class="sticky top-0 flex items-center justify-between border-b border-zinc-100 bg-white px-5 py-3.5">
+          <h3 class="text-base font-semibold">New ticket</h3>
+          <button type="button" (click)="closeForm()" class="cursor-pointer text-sm text-zinc-500 hover:text-zinc-800">Close</button>
+        </div>
+        <div class="px-5 py-5">
+          @if (formError()) {
+            <p class="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{{ formError() }}</p>
+          }
+          <form (ngSubmit)="submitTicket()" class="flex flex-col gap-4" novalidate>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-sm font-medium" for="category">Category</label>
+              <select
+                id="category"
+                class="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-[#8d2546] focus:outline-none"
+                [ngModel]="category()"
+                (ngModelChange)="category.set($event)"
+                [ngModelOptions]="{ standalone: true }"
+                [disabled]="submitting()"
+              >
+                @for (option of categories(); track option.value) {
+                  <option [value]="option.value">{{ option.label }}</option>
+                }
+              </select>
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-sm font-medium" for="subject">Subject</label>
+              <input
+                id="subject"
+                type="text"
+                maxlength="200"
+                placeholder="Short summary"
+                class="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-[#8d2546] focus:outline-none"
+                [ngModel]="subject()"
+                (ngModelChange)="subject.set($event)"
+                [ngModelOptions]="{ standalone: true }"
+                [disabled]="submitting()"
+              />
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-sm font-medium" for="description">Description</label>
+              <textarea
+                id="description"
+                rows="4"
+                maxlength="5000"
+                placeholder="What happened?"
+                class="w-full resize-y rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-[#8d2546] focus:outline-none"
+                [ngModel]="description()"
+                (ngModelChange)="description.set($event)"
+                [ngModelOptions]="{ standalone: true }"
+                [disabled]="submitting()"
+              ></textarea>
+            </div>
+            <div class="flex flex-col gap-1.5 rounded-lg border border-[#8d2546]/25 bg-[#8d2546]/5 px-3 py-3">
+              <label class="text-sm font-semibold text-zinc-900" for="idPhoto">LPU ID photo *</label>
+              <div class="flex flex-wrap items-center gap-3">
+                <label
+                  for="idPhoto"
+                  class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#8d2546] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#7a1f3c]"
+                  [class.pointer-events-none]="submitting()"
+                  [class.opacity-50]="submitting()"
+                >
+                  <svg viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4" aria-hidden="true">
+                    <path
+                      d="M9.25 3.5a.75.75 0 0 1 .75-.75h.01a.75.75 0 0 1 .75.75V9h5.25a.75.75 0 0 1 0 1.5H10.76v5.25a.75.75 0 0 1-1.5 0V10.5H3.99a.75.75 0 0 1 0-1.5H9.25V3.5Z"
+                    />
+                  </svg>
+                  {{ idPhotoName() ? 'Change file' : 'Choose file' }}
+                </label>
+                <input
+                  id="idPhoto"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"
+                  class="sr-only"
+                  (change)="onIdSelected($event)"
+                  [disabled]="submitting()"
+                />
+                <span class="min-w-0 flex-1 truncate text-sm text-zinc-700">
+                  {{ idPhotoName() || 'No file selected' }}
+                </span>
+              </div>
+              <p class="text-xs text-zinc-500">Required. JPG, PNG, WEBP, or PDF · max 5 MB.</p>
+            </div>
+            <div class="flex flex-col gap-1.5 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-3">
+              <span class="text-sm font-medium text-zinc-900">Attachments (optional)</span>
+              <div class="flex flex-wrap items-center gap-3">
+                <label
+                  for="ticketAttachments"
+                  class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-sm font-semibold text-zinc-800 transition-colors hover:bg-zinc-100"
+                  [class.pointer-events-none]="submitting()"
+                  [class.opacity-50]="submitting()"
+                >
+                  Add pictures
+                </label>
+                <input
+                  id="ticketAttachments"
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                  class="sr-only"
+                  (change)="onCreateAttachmentsSelected($event)"
+                  [disabled]="submitting()"
+                />
+                <span class="text-xs text-zinc-500">JPG, PNG, WEBP · up to 5 · max 5 MB each</span>
+              </div>
+              @if (createAttachments().length > 0) {
+                <ul class="mt-1 flex flex-col gap-1.5">
+                  @for (file of createAttachments(); track $index) {
+                    <li class="flex items-center justify-between gap-2 rounded-md bg-white px-2.5 py-1.5 text-xs ring-1 ring-zinc-200">
+                      <span class="truncate font-medium text-zinc-700">{{ file.name }}</span>
+                      <button
+                        type="button"
+                        (click)="removeCreateAttachment($index)"
+                        class="shrink-0 cursor-pointer font-semibold text-zinc-500 hover:text-zinc-800"
+                        [disabled]="submitting()"
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  }
+                </ul>
+              }
+              <p class="text-xs text-zinc-500">
+                Pictures are posted as the first message(s) in the ticket thread.
+              </p>
+            </div>
+            <div class="flex justify-end gap-2 pt-1">
+              <button type="button" (click)="closeForm()" class="cursor-pointer px-4 py-2 text-sm text-zinc-600">Cancel</button>
+              <button
+                type="submit"
+                [disabled]="submitting()"
+                class="cursor-pointer rounded-md bg-[#8d2546] px-4 py-2 text-sm font-semibold text-white hover:bg-[#7a1f3c] disabled:opacity-50"
+              >
+                {{ submitting() ? 'Submitting…' : 'Submit ticket' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- CSM modal (blocking) -->
+  @if (showCsm() && pendingCsm(); as csm) {
+    <div class="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true">
+      <div class="absolute inset-0 bg-zinc-900/50" aria-hidden="true"></div>
+      <div class="relative z-10 max-h-[92dvh] w-full overflow-y-auto rounded-t-xl border border-zinc-200 bg-white sm:max-w-lg sm:rounded-xl">
+        <div class="sticky top-0 border-b border-zinc-100 bg-white px-5 py-3.5">
+          <p class="text-[11px] font-semibold tracking-wide text-[#8d2546] uppercase">Feedback required</p>
+          <h3 class="text-base font-semibold text-zinc-900">How was your helpdesk experience?</h3>
+          <p class="mt-1 text-xs text-zinc-500">
+            Rate ticket
+            <span class="font-mono font-semibold text-zinc-700">{{ csm.ticketNumber }}</span>
+            before creating a new one.
+          </p>
+        </div>
+        <div class="px-5 py-5">
+          <p class="mb-4 line-clamp-2 text-sm text-zinc-600">{{ csm.subject }} · {{ csm.categoryLabel }}</p>
+
+          <div class="grid grid-cols-3 gap-3">
+            <button
+              type="button"
+              (click)="selectCsmRating('SAD')"
+              class="flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border-2 px-2 py-4 transition-colors"
+              [class.border-[#8d2546]]="csmRating() === 'SAD'"
+              [class.bg-[#8d2546]/[0.06]]="csmRating() === 'SAD'"
+              [class.border-zinc-200]="csmRating() !== 'SAD'"
+              [disabled]="submittingCsm()"
+            >
+              <span class="text-4xl leading-none" aria-hidden="true">☹️</span>
+              <span class="text-[11px] font-bold text-zinc-700 uppercase">Sad</span>
+            </button>
+            <button
+              type="button"
+              (click)="selectCsmRating('NEUTRAL')"
+              class="flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border-2 px-2 py-4 transition-colors"
+              [class.border-[#8d2546]]="csmRating() === 'NEUTRAL'"
+              [class.bg-[#8d2546]/[0.06]]="csmRating() === 'NEUTRAL'"
+              [class.border-zinc-200]="csmRating() !== 'NEUTRAL'"
+              [disabled]="submittingCsm()"
+            >
+              <span class="text-4xl leading-none" aria-hidden="true">😐</span>
+              <span class="text-[11px] font-bold text-zinc-700 uppercase">Neh</span>
+            </button>
+            <button
+              type="button"
+              (click)="selectCsmRating('HAPPY')"
+              class="flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border-2 px-2 py-4 transition-colors"
+              [class.border-[#8d2546]]="csmRating() === 'HAPPY'"
+              [class.bg-[#8d2546]/[0.06]]="csmRating() === 'HAPPY'"
+              [class.border-zinc-200]="csmRating() !== 'HAPPY'"
+              [disabled]="submittingCsm()"
+            >
+              <span class="text-4xl leading-none" aria-hidden="true">😊</span>
+              <span class="text-[11px] font-bold text-zinc-700 uppercase">Happy</span>
+            </button>
+          </div>
+
+          @if (csmRating() === 'SAD') {
+            <div class="mt-4">
+              <label class="text-sm font-medium text-zinc-800" for="dashCsmComment">
+                Tell us why <span class="font-normal text-zinc-500">(optional)</span>
+              </label>
+              <textarea
+                id="dashCsmComment"
+                rows="3"
+                maxlength="2000"
+                placeholder="What went wrong?"
+                class="mt-1.5 w-full resize-none rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-[#8d2546] focus:outline-none"
+                [ngModel]="csmComment()"
+                (ngModelChange)="csmComment.set($event)"
+                [ngModelOptions]="{ standalone: true }"
+                [disabled]="submittingCsm()"
+              ></textarea>
+            </div>
+          }
+
+          @if (csmError()) {
+            <p class="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+              {{ csmError() }}
+            </p>
+          }
+
+          <button
+            type="button"
+            (click)="submitCsm()"
+            [disabled]="!csmRating() || submittingCsm()"
+            class="mt-5 w-full cursor-pointer rounded-md bg-[#8d2546] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#7a1f3c] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {{ submittingCsm() ? 'Submitting…' : 'Submit feedback' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (attachmentLightboxUrl(); as photoUrl) {
+    <div class="fixed inset-0 z-[70] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+      <button
+        type="button"
+        class="absolute inset-0 cursor-pointer bg-zinc-950/70"
+        (click)="closeAttachmentLightbox()"
+        aria-label="Close picture"
+      ></button>
+      <div class="relative z-10 max-h-[90dvh] max-w-4xl overflow-auto rounded-lg bg-white p-2 shadow-xl">
+        <img [src]="photoUrl" alt="Attachment full size" class="max-h-[85dvh] w-auto object-contain" />
+        <button
+          type="button"
+          (click)="closeAttachmentLightbox()"
+          class="absolute top-3 right-3 cursor-pointer rounded-md bg-white/90 px-2.5 py-1 text-xs font-medium text-zinc-700 shadow hover:bg-white"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  }
+</div>

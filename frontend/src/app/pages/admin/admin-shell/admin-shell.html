@@ -1,0 +1,391 @@
+<div class="bg-muted/40 relative flex h-dvh overflow-hidden">
+  @if (mobileNavOpen()) {
+    <button
+      type="button"
+      class="fixed inset-0 z-30 bg-black/40 md:hidden"
+      aria-label="Close navigation menu"
+      (click)="closeMobileNav()"
+    ></button>
+  }
+
+  <!-- Sidebar -->
+  <aside
+    class="bg-sidebar border-sidebar-border fixed inset-y-0 left-0 z-40 flex h-dvh w-64 shrink-0 -translate-x-full flex-col overflow-hidden border-r transition-[width,transform] duration-200 ease-out md:relative md:z-auto md:translate-x-0"
+    [class.translate-x-0]="mobileNavOpen()"
+    [class.md:w-64]="sidebarOpen()"
+    [class.md:w-[76px]]="!sidebarOpen()"
+  >
+    <!-- Brand + collapse -->
+    <div class="flex h-14 shrink-0 items-center gap-2 px-3 md:h-16">
+      @if (showSidebarLabels()) {
+        <img src="/logo.svg" alt="LPU-Laguna logo" class="size-9 shrink-0 object-contain md:size-10" />
+        <div class="min-w-0 leading-tight">
+          <p class="text-sidebar-foreground truncate text-sm font-bold tracking-tight">LPU-LAGUNA</p>
+          <p class="text-muted-foreground truncate text-xs">MISD Helpdesk</p>
+        </div>
+      }
+      <button
+        type="button"
+        class="text-sidebar-foreground/70 hover:bg-sidebar-accent hidden size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-colors md:inline-flex"
+        [class.ml-auto]="showSidebarLabels()"
+        [class.mx-auto]="!showSidebarLabels()"
+        (click)="toggleSidebar()"
+        [attr.aria-label]="sidebarOpen() ? 'Collapse sidebar' : 'Expand sidebar'"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5" aria-hidden="true">
+          <rect width="18" height="18" x="3" y="3" rx="2" />
+          <path d="M9 3v18" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Nav -->
+    <nav class="sidebar-nav min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-1 md:px-3 md:py-2">
+      <ul class="flex w-full flex-col items-stretch gap-1">
+        @for (section of navSections(); track section.label) {
+          @if (section.label && showSidebarLabels()) {
+            <li
+              class="text-muted-foreground mt-2 px-3 pb-1 text-[11px] font-semibold tracking-wider uppercase first:mt-0"
+            >
+              {{ section.label }}
+            </li>
+          } @else if (section.label && !showSidebarLabels()) {
+            <li class="border-sidebar-border mx-2 my-1.5 border-t"></li>
+          }
+
+          @for (item of section.items; track item.route) {
+            <li class="w-full">
+              <a
+                [routerLink]="item.route"
+                routerLinkActive="bg-primary/10 font-semibold text-primary"
+                [routerLinkActiveOptions]="{ exact: false }"
+                [attr.title]="!showSidebarLabels() ? item.label : null"
+                (click)="closeMobileNav()"
+                class="text-sidebar-foreground/80 hover:bg-sidebar-accent flex items-center rounded-lg text-sm font-medium transition-colors"
+                [class.w-full]="showSidebarLabels()"
+                [class.gap-3]="showSidebarLabels()"
+                [class.px-3]="showSidebarLabels()"
+                [class.py-2.5]="showSidebarLabels()"
+                [class.mx-auto]="!showSidebarLabels()"
+                [class.size-10]="!showSidebarLabels()"
+                [class.justify-center]="!showSidebarLabels()"
+                [class.p-0]="!showSidebarLabels()"
+              >
+                @switch (item.icon) {
+                  @case ('tickets') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5 shrink-0" aria-hidden="true">
+                      <path d="M15 5v2" />
+                      <path d="M15 11v2" />
+                      <path d="M15 17v2" />
+                      <path d="M5 5h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 1 2-2Z" />
+                    </svg>
+                  }
+                  @case ('my-tickets') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5 shrink-0" aria-hidden="true">
+                      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  }
+                  @case ('queue') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5 shrink-0" aria-hidden="true">
+                      <line x1="8" x2="21" y1="6" y2="6" />
+                      <line x1="8" x2="21" y1="12" y2="12" />
+                      <line x1="8" x2="21" y1="18" y2="18" />
+                      <line x1="3" x2="3.01" y1="6" y2="6" />
+                      <line x1="3" x2="3.01" y1="12" y2="12" />
+                      <line x1="3" x2="3.01" y1="18" y2="18" />
+                    </svg>
+                  }
+                  @case ('dashboard') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5 shrink-0" aria-hidden="true">
+                      <rect width="7" height="9" x="3" y="3" rx="1" />
+                      <rect width="7" height="5" x="14" y="3" rx="1" />
+                      <rect width="7" height="9" x="14" y="12" rx="1" />
+                      <rect width="7" height="5" x="3" y="16" rx="1" />
+                    </svg>
+                  }
+                  @case ('analytics') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5 shrink-0" aria-hidden="true">
+                      <path d="M3 3v18h18" />
+                      <path d="M7 14v4" />
+                      <path d="M12 10v8" />
+                      <path d="M17 6v12" />
+                    </svg>
+                  }
+                  @case ('csm') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5 shrink-0" aria-hidden="true">
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                      <line x1="9" x2="9.01" y1="9" y2="9" />
+                      <line x1="15" x2="15.01" y1="9" y2="9" />
+                    </svg>
+                  }
+                  @case ('students') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5 shrink-0" aria-hidden="true">
+                      <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                      <path d="M6 12v5c3 3 9 3 12 0v-5" />
+                    </svg>
+                  }
+                  @case ('employees') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5 shrink-0" aria-hidden="true">
+                      <rect width="16" height="20" x="4" y="2" rx="2" />
+                      <path d="M9 22v-4h6v4" />
+                      <path d="M8 6h.01" />
+                      <path d="M16 6h.01" />
+                      <path d="M12 6h.01" />
+                      <path d="M12 10h.01" />
+                      <path d="M8 10h.01" />
+                      <path d="M16 10h.01" />
+                      <path d="M12 14h.01" />
+                      <path d="M8 14h.01" />
+                      <path d="M16 14h.01" />
+                    </svg>
+                  }
+                  @case ('accounts') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5 shrink-0" aria-hidden="true">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
+                      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                  }
+                  @case ('kiosk') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5 shrink-0" aria-hidden="true">
+                      <rect width="14" height="20" x="5" y="2" rx="2" />
+                      <path d="M12 18h.01" />
+                    </svg>
+                  }
+                }
+                @if (showSidebarLabels()) {
+                  <span class="truncate">{{ item.label }}</span>
+                  @if (isActive(item.route)) {
+                    <span class="bg-primary ml-auto size-1.5 shrink-0 rounded-full"></span>
+                  }
+                }
+              </a>
+            </li>
+          }
+        }
+      </ul>
+    </nav>
+
+    <!-- Footer logout -->
+    <div class="border-sidebar-border flex shrink-0 flex-col gap-1 border-t p-2 md:p-3">
+      <button
+        type="button"
+        class="text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex cursor-pointer items-center rounded-lg text-sm font-medium transition-colors"
+        [class.w-full]="showSidebarLabels()"
+        [class.justify-start]="showSidebarLabels()"
+        [class.gap-3]="showSidebarLabels()"
+        [class.px-3]="showSidebarLabels()"
+        [class.py-2.5]="showSidebarLabels()"
+        [class.mx-auto]="!showSidebarLabels()"
+        [class.size-10]="!showSidebarLabels()"
+        [class.justify-center]="!showSidebarLabels()"
+        [class.p-0]="!showSidebarLabels()"
+        [attr.title]="!showSidebarLabels() ? 'Change password' : null"
+        (click)="openChangePassword()"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5 shrink-0" aria-hidden="true">
+          <rect width="18" height="11" x="3" y="11" rx="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+        @if (showSidebarLabels()) {
+          <span class="truncate">Change password</span>
+        }
+      </button>
+      <button
+        type="button"
+        class="text-sidebar-foreground/70 hover:text-destructive hover:bg-destructive/5 flex cursor-pointer items-center rounded-lg text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50"
+        [class.w-full]="showSidebarLabels()"
+        [class.justify-start]="showSidebarLabels()"
+        [class.gap-3]="showSidebarLabels()"
+        [class.px-3]="showSidebarLabels()"
+        [class.py-2.5]="showSidebarLabels()"
+        [class.mx-auto]="!showSidebarLabels()"
+        [class.size-10]="!showSidebarLabels()"
+        [class.justify-center]="!showSidebarLabels()"
+        [class.p-0]="!showSidebarLabels()"
+        [attr.title]="!showSidebarLabels() ? 'Logout' : null"
+        [disabled]="loggingOut()"
+        (click)="signOut()"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5 shrink-0" aria-hidden="true">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" x2="9" y1="12" y2="12" />
+        </svg>
+        @if (showSidebarLabels()) {
+          <span class="truncate">{{ loggingOut() ? 'Signing out…' : 'Logout' }}</span>
+        }
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main column -->
+  <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+    <header
+      class="bg-primary text-primary-foreground flex h-14 shrink-0 items-center gap-2 px-3 shadow-sm sm:gap-4 sm:px-4 md:h-16 md:px-6"
+    >
+      <button
+        type="button"
+        class="text-primary-foreground/90 hover:bg-primary-foreground/10 inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-colors md:hidden"
+        aria-label="Open navigation menu"
+        (click)="toggleSidebar()"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5" aria-hidden="true">
+          <line x1="4" x2="20" y1="12" y2="12" />
+          <line x1="4" x2="20" y1="6" y2="6" />
+          <line x1="4" x2="20" y1="18" y2="18" />
+        </svg>
+      </button>
+
+      <h1 class="min-w-0 truncate text-base font-semibold tracking-tight sm:text-lg md:text-xl">
+        {{ pageTitle() }}
+      </h1>
+
+      <div class="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
+        <button
+          type="button"
+          class="text-primary-foreground/90 hover:bg-primary-foreground/10 inline-flex size-9 cursor-pointer items-center justify-center rounded-lg transition-colors"
+          (click)="theme.toggle()"
+          [attr.aria-label]="theme.isDark() ? 'Switch to light mode' : 'Switch to dark mode'"
+          [attr.title]="theme.isDark() ? 'Light mode' : 'Dark mode'"
+        >
+          @if (theme.isDark()) {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5" aria-hidden="true">
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2" />
+              <path d="M12 20v2" />
+              <path d="m4.93 4.93 1.41 1.41" />
+              <path d="m17.66 17.66 1.41 1.41" />
+              <path d="M2 12h2" />
+              <path d="M20 12h2" />
+              <path d="m6.34 17.66-1.41 1.41" />
+              <path d="m19.07 4.93-1.41 1.41" />
+            </svg>
+          } @else {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5" aria-hidden="true">
+              <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+            </svg>
+          }
+        </button>
+        <div class="hidden text-right leading-tight sm:block">
+          <p class="text-sm font-semibold">{{ auth.user()?.name || auth.user()?.email }}</p>
+          <p class="text-primary-foreground/70 text-xs">{{ roleLabel() }}</p>
+        </div>
+        <div
+          class="bg-primary-foreground/15 ring-primary-foreground/20 flex size-9 items-center justify-center rounded-full ring-1 md:size-10"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5" aria-hidden="true">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+          </svg>
+        </div>
+      </div>
+    </header>
+
+    <main
+      class="flex min-h-0 flex-1 flex-col p-3 sm:p-4 md:p-5"
+      [class.overflow-hidden]="isFillHeightPage()"
+      [class.overflow-y-auto]="!isFillHeightPage()"
+    >
+      <div
+        class="mx-auto flex w-full max-w-[100rem] flex-col gap-4"
+        [class.page-fill]="isFillHeightPage()"
+        [class.min-h-0]="isFillHeightPage()"
+        [class.h-full]="isFillHeightPage()"
+        [class.flex-1]="isFillHeightPage()"
+        [class.overflow-hidden]="isFillHeightPage()"
+      >
+        <router-outlet></router-outlet>
+      </div>
+    </main>
+  </div>
+</div>
+
+@if (changePasswordOpen()) {
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="change-password-title"
+  >
+    <button
+      type="button"
+      class="absolute inset-0 cursor-pointer bg-zinc-950/45 backdrop-blur-[2px]"
+      (click)="closeChangePassword()"
+      aria-label="Close"
+    ></button>
+    <div class="relative z-10 w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xl">
+      <h3 id="change-password-title" class="text-base font-bold text-zinc-900">Change password</h3>
+      <p class="mt-1 text-sm text-zinc-500">Update the password for your staff account.</p>
+
+      @if (changePasswordError()) {
+        <p class="mt-3 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-red-600">
+          {{ changePasswordError() }}
+        </p>
+      }
+      @if (changePasswordSuccess()) {
+        <p class="mt-3 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">
+          {{ changePasswordSuccess() }}
+        </p>
+      }
+
+      <form class="mt-4 flex flex-col gap-3" (ngSubmit)="submitChangePassword()">
+        <label class="block text-sm font-semibold text-zinc-800">
+          Current password
+          <input
+            type="password"
+            autocomplete="current-password"
+            class="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+            [ngModel]="currentPassword()"
+            (ngModelChange)="currentPassword.set($event)"
+            [ngModelOptions]="{ standalone: true }"
+            [disabled]="changePasswordLoading()"
+          />
+        </label>
+        <label class="block text-sm font-semibold text-zinc-800">
+          New password
+          <input
+            type="password"
+            autocomplete="new-password"
+            class="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+            [ngModel]="newPassword()"
+            (ngModelChange)="newPassword.set($event)"
+            [ngModelOptions]="{ standalone: true }"
+            [disabled]="changePasswordLoading()"
+          />
+        </label>
+        <label class="block text-sm font-semibold text-zinc-800">
+          Confirm new password
+          <input
+            type="password"
+            autocomplete="new-password"
+            class="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+            [ngModel]="confirmPassword()"
+            (ngModelChange)="confirmPassword.set($event)"
+            [ngModelOptions]="{ standalone: true }"
+            [disabled]="changePasswordLoading()"
+          />
+        </label>
+        <div class="mt-2 flex justify-end gap-2">
+          <button
+            type="button"
+            class="cursor-pointer rounded-lg px-3.5 py-2 text-sm font-semibold text-zinc-600 hover:bg-zinc-100"
+            (click)="closeChangePassword()"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            [disabled]="changePasswordLoading()"
+            class="bg-primary cursor-pointer rounded-lg px-3.5 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          >
+            {{ changePasswordLoading() ? 'Saving…' : 'Save password' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
