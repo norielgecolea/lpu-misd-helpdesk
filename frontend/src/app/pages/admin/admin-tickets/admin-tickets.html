@@ -150,22 +150,19 @@
                 tabindex="0"
                 (click)="selectTicket(ticket)"
                 (keydown.enter)="selectTicket(ticket)"
-                class="cursor-pointer border-b border-zinc-200 transition-colors hover:bg-zinc-200/70"
+                class="cursor-pointer border-b border-zinc-300 text-zinc-700 transition-[background-color,box-shadow,color] hover:bg-zinc-300/60"
                 [class.bg-white]="selectedTicketId() !== ticket.id && i % 2 === 0"
-                [class.bg-zinc-100]="selectedTicketId() !== ticket.id && i % 2 === 1"
-                [class.bg-[#8d2546]/[0.14]]="selectedTicketId() === ticket.id"
-                [class.shadow-[inset_0_0_0_1px_rgba(141,37,70,0.45),inset_3px_0_0_0_#8d2546,0_0_18px_rgba(141,37,70,0.22)]]="
+                [class.bg-zinc-200]="selectedTicketId() !== ticket.id && i % 2 === 1"
+                [ngClass]="
                   selectedTicketId() === ticket.id
+                    ? 'bg-primary/10 font-semibold text-primary shadow-[inset_3px_0_0_0_#8d2546,0_0_0_1px_rgba(141,37,70,0.4),0_0_24px_rgba(141,37,70,0.4)]'
+                    : null
                 "
                 [attr.aria-current]="selectedTicketId() === ticket.id ? 'true' : null"
               >
                 <td class="whitespace-nowrap px-2.5 py-1.5 align-middle">
                   <div class="flex items-center gap-1.5">
-                    <span
-                      class="font-mono text-[11px] font-medium"
-                      [class.text-[#8d2546]]="selectedTicketId() === ticket.id"
-                      [class.text-zinc-800]="selectedTicketId() !== ticket.id"
-                    >
+                    <span class="font-mono text-[11px] font-medium">
                       {{ ticket.ticketNumber }}
                     </span>
                     @if ((ticket.unreadCount ?? 0) > 0) {
@@ -177,19 +174,19 @@
                     }
                   </div>
                 </td>
-                <td class="max-w-[14rem] truncate px-2.5 py-1.5 align-middle font-medium text-zinc-900" [title]="ticket.subject">
+                <td class="max-w-[14rem] truncate px-2.5 py-1.5 align-middle font-medium" [title]="ticket.subject">
                   {{ ticket.subject }}
                 </td>
-                <td class="max-w-[9rem] truncate px-2.5 py-1.5 align-middle text-zinc-600" [title]="ticket.categoryLabel">
+                <td class="max-w-[9rem] truncate px-2.5 py-1.5 align-middle" [title]="ticket.categoryLabel">
                   {{ ticket.categoryLabel }}
                 </td>
-                <td class="max-w-[10rem] truncate px-2.5 py-1.5 align-middle text-zinc-800" [title]="ticket.requesterName">
+                <td class="max-w-[10rem] truncate px-2.5 py-1.5 align-middle" [title]="ticket.requesterName">
                   {{ ticket.requesterName }}
                 </td>
-                <td class="max-w-[12rem] truncate px-2.5 py-1.5 align-middle text-zinc-600" [title]="ticket.requesterEmail">
+                <td class="max-w-[12rem] truncate px-2.5 py-1.5 align-middle" [title]="ticket.requesterEmail">
                   {{ ticket.requesterEmail }}
                 </td>
-                <td class="max-w-[9rem] truncate px-2.5 py-1.5 align-middle text-zinc-600">
+                <td class="max-w-[9rem] truncate px-2.5 py-1.5 align-middle">
                   {{ ticket.assignedAdminName || 'Unassigned' }}
                 </td>
                 <td class="whitespace-nowrap px-2.5 py-1.5 align-middle">
@@ -197,10 +194,10 @@
                     {{ statusLabel(ticket.status) }}
                   </span>
                 </td>
-                <td class="whitespace-nowrap px-2.5 py-1.5 align-middle text-zinc-600">
+                <td class="whitespace-nowrap px-2.5 py-1.5 align-middle">
                   {{ channelLabel(ticket.channel) }}
                 </td>
-                <td class="whitespace-nowrap px-2.5 py-1.5 align-middle text-zinc-500">
+                <td class="whitespace-nowrap px-2.5 py-1.5 align-middle opacity-80">
                   {{ ticket.updatedAt | date: 'MMM d, h:mm a' }}
                 </td>
               </tr>
