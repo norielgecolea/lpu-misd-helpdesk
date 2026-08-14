@@ -150,14 +150,30 @@
                 tabindex="0"
                 (click)="selectTicket(ticket)"
                 (keydown.enter)="selectTicket(ticket)"
-                class="cursor-pointer border-b border-zinc-100 transition-colors hover:bg-zinc-100/80"
+                class="cursor-pointer border-b border-zinc-200 transition-colors hover:bg-zinc-200/70"
                 [class.bg-white]="selectedTicketId() !== ticket.id && i % 2 === 0"
-                [class.bg-zinc-50]="selectedTicketId() !== ticket.id && i % 2 === 1"
-                [class.bg-[#8d2546]/[0.06]]="selectedTicketId() === ticket.id"
+                [class.bg-zinc-100]="selectedTicketId() !== ticket.id && i % 2 === 1"
+                [class.bg-[#8d2546]/[0.12]]="selectedTicketId() === ticket.id"
+                [class.shadow-[inset_3px_0_0_0_#8d2546]]="selectedTicketId() === ticket.id"
+                [attr.aria-current]="selectedTicketId() === ticket.id ? 'true' : null"
               >
                 <td class="whitespace-nowrap px-2.5 py-1.5 align-middle">
                   <div class="flex items-center gap-1.5">
-                    <span class="font-mono text-[11px] font-medium text-zinc-800">{{ ticket.ticketNumber }}</span>
+                    @if (selectedTicketId() === ticket.id) {
+                      <span
+                        class="inline-flex items-center rounded bg-[#8d2546] px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-white uppercase"
+                        title="Open in chat"
+                      >
+                        Open
+                      </span>
+                    }
+                    <span
+                      class="font-mono text-[11px] font-medium"
+                      [class.text-[#8d2546]]="selectedTicketId() === ticket.id"
+                      [class.text-zinc-800]="selectedTicketId() !== ticket.id"
+                    >
+                      {{ ticket.ticketNumber }}
+                    </span>
                     @if ((ticket.unreadCount ?? 0) > 0) {
                       <span
                         class="inline-flex min-w-[1.1rem] items-center justify-center rounded-full bg-[#8d2546] px-1 py-0.5 text-[9px] font-bold text-white"
