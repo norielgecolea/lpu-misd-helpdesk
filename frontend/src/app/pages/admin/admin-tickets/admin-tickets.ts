@@ -25,8 +25,14 @@ import { TicketHistoryDialog } from '../../../shared/ticket-history-dialog/ticke
 
 const POLL_MS = 3000;
 const LIST_POLL_MS = 5000;
-const LAYOUT_STORAGE_KEY = 'admin-tickets-layout-v2';
-const GROUP_ORDER: TicketStatus[] = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
+const LAYOUT_STORAGE_KEY = 'admin-tickets-layout-v3';
+const PAGE_SIZE = 20;
+const STATUS_RANK: Record<TicketStatus, number> = {
+  OPEN: 0,
+  IN_PROGRESS: 1,
+  RESOLVED: 2,
+  CLOSED: 3,
+};
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
@@ -34,13 +40,17 @@ type StatusFilter = TicketStatus | '';
 /** all | unassigned | mine | admin:<id> */
 type ScopeFilter = string;
 type LayoutMode = 'split' | 'list' | 'chat';
-
-interface TicketGroup {
-  status: TicketStatus;
-  label: string;
-  tickets: Ticket[];
-  unread: number;
-}
+type SortKey =
+  | 'ticketNumber'
+  | 'subject'
+  | 'categoryLabel'
+  | 'requesterName'
+  | 'requesterEmail'
+  | 'assignedAdminName'
+  | 'status'
+  | 'channel'
+  | 'updatedAt';
+type SortDir = 'asc' | 'desc';
 
 @Component({
   selector: 'app-admin-tickets',
@@ -68,9 +78,9 @@ export class AdminTickets implements OnInit, OnDestroy {
   /** When true, scope is fixed to Mine (My tickets route). */
   protected readonly scopeLocked = signal(false);
   protected readonly layoutMode = signal<LayoutMode>(this.readLayoutMode());
-  protected readonly collapsedGroups = signal<Set<TicketStatus>>(
-    new Set<TicketStatus>(['RESOLVED', 'CLOSED']),
-  );
+  protected readonly listPage = signal(1);
+  protected readonly sortKey = signal<SortKey>('updatedAt');
+  protected readonly sortDir = signal<SortDir>('desc');
   protected readonly busyTicketIds = signal<Set<number>>(new Set());
 
   protected readonly selectedTicketId = signal<number | null>(null);
@@ -124,21 +134,35 @@ export class AdminTickets implements OnInit, OnDestroy {
     });
   });
 
-  protected readonly ticketGroups = computed((): TicketGroup[] => {
-    const list = this.filteredTickets();
-    const statusFilter = this.statusFilter();
-    const statuses = statusFilter ? [statusFilter] : GROUP_ORDER;
-    return statuses.map((status) => {
-      const tickets = [...list.filter((t) => t.status === status)].sort(
-        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-      );
-      return {
-        status,
-        label: this.statusLabel(status),
-        tickets,
-        unread: tickets.reduce((sum, t) => sum + (t.unreadCount ?? 0), 0),
-      };
-    });
+  protected readonly sortedTickets = computed(() => {
+    const key = this.sortKey();
+    const dir = this.sortDir() === 'asc' ? 1 : -1;
+    return [...this.filteredTickets()].sort((a, b) => this.compareTickets(a, b, key) * dir);
+  });
+
+  protected readonly listTotalPages = computed(() =>
+    Math.max(1, Math.ceil(this.sortedTickets().length / PAGE_SIZE)),
+  );
+
+  protected readonly currentListPage = computed(() =>
+    Math.min(this.listPage(), this.listTotalPages()),
+  );
+
+  protected readonly pagedTickets = computed(() => {
+    const page = this.currentListPage();
+    const start = (page - 1) * PAGE_SIZE;
+    return this.sortedTickets().slice(start, start + PAGE_SIZE);
+  });
+
+  protected readonly listRangeLabel = computed(() => {
+    const total = this.sortedTickets().length;
+    if (total === 0) {
+      return '0 shown';
+    }
+    const page = this.currentListPage();
+    const start = (page - 1) * PAGE_SIZE + 1;
+    const end = Math.min(page * PAGE_SIZE, total);
+    return `${start}–${end} of ${total}`;
   });
 
   protected readonly selectedTicket = computed(() => {
@@ -173,6 +197,7 @@ export class AdminTickets implements OnInit, OnDestroy {
       const mine = data['scope'] === 'mine';
       this.scopeLocked.set(mine);
       this.scopeFilter.set(mine ? 'mine' : 'all');
+      this.listPage.set(1);
       this.ensureSelectionVisible();
     });
 
@@ -217,28 +242,35 @@ export class AdminTickets implements OnInit, OnDestroy {
   }
 
   protected async onFilterChange(): Promise<void> {
+    this.listPage.set(1);
     await this.loadTickets(true);
     this.ensureSelectionVisible();
   }
 
   protected onScopeChange(): void {
+    this.listPage.set(1);
     this.ensureSelectionVisible();
   }
 
-  protected toggleGroup(status: TicketStatus): void {
-    this.collapsedGroups.update((current) => {
-      const next = new Set(current);
-      if (next.has(status)) {
-        next.delete(status);
-      } else {
-        next.add(status);
-      }
-      return next;
-    });
+  protected toggleSort(key: SortKey): void {
+    if (this.sortKey() === key) {
+      this.sortDir.update((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      this.sortKey.set(key);
+      this.sortDir.set(key === 'updatedAt' ? 'desc' : 'asc');
+    }
+    this.listPage.set(1);
   }
 
-  protected isGroupCollapsed(status: TicketStatus): boolean {
-    return this.collapsedGroups().has(status);
+  protected sortIcon(key: SortKey): string {
+    if (this.sortKey() !== key) {
+      return '↕';
+    }
+    return this.sortDir() === 'asc' ? '↑' : '↓';
+  }
+
+  protected goToListPage(page: number): void {
+    this.listPage.set(Math.min(Math.max(1, page), this.listTotalPages()));
   }
 
   protected setLayoutMode(mode: LayoutMode): void {
@@ -457,12 +489,31 @@ export class AdminTickets implements OnInit, OnDestroy {
       }
       return [ticket, ...list];
     });
-    this.collapsedGroups.update((set) => {
-      const next = new Set(set);
-      next.delete(ticket.status);
-      return next;
-    });
+    this.listPage.set(1);
     await this.selectTicket(ticket);
+  }
+
+  private compareTickets(a: Ticket, b: Ticket, key: SortKey): number {
+    switch (key) {
+      case 'updatedAt':
+        return new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
+      case 'status':
+        return STATUS_RANK[a.status] - STATUS_RANK[b.status];
+      case 'assignedAdminName': {
+        const av = (a.assignedAdminName ?? '').toLowerCase();
+        const bv = (b.assignedAdminName ?? '').toLowerCase();
+        if (!av && bv) return 1;
+        if (av && !bv) return -1;
+        return av.localeCompare(bv);
+      }
+      case 'channel':
+        return a.channel.localeCompare(b.channel);
+      default: {
+        const av = (a[key] ?? '').toString().toLowerCase();
+        const bv = (b[key] ?? '').toString().toLowerCase();
+        return av.localeCompare(bv);
+      }
+    }
   }
 
   protected async onAssign(ticket: Ticket, adminIdRaw: string): Promise<void> {

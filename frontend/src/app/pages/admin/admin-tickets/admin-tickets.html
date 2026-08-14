@@ -5,50 +5,26 @@
     [ngClass]="{
       'max-lg:hidden': selectedTicketId() !== null && layoutMode() !== 'list',
       'lg:hidden': layoutMode() === 'chat',
-      'lg:w-[48rem] lg:max-w-[48rem] lg:flex-none lg:shrink-0': layoutMode() === 'split',
+      'lg:w-[min(56rem,58%)] lg:max-w-[56rem] lg:flex-none lg:shrink-0': layoutMode() === 'split',
     }"
   >
-    <div class="flex shrink-0 flex-col gap-2 border-b border-zinc-100 px-4 py-3">
-      <div class="flex items-center justify-between gap-3">
-        <div>
-          <h2 class="text-sm font-semibold text-zinc-900">
-            {{ scopeLocked() ? 'My tickets' : 'Tickets' }}
-          </h2>
-          <p class="text-xs text-zinc-500">
-            @if (scopeLocked()) {
-              Assigned to you · {{ filteredTickets().length }} shown
-            } @else {
-              {{ filteredTickets().length }} shown
-            }
-          </p>
-        </div>
-        <div class="flex items-center gap-1.5">
-          @if (layoutMode() === 'split') {
-            <button
-              type="button"
-              (click)="setLayoutMode('list')"
-              class="hidden cursor-pointer rounded-md border border-zinc-300 px-2 py-1.5 text-[11px] font-semibold text-zinc-700 hover:bg-zinc-50 lg:inline-flex"
-              title="Maximize ticket list"
-            >
-              Expand list
-            </button>
+    <div class="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-zinc-100 px-3 py-2.5">
+      <div class="min-w-0">
+        <h2 class="text-sm font-semibold text-zinc-900">
+          {{ scopeLocked() ? 'My tickets' : 'Tickets' }}
+        </h2>
+        <p class="text-[11px] text-zinc-500">
+          @if (scopeLocked()) {
+            Assigned to you · {{ listRangeLabel() }}
+          } @else {
+            {{ listRangeLabel() }}
           }
-          @if (layoutMode() === 'list') {
-            <button
-              type="button"
-              (click)="setLayoutMode('split')"
-              class="hidden cursor-pointer rounded-md border border-zinc-300 px-2 py-1.5 text-[11px] font-semibold text-zinc-700 hover:bg-zinc-50 lg:inline-flex"
-              title="Show chat pane"
-            >
-              Show chat
-            </button>
-          }
-        </div>
+        </p>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap items-center gap-1.5">
         @if (!scopeLocked()) {
           <select
-            class="rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-xs text-zinc-800 focus:border-[#8d2546] focus:outline-none"
+            class="rounded-md border border-zinc-300 bg-white px-2 py-1 text-[11px] text-zinc-800 focus:border-[#8d2546] focus:outline-none"
             [ngModel]="scopeFilter()"
             (ngModelChange)="scopeFilter.set($event); onScopeChange()"
             aria-label="Filter by assignment"
@@ -59,7 +35,7 @@
           </select>
         }
         <select
-          class="rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-xs text-zinc-800 focus:border-[#8d2546] focus:outline-none"
+          class="rounded-md border border-zinc-300 bg-white px-2 py-1 text-[11px] text-zinc-800 focus:border-[#8d2546] focus:outline-none"
           [ngModel]="statusFilter()"
           (ngModelChange)="statusFilter.set($event); onFilterChange()"
           aria-label="Filter by status"
@@ -68,11 +44,31 @@
             <option [value]="option.value">{{ option.label }}</option>
           }
         </select>
+        @if (layoutMode() === 'split') {
+          <button
+            type="button"
+            (click)="setLayoutMode('list')"
+            class="hidden cursor-pointer rounded-md border border-zinc-300 px-2 py-1 text-[11px] font-semibold text-zinc-700 hover:bg-zinc-50 lg:inline-flex"
+            title="Maximize ticket list"
+          >
+            Expand
+          </button>
+        }
+        @if (layoutMode() === 'list') {
+          <button
+            type="button"
+            (click)="setLayoutMode('split')"
+            class="hidden cursor-pointer rounded-md border border-zinc-300 px-2 py-1 text-[11px] font-semibold text-zinc-700 hover:bg-zinc-50 lg:inline-flex"
+            title="Show chat pane"
+          >
+            Show chat
+          </button>
+        }
       </div>
     </div>
 
     @if (error()) {
-      <p class="m-3 shrink-0 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+      <p class="m-2 shrink-0 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
         {{ error() }}
       </p>
     }
@@ -97,118 +93,133 @@
       </div>
     } @else {
       <div class="min-h-0 flex-1 overflow-auto overscroll-contain">
-        <table class="w-full min-w-[72rem] border-collapse text-left text-sm">
-          <thead class="sticky top-0 z-10 border-b border-zinc-200 bg-zinc-50 text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+        <table class="w-full min-w-[64rem] border-collapse text-left text-xs">
+          <thead class="sticky top-0 z-10 border-b border-zinc-200 bg-zinc-50 text-[10px] font-semibold tracking-wide text-zinc-500 uppercase">
             <tr>
-              <th class="whitespace-nowrap px-3 py-2.5">Ticket ID</th>
-              <th class="whitespace-nowrap px-3 py-2.5">Concern</th>
-              <th class="whitespace-nowrap px-3 py-2.5">Category</th>
-              <th class="whitespace-nowrap px-3 py-2.5">Sender name</th>
-              <th class="whitespace-nowrap px-3 py-2.5">Sender email</th>
-              <th class="whitespace-nowrap px-3 py-2.5">Assignee</th>
-              <th class="whitespace-nowrap px-3 py-2.5">Status</th>
-              <th class="whitespace-nowrap px-3 py-2.5">Channel</th>
-              <th class="whitespace-nowrap px-3 py-2.5">Updated</th>
+              <th class="whitespace-nowrap px-2.5 py-2">
+                <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('ticketNumber')">
+                  Ticket ID <span class="opacity-70">{{ sortIcon('ticketNumber') }}</span>
+                </button>
+              </th>
+              <th class="whitespace-nowrap px-2.5 py-2">
+                <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('subject')">
+                  Concern <span class="opacity-70">{{ sortIcon('subject') }}</span>
+                </button>
+              </th>
+              <th class="whitespace-nowrap px-2.5 py-2">
+                <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('categoryLabel')">
+                  Category <span class="opacity-70">{{ sortIcon('categoryLabel') }}</span>
+                </button>
+              </th>
+              <th class="whitespace-nowrap px-2.5 py-2">
+                <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('requesterName')">
+                  Sender name <span class="opacity-70">{{ sortIcon('requesterName') }}</span>
+                </button>
+              </th>
+              <th class="whitespace-nowrap px-2.5 py-2">
+                <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('requesterEmail')">
+                  Sender email <span class="opacity-70">{{ sortIcon('requesterEmail') }}</span>
+                </button>
+              </th>
+              <th class="whitespace-nowrap px-2.5 py-2">
+                <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('assignedAdminName')">
+                  Assignee <span class="opacity-70">{{ sortIcon('assignedAdminName') }}</span>
+                </button>
+              </th>
+              <th class="whitespace-nowrap px-2.5 py-2">
+                <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('status')">
+                  Status <span class="opacity-70">{{ sortIcon('status') }}</span>
+                </button>
+              </th>
+              <th class="whitespace-nowrap px-2.5 py-2">
+                <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('channel')">
+                  Channel <span class="opacity-70">{{ sortIcon('channel') }}</span>
+                </button>
+              </th>
+              <th class="whitespace-nowrap px-2.5 py-2">
+                <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('updatedAt')">
+                  Updated <span class="opacity-70">{{ sortIcon('updatedAt') }}</span>
+                </button>
+              </th>
             </tr>
           </thead>
-          @for (group of ticketGroups(); track group.status) {
-            @if (group.tickets.length > 0) {
-              <tbody>
-                <tr class="border-b border-zinc-200 bg-zinc-100/90">
-                  <td colspan="9" class="p-0">
-                    <button
-                      type="button"
-                      (click)="toggleGroup(group.status)"
-                      class="flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left hover:bg-zinc-200/60"
-                    >
-                      <span class="flex items-center gap-2">
-                        <svg
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                          class="h-3.5 w-3.5 text-zinc-400 transition-transform"
-                          [class.rotate-90]="!isGroupCollapsed(group.status)"
-                          aria-hidden="true"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M7.21 14.77a.75.75 0 0 1 .02-1.06L11.168 10 7.23 6.29a.75.75 0 1 1 1.04-1.08l4.5 4.25a.75.75 0 0 1 0 1.08l-4.5 4.25a.75.75 0 0 1-1.06-.02Z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                        <span class="text-[11px] font-semibold tracking-wide text-zinc-600 uppercase">
-                          {{ group.label }}
-                        </span>
-                        <span class="rounded-full bg-zinc-200 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-700">
-                          {{ group.tickets.length }}
-                        </span>
+          <tbody>
+            @for (ticket of pagedTickets(); track ticket.id; let i = $index) {
+              <tr
+                role="button"
+                tabindex="0"
+                (click)="selectTicket(ticket)"
+                (keydown.enter)="selectTicket(ticket)"
+                class="cursor-pointer border-b border-zinc-100 transition-colors hover:bg-zinc-100/80"
+                [class.bg-white]="selectedTicketId() !== ticket.id && i % 2 === 0"
+                [class.bg-zinc-50]="selectedTicketId() !== ticket.id && i % 2 === 1"
+                [class.bg-[#8d2546]/[0.06]]="selectedTicketId() === ticket.id"
+              >
+                <td class="whitespace-nowrap px-2.5 py-1.5 align-middle">
+                  <div class="flex items-center gap-1.5">
+                    <span class="font-mono text-[11px] font-medium text-zinc-800">{{ ticket.ticketNumber }}</span>
+                    @if ((ticket.unreadCount ?? 0) > 0) {
+                      <span
+                        class="inline-flex min-w-[1.1rem] items-center justify-center rounded-full bg-[#8d2546] px-1 py-0.5 text-[9px] font-bold text-white"
+                      >
+                        {{ unreadLabel(ticket.unreadCount) }}
                       </span>
-                      @if (group.unread > 0) {
-                        <span
-                          class="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-[#8d2546] px-1.5 py-0.5 text-[10px] font-bold text-white"
-                        >
-                          {{ unreadLabel(group.unread) }}
-                        </span>
-                      }
-                    </button>
-                  </td>
-                </tr>
-                @if (!isGroupCollapsed(group.status)) {
-                  @for (ticket of group.tickets; track ticket.id; let i = $index) {
-                    <tr
-                      role="button"
-                      tabindex="0"
-                      (click)="selectTicket(ticket)"
-                      (keydown.enter)="selectTicket(ticket)"
-                      class="cursor-pointer border-b border-zinc-100 transition-colors hover:bg-zinc-100/80"
-                      [class.bg-white]="selectedTicketId() !== ticket.id && i % 2 === 0"
-                      [class.bg-zinc-50]="selectedTicketId() !== ticket.id && i % 2 === 1"
-                      [class.bg-[#8d2546]/[0.06]]="selectedTicketId() === ticket.id"
-                    >
-                      <td class="whitespace-nowrap px-3 py-2 align-middle">
-                        <div class="flex items-center gap-1.5">
-                          <span class="font-mono text-xs font-medium text-zinc-800">{{ ticket.ticketNumber }}</span>
-                          @if ((ticket.unreadCount ?? 0) > 0) {
-                            <span
-                              class="inline-flex min-w-[1.1rem] items-center justify-center rounded-full bg-[#8d2546] px-1 py-0.5 text-[9px] font-bold text-white"
-                            >
-                              {{ unreadLabel(ticket.unreadCount) }}
-                            </span>
-                          }
-                        </div>
-                      </td>
-                      <td class="max-w-[16rem] truncate px-3 py-2 align-middle font-medium text-zinc-900" [title]="ticket.subject">
-                        {{ ticket.subject }}
-                      </td>
-                      <td class="max-w-[10rem] truncate px-3 py-2 align-middle text-zinc-600" [title]="ticket.categoryLabel">
-                        {{ ticket.categoryLabel }}
-                      </td>
-                      <td class="max-w-[11rem] truncate px-3 py-2 align-middle text-zinc-800" [title]="ticket.requesterName">
-                        {{ ticket.requesterName }}
-                      </td>
-                      <td class="max-w-[14rem] truncate px-3 py-2 align-middle text-zinc-600" [title]="ticket.requesterEmail">
-                        {{ ticket.requesterEmail }}
-                      </td>
-                      <td class="max-w-[10rem] truncate px-3 py-2 align-middle text-zinc-600">
-                        {{ ticket.assignedAdminName || 'Unassigned' }}
-                      </td>
-                      <td class="whitespace-nowrap px-3 py-2 align-middle">
-                        <span class="rounded px-1.5 py-0.5 text-[11px] font-semibold" [class]="statusBadgeClass(ticket.status)">
-                          {{ statusLabel(ticket.status) }}
-                        </span>
-                      </td>
-                      <td class="whitespace-nowrap px-3 py-2 align-middle text-zinc-600">
-                        {{ channelLabel(ticket.channel) }}
-                      </td>
-                      <td class="whitespace-nowrap px-3 py-2 align-middle text-zinc-500">
-                        {{ ticket.updatedAt | date: 'MMM d, y, h:mm a' }}
-                      </td>
-                    </tr>
-                  }
-                }
-              </tbody>
+                    }
+                  </div>
+                </td>
+                <td class="max-w-[14rem] truncate px-2.5 py-1.5 align-middle font-medium text-zinc-900" [title]="ticket.subject">
+                  {{ ticket.subject }}
+                </td>
+                <td class="max-w-[9rem] truncate px-2.5 py-1.5 align-middle text-zinc-600" [title]="ticket.categoryLabel">
+                  {{ ticket.categoryLabel }}
+                </td>
+                <td class="max-w-[10rem] truncate px-2.5 py-1.5 align-middle text-zinc-800" [title]="ticket.requesterName">
+                  {{ ticket.requesterName }}
+                </td>
+                <td class="max-w-[12rem] truncate px-2.5 py-1.5 align-middle text-zinc-600" [title]="ticket.requesterEmail">
+                  {{ ticket.requesterEmail }}
+                </td>
+                <td class="max-w-[9rem] truncate px-2.5 py-1.5 align-middle text-zinc-600">
+                  {{ ticket.assignedAdminName || 'Unassigned' }}
+                </td>
+                <td class="whitespace-nowrap px-2.5 py-1.5 align-middle">
+                  <span class="rounded px-1.5 py-0.5 text-[10px] font-semibold" [class]="statusBadgeClass(ticket.status)">
+                    {{ statusLabel(ticket.status) }}
+                  </span>
+                </td>
+                <td class="whitespace-nowrap px-2.5 py-1.5 align-middle text-zinc-600">
+                  {{ channelLabel(ticket.channel) }}
+                </td>
+                <td class="whitespace-nowrap px-2.5 py-1.5 align-middle text-zinc-500">
+                  {{ ticket.updatedAt | date: 'MMM d, h:mm a' }}
+                </td>
+              </tr>
             }
-          }
+          </tbody>
         </table>
+      </div>
+      <div class="flex shrink-0 items-center justify-between gap-2 border-t border-zinc-100 px-3 py-2">
+        <p class="text-[11px] text-zinc-500">
+          Page {{ currentListPage() }} of {{ listTotalPages() }}
+        </p>
+        <div class="flex items-center gap-1.5">
+          <button
+            type="button"
+            class="cursor-pointer rounded-md border border-zinc-300 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
+            [disabled]="currentListPage() <= 1"
+            (click)="goToListPage(currentListPage() - 1)"
+          >
+            Prev
+          </button>
+          <button
+            type="button"
+            class="cursor-pointer rounded-md border border-zinc-300 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
+            [disabled]="currentListPage() >= listTotalPages()"
+            (click)="goToListPage(currentListPage() + 1)"
+          >
+            Next
+          </button>
+        </div>
       </div>
     }
   </aside>
@@ -227,30 +238,30 @@
       </div>
     } @else {
       @if (selectedTicket(); as ticket) {
-        <div class="shrink-0 border-b border-zinc-100 px-4 py-3 sm:px-5">
+        <div class="shrink-0 border-b border-zinc-100 px-3 py-2.5 sm:px-4">
           <button
             type="button"
             (click)="clearSelection()"
-            class="mb-2 cursor-pointer text-xs font-medium text-[#8d2546] lg:hidden"
+            class="mb-1.5 cursor-pointer text-xs font-medium text-[#8d2546] lg:hidden"
           >
             ← Back to tickets
           </button>
 
-          <div class="flex flex-wrap items-start justify-between gap-3">
+          <div class="flex flex-wrap items-start justify-between gap-2">
             <div class="min-w-0">
-              <div class="flex flex-wrap items-center gap-2">
-                <span class="font-mono text-xs text-zinc-500">{{ ticket.ticketNumber }}</span>
-                <span class="rounded px-2 py-0.5 text-[11px] font-semibold" [class]="statusBadgeClass(ticket.status)">
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="font-mono text-[11px] text-zinc-500">{{ ticket.ticketNumber }}</span>
+                <span class="rounded px-1.5 py-0.5 text-[10px] font-semibold" [class]="statusBadgeClass(ticket.status)">
                   {{ statusLabel(ticket.status) }}
                 </span>
-                <span class="rounded bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600">
+                <span class="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600">
                   {{ ticket.categoryLabel }}
                 </span>
-                <span class="rounded bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600">
+                <span class="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600">
                   {{ channelLabel(ticket.channel) }}
                 </span>
                 @if (live()) {
-                  <span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-700">
+                  <span class="inline-flex items-center gap-1.5 text-[10px] font-medium text-emerald-700">
                     <span class="relative flex h-1.5 w-1.5">
                       <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60"></span>
                       <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
@@ -259,19 +270,19 @@
                   </span>
                 }
               </div>
-              <h2 class="mt-1 text-base font-semibold text-zinc-900">{{ ticket.subject }}</h2>
-              <p class="mt-0.5 text-xs text-zinc-500">
+              <h2 class="mt-0.5 text-sm font-semibold text-zinc-900">{{ ticket.subject }}</h2>
+              <p class="mt-0.5 text-[11px] text-zinc-500">
                 {{ ticket.requesterName }} &lt;{{ ticket.requesterEmail }}&gt;
-                · {{ ticket.createdAt | date: 'MMM d, y, h:mm a' }}
+                · {{ ticket.createdAt | date: 'MMM d, h:mm a' }}
               </p>
             </div>
 
-            <div class="flex flex-wrap items-end gap-2">
+            <div class="flex flex-wrap items-end gap-1.5">
               @if (layoutMode() === 'split') {
                 <button
                   type="button"
                   (click)="setLayoutMode('chat')"
-                  class="hidden cursor-pointer rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 lg:inline-flex"
+                  class="hidden cursor-pointer rounded-md border border-zinc-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 lg:inline-flex"
                   title="Maximize chat"
                 >
                   Expand chat
@@ -281,14 +292,14 @@
                 <button
                   type="button"
                   (click)="setLayoutMode('split')"
-                  class="hidden cursor-pointer rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 lg:inline-flex"
+                  class="hidden cursor-pointer rounded-md border border-zinc-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 lg:inline-flex"
                 >
                   Split view
                 </button>
                 <button
                   type="button"
                   (click)="setLayoutMode('list')"
-                  class="hidden cursor-pointer rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 lg:inline-flex"
+                  class="hidden cursor-pointer rounded-md border border-zinc-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 lg:inline-flex"
                 >
                   Show list
                 </button>
@@ -296,21 +307,21 @@
               <button
                 type="button"
                 (click)="openSummary(ticket)"
-                class="cursor-pointer rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 transition-colors hover:bg-zinc-50"
+                class="cursor-pointer rounded-md border border-zinc-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50"
               >
-                View summary
+                Summary
               </button>
               <button
                 type="button"
                 (click)="openHistory(ticket)"
-                class="cursor-pointer rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 transition-colors hover:bg-zinc-50"
+                class="cursor-pointer rounded-md border border-zinc-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50"
               >
-                View history
+                History
               </button>
-              <div class="flex flex-col gap-1">
-                <label class="text-[11px] font-medium text-zinc-500">Assign</label>
+              <div class="flex flex-col gap-0.5">
+                <label class="text-[10px] font-medium text-zinc-500">Assign</label>
                 <select
-                  class="min-w-[9rem] rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-xs disabled:opacity-50"
+                  class="min-w-[8rem] rounded-md border border-zinc-300 bg-white px-2 py-1 text-[11px] disabled:opacity-50"
                   [ngModel]="ticket.assignedAdminId ?? ''"
                   (ngModelChange)="onAssign(ticket, $event)"
                   [ngModelOptions]="{ standalone: true }"
@@ -322,10 +333,10 @@
                   }
                 </select>
               </div>
-              <div class="flex flex-col gap-1">
-                <label class="text-[11px] font-medium text-zinc-500">Status</label>
+              <div class="flex flex-col gap-0.5">
+                <label class="text-[10px] font-medium text-zinc-500">Status</label>
                 <select
-                  class="min-w-[8rem] rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-xs disabled:opacity-50"
+                  class="min-w-[7.5rem] rounded-md border border-zinc-300 bg-white px-2 py-1 text-[11px] disabled:opacity-50"
                   [ngModel]="ticket.status"
                   (ngModelChange)="onStatusChange(ticket, $event)"
                   [ngModelOptions]="{ standalone: true }"
@@ -345,22 +356,21 @@
           <!-- Ticket details + ID -->
           @if (layoutMode() !== 'chat') {
             <div
-              class="flex max-h-[36%] min-h-0 shrink-0 flex-col overflow-y-auto overscroll-contain border-b border-zinc-100 xl:max-h-none xl:w-[22rem] xl:shrink-0 xl:border-b-0 xl:border-r"
+              class="flex max-h-[22%] min-h-0 shrink-0 flex-col overflow-y-auto overscroll-contain border-b border-zinc-100 xl:max-h-none xl:w-[15rem] xl:shrink-0 xl:border-b-0 xl:border-r"
             >
-              <div class="space-y-4 px-4 py-4 sm:px-5">
+              <div class="space-y-2.5 px-3 py-2.5">
                 <div>
-                  <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">Description</p>
-                  <p class="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-zinc-800">
+                  <p class="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase">Description</p>
+                  <p class="mt-1 line-clamp-5 whitespace-pre-wrap text-xs leading-snug text-zinc-800">
                     {{ ticket.description }}
                   </p>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3 text-xs">
-                  <div>
+                <div class="grid grid-cols-2 gap-2 text-[11px]">
+                  <div class="col-span-2">
                     <p class="font-medium text-zinc-500">Requester</p>
                     <p class="mt-0.5 font-medium text-zinc-900">{{ ticket.requesterName }}</p>
                     <p class="break-all text-zinc-600">{{ ticket.requesterEmail }}</p>
-                
                   </div>
                   <div>
                     <p class="font-medium text-zinc-500">Updated</p>
@@ -381,22 +391,22 @@
                 </div>
 
                 <div>
-                  <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">ID photo</p>
+                  <p class="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase">ID photo</p>
                   @if (!ticket.hasIdPhoto) {
-                    <p class="mt-2 text-xs text-zinc-500">None uploaded</p>
+                    <p class="mt-1.5 text-[11px] text-zinc-500">None uploaded</p>
                   } @else if (idPhotoLoading()) {
-                    <div class="mt-2 flex justify-center py-10">
+                    <div class="mt-1.5 flex justify-center py-6">
                       <span class="h-5 w-5 animate-spin rounded-full border-2 border-zinc-200 border-t-[#8d2546]"></span>
                     </div>
                   } @else if (idPhotoError()) {
-                    <p class="mt-2 text-xs text-red-600">{{ idPhotoError() }}</p>
+                    <p class="mt-1.5 text-[11px] text-red-600">{{ idPhotoError() }}</p>
                   } @else if (idPhotoUrl(); as photoUrl) {
                     @if (idPhotoIsPdf()) {
                       <a
                         [href]="photoUrl"
                         target="_blank"
                         rel="noopener"
-                        class="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-medium text-[#8d2546] hover:bg-zinc-100"
+                        class="mt-1.5 inline-flex cursor-pointer items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-[11px] font-medium text-[#8d2546] hover:bg-zinc-100"
                       >
                         Open PDF
                       </a>
@@ -404,12 +414,12 @@
                       <button
                         type="button"
                         (click)="openIdLightbox()"
-                        class="mt-2 block w-full cursor-pointer overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50 hover:border-zinc-300"
+                        class="mt-1.5 block w-full cursor-pointer overflow-hidden rounded-md border border-zinc-200 bg-zinc-50 hover:border-zinc-300"
                       >
                         <img
                           [src]="photoUrl"
                           alt="Requester ID photo"
-                          class="max-h-56 w-full object-contain"
+                          class="max-h-36 w-full object-contain"
                         />
                       </button>
                     }
