@@ -111,82 +111,104 @@
               <th class="whitespace-nowrap px-3 py-2.5">Updated</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-zinc-100">
-            @for (ticket of pagedTickets(); track ticket.id) {
-              <tr
-                role="button"
-                tabindex="0"
-                (click)="selectTicket(ticket)"
-                (keydown.enter)="selectTicket(ticket)"
-                class="cursor-pointer transition-colors hover:bg-zinc-50"
-                [class.bg-[#8d2546]/[0.06]]="selectedTicketId() === ticket.id"
-              >
-                <td class="whitespace-nowrap px-3 py-2 align-middle">
-                  <div class="flex items-center gap-1.5">
-                    <span class="font-mono text-xs font-medium text-zinc-800">{{ ticket.ticketNumber }}</span>
-                    @if ((ticket.unreadCount ?? 0) > 0) {
-                      <span
-                        class="inline-flex min-w-[1.1rem] items-center justify-center rounded-full bg-[#8d2546] px-1 py-0.5 text-[9px] font-bold text-white"
-                      >
-                        {{ unreadLabel(ticket.unreadCount) }}
+          @for (group of ticketGroups(); track group.status) {
+            @if (group.tickets.length > 0) {
+              <tbody>
+                <tr class="border-b border-zinc-200 bg-zinc-100/90">
+                  <td colspan="9" class="p-0">
+                    <button
+                      type="button"
+                      (click)="toggleGroup(group.status)"
+                      class="flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left hover:bg-zinc-200/60"
+                    >
+                      <span class="flex items-center gap-2">
+                        <svg
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          class="h-3.5 w-3.5 text-zinc-400 transition-transform"
+                          [class.rotate-90]="!isGroupCollapsed(group.status)"
+                          aria-hidden="true"
+                        >
+                          <path
+                            fill-rule="evenodd"
+                            d="M7.21 14.77a.75.75 0 0 1 .02-1.06L11.168 10 7.23 6.29a.75.75 0 1 1 1.04-1.08l4.5 4.25a.75.75 0 0 1 0 1.08l-4.5 4.25a.75.75 0 0 1-1.06-.02Z"
+                            clip-rule="evenodd"
+                          />
+                        </svg>
+                        <span class="text-[11px] font-semibold tracking-wide text-zinc-600 uppercase">
+                          {{ group.label }}
+                        </span>
+                        <span class="rounded-full bg-zinc-200 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-700">
+                          {{ group.tickets.length }}
+                        </span>
                       </span>
-                    }
-                  </div>
-                </td>
-                <td class="max-w-[16rem] truncate px-3 py-2 align-middle font-medium text-zinc-900" [title]="ticket.subject">
-                  {{ ticket.subject }}
-                </td>
-                <td class="max-w-[10rem] truncate px-3 py-2 align-middle text-zinc-600" [title]="ticket.categoryLabel">
-                  {{ ticket.categoryLabel }}
-                </td>
-                <td class="max-w-[11rem] truncate px-3 py-2 align-middle text-zinc-800" [title]="ticket.requesterName">
-                  {{ ticket.requesterName }}
-                </td>
-                <td class="max-w-[14rem] truncate px-3 py-2 align-middle text-zinc-600" [title]="ticket.requesterEmail">
-                  {{ ticket.requesterEmail }}
-                </td>
-                <td class="max-w-[10rem] truncate px-3 py-2 align-middle text-zinc-600">
-                  {{ ticket.assignedAdminName || 'Unassigned' }}
-                </td>
-                <td class="whitespace-nowrap px-3 py-2 align-middle">
-                  <span class="rounded px-1.5 py-0.5 text-[11px] font-semibold" [class]="statusBadgeClass(ticket.status)">
-                    {{ statusLabel(ticket.status) }}
-                  </span>
-                </td>
-                <td class="whitespace-nowrap px-3 py-2 align-middle text-zinc-600">
-                  {{ channelLabel(ticket.channel) }}
-                </td>
-                <td class="whitespace-nowrap px-3 py-2 align-middle text-zinc-500">
-                  {{ ticket.updatedAt | date: 'MMM d, y, h:mm a' }}
-                </td>
-              </tr>
+                      @if (group.unread > 0) {
+                        <span
+                          class="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-[#8d2546] px-1.5 py-0.5 text-[10px] font-bold text-white"
+                        >
+                          {{ unreadLabel(group.unread) }}
+                        </span>
+                      }
+                    </button>
+                  </td>
+                </tr>
+                @if (!isGroupCollapsed(group.status)) {
+                  @for (ticket of group.tickets; track ticket.id; let i = $index) {
+                    <tr
+                      role="button"
+                      tabindex="0"
+                      (click)="selectTicket(ticket)"
+                      (keydown.enter)="selectTicket(ticket)"
+                      class="cursor-pointer border-b border-zinc-100 transition-colors hover:bg-zinc-100/80"
+                      [class.bg-white]="selectedTicketId() !== ticket.id && i % 2 === 0"
+                      [class.bg-zinc-50]="selectedTicketId() !== ticket.id && i % 2 === 1"
+                      [class.bg-[#8d2546]/[0.06]]="selectedTicketId() === ticket.id"
+                    >
+                      <td class="whitespace-nowrap px-3 py-2 align-middle">
+                        <div class="flex items-center gap-1.5">
+                          <span class="font-mono text-xs font-medium text-zinc-800">{{ ticket.ticketNumber }}</span>
+                          @if ((ticket.unreadCount ?? 0) > 0) {
+                            <span
+                              class="inline-flex min-w-[1.1rem] items-center justify-center rounded-full bg-[#8d2546] px-1 py-0.5 text-[9px] font-bold text-white"
+                            >
+                              {{ unreadLabel(ticket.unreadCount) }}
+                            </span>
+                          }
+                        </div>
+                      </td>
+                      <td class="max-w-[16rem] truncate px-3 py-2 align-middle font-medium text-zinc-900" [title]="ticket.subject">
+                        {{ ticket.subject }}
+                      </td>
+                      <td class="max-w-[10rem] truncate px-3 py-2 align-middle text-zinc-600" [title]="ticket.categoryLabel">
+                        {{ ticket.categoryLabel }}
+                      </td>
+                      <td class="max-w-[11rem] truncate px-3 py-2 align-middle text-zinc-800" [title]="ticket.requesterName">
+                        {{ ticket.requesterName }}
+                      </td>
+                      <td class="max-w-[14rem] truncate px-3 py-2 align-middle text-zinc-600" [title]="ticket.requesterEmail">
+                        {{ ticket.requesterEmail }}
+                      </td>
+                      <td class="max-w-[10rem] truncate px-3 py-2 align-middle text-zinc-600">
+                        {{ ticket.assignedAdminName || 'Unassigned' }}
+                      </td>
+                      <td class="whitespace-nowrap px-3 py-2 align-middle">
+                        <span class="rounded px-1.5 py-0.5 text-[11px] font-semibold" [class]="statusBadgeClass(ticket.status)">
+                          {{ statusLabel(ticket.status) }}
+                        </span>
+                      </td>
+                      <td class="whitespace-nowrap px-3 py-2 align-middle text-zinc-600">
+                        {{ channelLabel(ticket.channel) }}
+                      </td>
+                      <td class="whitespace-nowrap px-3 py-2 align-middle text-zinc-500">
+                        {{ ticket.updatedAt | date: 'MMM d, y, h:mm a' }}
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
             }
-          </tbody>
+          }
         </table>
-      </div>
-      <div class="flex shrink-0 items-center justify-between gap-2 border-t border-zinc-100 px-3 py-2">
-        <p class="text-[11px] text-zinc-500">{{ listRangeLabel() }}</p>
-        <div class="flex items-center gap-1">
-          <button
-            type="button"
-            (click)="goToListPage(listPage() - 1)"
-            [disabled]="listPage() <= 1"
-            class="cursor-pointer rounded border border-zinc-300 px-2 py-1 text-[11px] font-semibold text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Prev
-          </button>
-          <span class="px-1 text-[11px] tabular-nums text-zinc-600">
-            {{ listPage() }} / {{ listTotalPages() }}
-          </span>
-          <button
-            type="button"
-            (click)="goToListPage(listPage() + 1)"
-            [disabled]="listPage() >= listTotalPages()"
-            class="cursor-pointer rounded border border-zinc-300 px-2 py-1 text-[11px] font-semibold text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Next
-          </button>
-        </div>
       </div>
     }
   </aside>
