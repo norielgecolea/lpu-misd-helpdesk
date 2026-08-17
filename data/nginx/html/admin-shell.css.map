@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["admin-shell.ts"],
+  "sourcesContent": ["\n    .sidebar-nav {\n      scrollbar-width: thin;\n      scrollbar-color: color-mix(in oklch, var(--sidebar-border) 80%, transparent) transparent;\n    }\n\n    .sidebar-nav::-webkit-scrollbar {\n      width: 4px;\n    }\n\n    .sidebar-nav::-webkit-scrollbar-thumb {\n      border-radius: 9999px;\n      background: color-mix(in oklch, var(--sidebar-border) 80%, transparent);\n    }\n\n    /* Routed page fills the main column (sibling of router-outlet). */\n    :host ::ng-deep .page-fill > *:not(router-outlet) {\n      display: flex;\n      flex: 1 1 0%;\n      min-height: 0;\n      flex-direction: column;\n      overflow: hidden;\n    }\n  "],
+  "mappings": ";AACI,CAAA;AACE,mBAAA;AACA,mBAAA,UAAA,GAAA,KAAA,EAAA,IAAA,kBAAA,GAAA,EAAA,aAAA;AACF;AAEA,CALA,WAKA;AACE,SAAA;AACF;AAEA,CATA,WASA;AACE,iBAAA;AACA,cAAA,UAAA,GAAA,KAAA,EAAA,IAAA,kBAAA,GAAA,EAAA;AACF;AAGA,MAAA,UAAA,CAAA,UAAA,EAAA,CAAA,KAAA;AACE,WAAA;AACA,QAAA,EAAA,EAAA;AACA,cAAA;AACA,kBAAA;AACA,YAAA;AACF;",
+  "names": []
+}

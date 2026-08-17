@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["login.ts"],
+  "sourcesContent": ["\n    @keyframes login-rise {\n      from {\n        opacity: 0;\n        transform: translateY(18px) scale(0.985);\n      }\n      to {\n        opacity: 1;\n        transform: translateY(0) scale(1);\n      }\n    }\n\n    @keyframes login-float {\n      0%,\n      100% {\n        transform: translate3d(0, 0, 0);\n      }\n      50% {\n        transform: translate3d(0, -14px, 0);\n      }\n    }\n\n    .animate-rise {\n      animation: login-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;\n    }\n\n    .animate-float {\n      animation: login-float 7s ease-in-out infinite;\n    }\n\n    @media (prefers-reduced-motion: reduce) {\n      .animate-rise,\n      .animate-float {\n        animation: none;\n      }\n    }\n  "],
+  "mappings": ";AACI,WAAA;AACE;AACE,aAAA;AACA,eAAA,WAAA,MAAA,MAAA;AACF;AACA;AACE,aAAA;AACA,eAAA,WAAA,GAAA,MAAA;AACF;AACF;AAEA,WAAA;AACE;AAEE,eAAA,YAAA,CAAA,EAAA,CAAA,EAAA;AACF;AACA;AACE,eAAA,YAAA,CAAA,EAAA,KAAA,EAAA;AACF;AACF;AAEA,CAAA;AACE,aAAA,WAAA,MAAA,aAAA,IAAA,EAAA,CAAA,EAAA,IAAA,EAAA,GAAA;AACF;AAEA,CAAA;AACE,aAAA,YAAA,GAAA,YAAA;AACF;AAEA,QAAA,wBAAA;AACE,GATF;GAIA;AAOI,eAAA;AACF;AACF;",
+  "names": []
+}

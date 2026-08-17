@@ -82,7 +82,7 @@ services:
       && npm install
       && npx ng build --watch --configuration development &
       until [ -f dist/lpu-misd-helpdesk/browser/index.html ]; do sleep 1; done
-      && npx --yes serve -s dist/lpu-misd-helpdesk/browser -l tcp://0.0.0.0:4200"
+      && npx --yes serve -s dist/lpu-misd-helpdesk/browser -c /app/serve.json -l tcp://0.0.0.0:4200"
     stdin_open: true
     tty: true
     depends_on:
