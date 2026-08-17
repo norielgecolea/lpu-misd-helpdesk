@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnDestroy, ViewChild, inject, signal } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService, InvalidEmailDomainError } from '../../core/auth/auth.service';
@@ -50,7 +50,7 @@ type Step = 'email' | 'otp';
     }
   `,
 })
-export class Login implements OnDestroy {
+export class Login implements OnInit, OnDestroy {
   @ViewChild('otpInput') private readonly otpInput?: ElementRef<HTMLInputElement>;
 
   protected readonly error = signal<string | null>(null);
@@ -77,6 +77,13 @@ export class Login implements OnDestroy {
 
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
+
+  ngOnInit(): void {
+    const msalError = this.auth.consumeMicrosoftRedirectError();
+    if (msalError) {
+      this.error.set(msalError);
+    }
+  }
 
   ngOnDestroy(): void {
     clearInterval(this.slideshowTimer);

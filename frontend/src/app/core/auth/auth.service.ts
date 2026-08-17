@@ -2,7 +2,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { AuthenticationResult, PublicClientApplication } from '@azure/msal-browser';
+import { PublicClientApplication } from '@azure/msal-browser';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
@@ -67,9 +67,8 @@ export class AuthService {
   }
 
   /**
-   * Starts Microsoft sign-in via full-page redirect (more reliable than popup
-   * under modern browser COOP rules). The return trip is completed by
-   * {@link completeMicrosoftRedirectIfNeeded} during app startup.
+   * Starts Microsoft sign-in via full-page redirect. The return trip is finished
+   * in main.ts before Angular boots (see completeMicrosoftRedirectBeforeBootstrap).
    */
   async loginWithMicrosoft(): Promise<void> {
     const msal = await this.ensureMsalInitialized();
@@ -79,44 +78,16 @@ export class AuthService {
     });
   }
 
-  /**
-   * Processes a Microsoft redirect return (`#code=...`) if present. Must run
-   * once on every page load before routed UI assumes an anonymous session.
-   */
-  async completeMicrosoftRedirectIfNeeded(): Promise<boolean> {
-    if (!isPlatformBrowser(this.platformId) || !this.isSecureCryptoAvailable()) {
-      return false;
+  /** Surfaces a Microsoft redirect failure stored before Angular booted. */
+  consumeMicrosoftRedirectError(): string | null {
+    if (!isPlatformBrowser(this.platformId)) {
+      return null;
     }
-
-    const msal = await this.ensureMsalInitialized();
-    const result = await msal.handleRedirectPromise();
-    if (!result) {
-      return false;
+    const message = sessionStorage.getItem('lpu_helpdesk_msal_error');
+    if (message) {
+      sessionStorage.removeItem('lpu_helpdesk_msal_error');
     }
-
-    await this.completeMicrosoftResult(result);
-    return true;
-  }
-
-  private async completeMicrosoftResult(result: AuthenticationResult): Promise<AuthUser> {
-    const email = (result.account?.username ?? '').toLowerCase();
-    if (!this.isAllowedEmail(email)) {
-      await this.msalInstance
-        ?.logoutRedirect({ account: result.account ?? undefined })
-        .catch(() => undefined);
-      throw new InvalidEmailDomainError(
-        `Please sign in with a @${environment.allowedEmailDomain} account.`,
-      );
-    }
-
-    const response = await firstValueFrom(
-      this.http.post<LoginResponse>(`${environment.apiBaseUrl}/auth/microsoft`, {
-        idToken: result.idToken,
-      } satisfies { idToken: string }),
-    );
-
-    this.persistSession(response);
-    return this.userSignal()!;
+    return message;
   }
 
   /**
@@ -257,7 +228,6 @@ export class AuthService {
         clientId: environment.msal.clientId,
         authority: `https://login.microsoftonline.com/${environment.msal.tenantId}`,
         redirectUri: environment.msal.redirectUri,
-        navigateToLoginRequestUrl: false,
       },
       cache: {
         cacheLocation: 'sessionStorage',
