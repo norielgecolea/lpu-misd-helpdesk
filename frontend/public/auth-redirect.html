@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Signing in…</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        font-family: system-ui, sans-serif;
+        display: grid;
+        place-items: center;
+        background: #f6f7fb;
+        color: #52525b;
+      }
+    </style>
+  </head>
+  <body>
+    <p>Signing you in… you can close this window if it stays open.</p>
+    <!--
+      MSAL loginPopup redirects here with #code=... / error in the URL hash.
+      This page must NOT boot Angular or navigate away, or the opener loses the response.
+    -->
+  </body>
+</html>
