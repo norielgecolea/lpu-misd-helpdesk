@@ -26,7 +26,16 @@
             ],
             "styles": ["src/styles.css"],
             "security": {
-              "allowedHosts": ["*", "localhost", "127.0.0.1", "angular"]
+              "allowedHosts": [
+                "*",
+                "localhost",
+                "127.0.0.1",
+                "angular",
+                "helpdesk.lpulaguna.com",
+                "helpdeskadmin.lpulaguna.com",
+                "helpdesk.lpu-laguna.edu.ph",
+                "10.1.10.12"
+              ]
             }
           },
           "configurations": {
