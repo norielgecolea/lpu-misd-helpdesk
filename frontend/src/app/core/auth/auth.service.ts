@@ -67,21 +67,43 @@ export class AuthService {
   }
 
   /**
-   * Opens the Microsoft account picker, rejects any account outside the LPU
-   * Laguna domain, then exchanges the Microsoft ID token for an app session
-   * via the backend (`POST /api/auth/microsoft`).
+   * Starts Microsoft sign-in via full-page redirect (more reliable than popup
+   * under modern browser COOP rules). The return trip is completed by
+   * {@link completeMicrosoftRedirectIfNeeded} during app startup.
    */
-  async loginWithMicrosoft(): Promise<AuthUser> {
+  async loginWithMicrosoft(): Promise<void> {
     const msal = await this.ensureMsalInitialized();
-
-    const result: AuthenticationResult = await msal.loginPopup({
+    await msal.loginRedirect({
       scopes: ['openid', 'profile', 'email', 'User.Read'],
       prompt: 'select_account',
     });
+  }
 
+  /**
+   * Processes a Microsoft redirect return (`#code=...`) if present. Must run
+   * once on every page load before routed UI assumes an anonymous session.
+   */
+  async completeMicrosoftRedirectIfNeeded(): Promise<boolean> {
+    if (!isPlatformBrowser(this.platformId) || !this.isSecureCryptoAvailable()) {
+      return false;
+    }
+
+    const msal = await this.ensureMsalInitialized();
+    const result = await msal.handleRedirectPromise();
+    if (!result) {
+      return false;
+    }
+
+    await this.completeMicrosoftResult(result);
+    return true;
+  }
+
+  private async completeMicrosoftResult(result: AuthenticationResult): Promise<AuthUser> {
     const email = (result.account?.username ?? '').toLowerCase();
     if (!this.isAllowedEmail(email)) {
-      await msal.logoutPopup({ account: result.account ?? undefined }).catch(() => undefined);
+      await this.msalInstance
+        ?.logoutRedirect({ account: result.account ?? undefined })
+        .catch(() => undefined);
       throw new InvalidEmailDomainError(
         `Please sign in with a @${environment.allowedEmailDomain} account.`,
       );
@@ -235,6 +257,7 @@ export class AuthService {
         clientId: environment.msal.clientId,
         authority: `https://login.microsoftonline.com/${environment.msal.tenantId}`,
         redirectUri: environment.msal.redirectUri,
+        navigateToLoginRequestUrl: false,
       },
       cache: {
         cacheLocation: 'sessionStorage',

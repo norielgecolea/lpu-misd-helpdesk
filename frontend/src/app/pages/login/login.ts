@@ -89,11 +89,10 @@ export class Login implements OnDestroy {
     this.error.set(null);
     this.loading.set(true);
     try {
+      // Full-page redirect — this promise does not resolve on success.
       await this.auth.loginWithMicrosoft();
-      await this.router.navigateByUrl(this.auth.homeRoute());
     } catch (err: unknown) {
       this.error.set(this.describeError(err));
-    } finally {
       this.loading.set(false);
     }
   }
