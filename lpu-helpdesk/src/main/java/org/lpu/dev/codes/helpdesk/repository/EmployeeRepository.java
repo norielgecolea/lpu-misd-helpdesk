@@ -1,5 +1,6 @@
 package org.lpu.dev.codes.helpdesk.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.hibernate.Session;
@@ -96,5 +97,31 @@ public class EmployeeRepository {
                 )
                 .setParameter("email", email)
                 .uniqueResultOptional();
+    }
+
+    @Transactional(transactionManager = "gateTransactionManager", readOnly = true)
+    public List<Employee> findByLpuEmails(Collection<String> emails) {
+        List<String> normalized = normalizeEmails(emails);
+        if (normalized.isEmpty()) {
+            return List.of();
+        }
+        return currentSession()
+                .createQuery(
+                        "FROM Employee e WHERE e.deleted = false AND lower(e.lpuEmail) IN :emails",
+                        Employee.class
+                )
+                .setParameter("emails", normalized)
+                .getResultList();
+    }
+
+    private static List<String> normalizeEmails(Collection<String> emails) {
+        if (emails == null || emails.isEmpty()) {
+            return List.of();
+        }
+        return emails.stream()
+                .filter(email -> email != null && !email.isBlank())
+                .map(email -> email.trim().toLowerCase())
+                .distinct()
+                .toList();
     }
 }

@@ -545,6 +545,9 @@ public class TicketRepository {
 
     @Transactional
     public Ticket save(Ticket ticket) {
-        return currentSession().merge(ticket);
+        Session session = currentSession();
+        Ticket merged = session.merge(ticket);
+        session.flush();
+        return merged;
     }
 }

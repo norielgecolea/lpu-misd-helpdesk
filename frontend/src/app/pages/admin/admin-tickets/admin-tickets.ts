@@ -631,12 +631,27 @@ export class AdminTickets implements OnInit, OnDestroy {
     this.linkingDirectory.set(true);
     try {
       const personType = this.linkPersonType().trim().toUpperCase();
-      await firstValueFrom(
+      const result = await firstValueFrom(
         this.directory.encodeLpuEmail({
           email,
           ticketId: ticket.id,
           personType: personType || null,
           personNo,
+        }),
+      );
+      this.tickets.update((current) =>
+        current.map((row) => {
+          const sameTicket = row.id === ticket.id;
+          const sameEmail = row.requesterEmail?.trim().toLowerCase() === email;
+          if (!sameTicket && !sameEmail) {
+            return row;
+          }
+          return {
+            ...row,
+            requesterPersonType: result.personType,
+            requesterPersonNo: result.personNo,
+            directoryUnlinked: false,
+          };
         }),
       );
       this.linkPersonNo.set('');
@@ -842,7 +857,7 @@ export class AdminTickets implements OnInit, OnDestroy {
   }
 
   private async loadTickets(showSpinner: boolean): Promise<void> {
-    if (this.listPollInFlight) {
+    if (this.listPollInFlight && !showSpinner) {
       return;
     }
     this.listPollInFlight = true;

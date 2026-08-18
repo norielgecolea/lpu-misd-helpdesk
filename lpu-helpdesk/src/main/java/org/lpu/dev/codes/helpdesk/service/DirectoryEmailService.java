@@ -59,7 +59,8 @@ public class DirectoryEmailService {
         ensurePersonEmailCompatible(person, email);
 
         writeDirectoryEmail(person, email);
-        int linked = linkTicketsForPerson(person.type(), person.number(), email);
+        int linked = stampTicket(request.ticketId(), person, email);
+        linked += linkTicketsForPerson(person.type(), person.number(), email);
         linked += attachPersonToTicketsForEmail(email, person);
 
         log.info(
@@ -141,31 +142,108 @@ public class DirectoryEmailService {
         if (person == null || email == null || email.isBlank() || PendingRequesterEmail.isPending(email)) {
             return 0;
         }
-        String normalized = email.trim().toLowerCase();
-        Instant now = Instant.now();
         int updated = 0;
-        for (Ticket ticket : ticketRepository.findHistoryForPerson(normalized, null, null)) {
-            boolean changed = false;
-            if (!person.type().equalsIgnoreCase(nullToEmpty(ticket.getRequesterPersonType()))
-                    || !person.number().equalsIgnoreCase(nullToEmpty(ticket.getRequesterPersonNo()))) {
-                ticket.setRequesterPersonType(person.type());
-                ticket.setRequesterPersonNo(person.number());
-                changed = true;
-            }
-            if (person.name() != null && !person.name().isBlank()
-                    && (ticket.getRequesterName() == null
-                    || ticket.getRequesterName().isBlank()
-                    || ticket.getRequesterName().equalsIgnoreCase(ticket.getRequesterEmail()))) {
-                ticket.setRequesterName(person.name());
-                changed = true;
-            }
-            if (changed) {
-                ticket.setUpdatedAt(now);
-                ticketRepository.save(ticket);
+        for (Ticket ticket : ticketRepository.findHistoryForPerson(email.trim().toLowerCase(), null, null)) {
+            if (applyPerson(ticket, person, email)) {
                 updated++;
             }
         }
         return updated;
+    }
+
+    /** Persist directory identity onto a specific ticket (the one the admin just linked). */
+    private int stampTicket(Long ticketId, PersonRef person, String email) {
+        if (ticketId == null) {
+            return 0;
+        }
+        return ticketRepository.findById(ticketId)
+                .map(ticket -> applyPerson(ticket, person, email) ? 1 : 0)
+                .orElse(0);
+    }
+
+    /**
+     * If an online ticket's LPU email is already on a directory record but the
+     * ticket was never stamped with student/employee number, attach it now.
+     */
+    @Transactional
+    public int healMissingPersonIdentity(List<Ticket> tickets) {
+        if (tickets == null || tickets.isEmpty()) {
+            return 0;
+        }
+        List<String> emails = tickets.stream()
+                .filter(this::missingPersonIdentity)
+                .map(Ticket::getRequesterEmail)
+                .filter(email -> email != null && !PendingRequesterEmail.isPending(email))
+                .map(email -> email.trim().toLowerCase())
+                .distinct()
+                .toList();
+        if (emails.isEmpty()) {
+            return 0;
+        }
+
+        java.util.Map<String, PersonRef> byEmail = new java.util.HashMap<>();
+        for (Student student : studentRepository.findByLpuEmails(emails)) {
+            if (student.getLpuEmail() != null) {
+                byEmail.put(student.getLpuEmail().trim().toLowerCase(), fromStudent(student));
+            }
+        }
+        for (Employee employee : employeeRepository.findByLpuEmails(emails)) {
+            if (employee.getLpuEmail() != null) {
+                byEmail.putIfAbsent(employee.getLpuEmail().trim().toLowerCase(), fromEmployee(employee));
+            }
+        }
+        if (byEmail.isEmpty()) {
+            return 0;
+        }
+
+        int updated = 0;
+        for (Ticket ticket : tickets) {
+            if (!missingPersonIdentity(ticket) || PendingRequesterEmail.isPending(ticket.getRequesterEmail())) {
+                continue;
+            }
+            PersonRef person = byEmail.get(ticket.getRequesterEmail().trim().toLowerCase());
+            if (person == null) {
+                continue;
+            }
+            if (applyPerson(ticket, person, ticket.getRequesterEmail())) {
+                updated++;
+            }
+        }
+        if (updated > 0) {
+            log.info("Healed person identity on {} ticket(s) whose LPU email is already in the directory", updated);
+        }
+        return updated;
+    }
+
+    private boolean missingPersonIdentity(Ticket ticket) {
+        return ticket.getRequesterPersonType() == null || ticket.getRequesterPersonType().isBlank()
+                || ticket.getRequesterPersonNo() == null || ticket.getRequesterPersonNo().isBlank();
+    }
+
+    private boolean applyPerson(Ticket ticket, PersonRef person, String email) {
+        boolean changed = false;
+        if (!person.type().equalsIgnoreCase(nullToEmpty(ticket.getRequesterPersonType()))
+                || !person.number().equalsIgnoreCase(nullToEmpty(ticket.getRequesterPersonNo()))) {
+            ticket.setRequesterPersonType(person.type());
+            ticket.setRequesterPersonNo(person.number());
+            changed = true;
+        }
+        String normalized = email == null ? null : email.trim().toLowerCase();
+        if (normalized != null && !normalized.isBlank() && !PendingRequesterEmail.isPending(normalized)
+                && !normalized.equalsIgnoreCase(ticket.getRequesterEmail())) {
+            ticket.setRequesterEmail(normalized);
+            changed = true;
+        }
+        if (person.name() != null && !person.name().isBlank()
+                && !person.name().equals(ticket.getRequesterName())) {
+            ticket.setRequesterName(person.name());
+            changed = true;
+        }
+        if (changed) {
+            ticket.setUpdatedAt(Instant.now());
+            ticketRepository.save(ticket);
+        }
+        return changed;
     }
 
     private String resolveEmail(EncodeLpuEmailRequest request) {
