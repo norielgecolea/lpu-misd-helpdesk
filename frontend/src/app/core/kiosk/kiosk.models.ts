@@ -1,3 +1,5 @@
+import { Ticket } from '../tickets/ticket.models';
+
 export interface KioskPerson {
   personType: 'STUDENT' | 'EMPLOYEE' | string;
   id: number;
@@ -20,6 +22,11 @@ export interface KioskTicketRequest {
   identifier: string;
   category: string;
   concern?: string;
+}
+
+export interface KioskTicketCreateResponse {
+  ticket: Ticket;
+  emailLinkTicket: Ticket | null;
 }
 
 export interface ServerTime {

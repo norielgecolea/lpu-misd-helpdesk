@@ -8,6 +8,7 @@ import org.lpu.dev.codes.helpdesk.dto.AdminCategoryResponse;
 import org.lpu.dev.codes.helpdesk.dto.CreateCategoryRequest;
 import org.lpu.dev.codes.helpdesk.dto.TicketCategoryOption;
 import org.lpu.dev.codes.helpdesk.dto.UpdateCategoryRequest;
+import org.lpu.dev.codes.helpdesk.model.PendingRequesterEmail;
 import org.lpu.dev.codes.helpdesk.model.TicketCategoryDefinition;
 import org.lpu.dev.codes.helpdesk.repository.TicketCategoryRepository;
 import org.springframework.http.HttpStatus;
@@ -142,6 +143,13 @@ public class TicketCategoryService {
             category.setRequiresDetail(request.requiresDetail());
         }
         category.setUpdatedAt(Instant.now());
+
+        if (PendingRequesterEmail.LINK_LPU_EMAIL_CATEGORY.equals(category.getCode())) {
+            category.setActive(true);
+            category.setShowOnKiosk(false);
+            category.setShowOnline(false);
+            category.setRequiresDetail(false);
+        }
 
         TicketCategoryDefinition saved = ticketCategoryRepository.save(category);
         categoryLabelCache.reload();

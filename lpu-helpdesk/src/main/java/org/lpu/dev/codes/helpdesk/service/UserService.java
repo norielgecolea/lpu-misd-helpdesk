@@ -12,10 +12,16 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final DirectoryLookupService directoryLookupService;
+    private final DirectoryEmailService directoryEmailService;
 
-    public UserService(UserRepository userRepository, DirectoryLookupService directoryLookupService) {
+    public UserService(
+            UserRepository userRepository,
+            DirectoryLookupService directoryLookupService,
+            DirectoryEmailService directoryEmailService
+    ) {
         this.userRepository = userRepository;
         this.directoryLookupService = directoryLookupService;
+        this.directoryEmailService = directoryEmailService;
     }
 
     /**
@@ -32,7 +38,7 @@ public class UserService {
                 ? directoryName
                 : (fallbackName != null && !fallbackName.isBlank() ? fallbackName.trim() : normalizedEmail);
 
-        return userRepository.findUserByEmail(normalizedEmail)
+        User user = userRepository.findUserByEmail(normalizedEmail)
                 .map(existing -> {
                     if (directoryName != null) {
                         existing.setName(directoryName);
@@ -47,12 +53,14 @@ public class UserService {
                     return userRepository.save(existing);
                 })
                 .orElseGet(() -> {
-                    User user = new User();
-                    user.setEmail(normalizedEmail);
-                    user.setName(resolvedName);
-                    user.setRole(Role.USER);
-                    user.setLastLoginAt(Instant.now());
-                    return userRepository.persist(user);
+                    User created = new User();
+                    created.setEmail(normalizedEmail);
+                    created.setName(resolvedName);
+                    created.setRole(Role.USER);
+                    created.setLastLoginAt(Instant.now());
+                    return userRepository.persist(created);
                 });
+        directoryEmailService.linkTicketsForLpuEmail(user.getEmail(), user.getId());
+        return user;
     }
 }

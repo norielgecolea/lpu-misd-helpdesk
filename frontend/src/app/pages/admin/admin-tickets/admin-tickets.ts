@@ -18,8 +18,10 @@ import { playMessageCue, unlockAudio } from '../../../core/audio/cue-sounds';
 import { AdminService } from '../../../core/admin/admin.service';
 import { AdminSummary } from '../../../core/admin/admin.models';
 import { AuthService } from '../../../core/auth/auth.service';
-import { Ticket, TicketMessage, TicketStatus } from '../../../core/tickets/ticket.models';
+import { Ticket, TicketMessage, TicketStatus, canEncodeLpuEmail, displayRequesterEmail } from '../../../core/tickets/ticket.models';
 import { TicketService } from '../../../core/tickets/ticket.service';
+import { DirectoryService } from '../../../core/directory/directory.service';
+import { environment } from '../../../../environments/environment';
 import { TicketSummaryDialog } from '../../../shared/ticket-summary-dialog/ticket-summary-dialog';
 import { TicketHistoryDialog } from '../../../shared/ticket-history-dialog/ticket-history-dialog';
 
@@ -65,6 +67,7 @@ export class AdminTickets implements OnInit, OnDestroy {
 
   private readonly adminService = inject(AdminService);
   private readonly ticketService = inject(TicketService);
+  private readonly directory = inject(DirectoryService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   protected readonly auth = inject(AuthService);
@@ -102,6 +105,9 @@ export class AdminTickets implements OnInit, OnDestroy {
   protected readonly idLightboxOpen = signal(false);
   protected readonly summaryTicket = signal<Ticket | null>(null);
   protected readonly historyTicket = signal<Ticket | null>(null);
+  protected readonly encodeEmail = signal('');
+  protected readonly encodingEmail = signal(false);
+  protected readonly encodeError = signal<string | null>(null);
 
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private listPollTimer: ReturnType<typeof setInterval> | null = null;
@@ -576,6 +582,42 @@ export class AdminTickets implements OnInit, OnDestroy {
 
   protected channelLabel(channel: Ticket['channel']): string {
     return channel === 'ONSITE_RFID' ? 'Onsite' : 'Online';
+  }
+
+  protected requesterEmailLabel(ticket: Ticket): string {
+    return displayRequesterEmail(ticket.requesterEmail, ticket.pendingEmail);
+  }
+
+  protected canEncode(ticket: Ticket): boolean {
+    return canEncodeLpuEmail(ticket);
+  }
+
+  protected async onEncodeEmail(ticket: Ticket): Promise<void> {
+    this.encodeError.set(null);
+    const email = this.encodeEmail().trim().toLowerCase();
+    const domain = environment.allowedEmailDomain.toLowerCase();
+    if (!email.endsWith(`@${domain}`)) {
+      this.encodeError.set(`Use an @${domain} address.`);
+      return;
+    }
+
+    this.encodingEmail.set(true);
+    try {
+      await firstValueFrom(
+        this.directory.encodeLpuEmail({
+          email,
+          ticketId: ticket.id,
+          personType: ticket.requesterPersonType,
+          personNo: ticket.requesterPersonNo,
+        }),
+      );
+      this.encodeEmail.set('');
+      await this.loadTickets(true);
+    } catch (err) {
+      this.encodeError.set(this.describeError(err));
+    } finally {
+      this.encodingEmail.set(false);
+    }
   }
 
   private ensureSelectionVisible(): void {

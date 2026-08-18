@@ -11,6 +11,7 @@ public enum TicketCategory {
     ACCOUNT_PASSWORD("Account & Password"),
     SOFTWARE_SYSTEM_ACCESS("Software / System Access"),
     EMAIL_OUTLOOK("Email / Outlook"),
+    LINK_LPU_EMAIL("Link LPU Email"),
     OTHERS("Others");
 
     private final String label;

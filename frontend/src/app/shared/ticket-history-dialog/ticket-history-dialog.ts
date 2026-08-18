@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { AdminService } from '../../core/admin/admin.service';
-import { Ticket, TicketStatus } from '../../core/tickets/ticket.models';
+import { Ticket, TicketStatus, isPendingRequesterEmail } from '../../core/tickets/ticket.models';
 
 const PAGE_SIZE = 8;
 
@@ -114,6 +114,13 @@ export class TicketHistoryDialog {
     return channel === 'ONSITE_RFID' ? 'Onsite' : 'Online';
   }
 
+  protected displayEmail(ticket: Ticket): string {
+    if (isPendingRequesterEmail(ticket.requesterEmail, ticket.pendingEmail)) {
+      return '';
+    }
+    return ticket.requesterEmail;
+  }
+
   private async load(ticket: Ticket): Promise<void> {
     this.loading.set(true);
     this.error.set(null);
@@ -122,7 +129,9 @@ export class TicketHistoryDialog {
     try {
       const history = await firstValueFrom(
         this.adminService.listTicketHistory({
-          email: ticket.requesterEmail,
+          email: isPendingRequesterEmail(ticket.requesterEmail, ticket.pendingEmail)
+            ? null
+            : ticket.requesterEmail,
           personType: ticket.requesterPersonType,
           personNo: ticket.requesterPersonNo,
         }),

@@ -7,11 +7,11 @@ import java.util.List;
 import org.lpu.dev.codes.helpdesk.dto.KioskLookupRequest;
 import org.lpu.dev.codes.helpdesk.dto.KioskPersonResponse;
 import org.lpu.dev.codes.helpdesk.dto.KioskSubmitCsmRequest;
+import org.lpu.dev.codes.helpdesk.dto.KioskTicketCreateResponse;
 import org.lpu.dev.codes.helpdesk.dto.KioskTicketRequest;
 import org.lpu.dev.codes.helpdesk.dto.PendingCsmResponse;
 import org.lpu.dev.codes.helpdesk.dto.ServerTimeResponse;
 import org.lpu.dev.codes.helpdesk.dto.TicketCategoryOption;
-import org.lpu.dev.codes.helpdesk.dto.TicketResponse;
 import org.lpu.dev.codes.helpdesk.service.KioskService;
 import org.lpu.dev.codes.helpdesk.service.TicketCategoryService;
 import org.springframework.http.HttpStatus;
@@ -75,7 +75,7 @@ public class KioskController {
     }
 
     @PostMapping("/tickets")
-    public ResponseEntity<TicketResponse> createTicket(@Valid @RequestBody KioskTicketRequest request) {
+    public ResponseEntity<KioskTicketCreateResponse> createTicket(@Valid @RequestBody KioskTicketRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(kioskService.createTicket(request));
     }
 }

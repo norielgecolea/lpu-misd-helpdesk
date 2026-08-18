@@ -65,8 +65,8 @@ public class HibernateConfig {
         LocalSessionFactoryBean factoryBean = new LocalSessionFactoryBean();
         factoryBean.setDataSource(gateDataSource);
         factoryBean.setAnnotatedClasses(Student.class, Employee.class);
-        // Gate schema is owned by the gate system — never mutate / validate at boot
-        // (validate would refuse startup when gate DB is unreachable).
+        // Gate schema is owned by the gate system. This app only writes lpu_email
+        // when MISD encodes an address onto a student/employee record.
         factoryBean.setHibernateProperties(hibernateProperties("none"));
         return factoryBean;
     }

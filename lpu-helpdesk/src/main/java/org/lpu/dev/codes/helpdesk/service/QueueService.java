@@ -15,6 +15,7 @@ import org.lpu.dev.codes.helpdesk.dto.QueueSnapshotResponse;
 import org.lpu.dev.codes.helpdesk.dto.QueueTransferResponse;
 import org.lpu.dev.codes.helpdesk.dto.TicketResponse;
 import org.lpu.dev.codes.helpdesk.dto.WalkInTicketRequest;
+import org.lpu.dev.codes.helpdesk.model.PendingRequesterEmail;
 import org.lpu.dev.codes.helpdesk.model.QueueTransferRequest;
 import org.lpu.dev.codes.helpdesk.model.QueueTransferStatus;
 import org.lpu.dev.codes.helpdesk.model.Role;
@@ -74,13 +75,20 @@ public class QueueService {
     public Ticket createWalkInTicket(WalkInTicketRequest request) {
         TicketCategoryDefinition category = ticketCategoryService.requireActive(request.category());
         int queueNumber = queueCounterRepository.nextNumberForToday();
-        String email = request.email().trim().toLowerCase();
-        ticketCsmService.requireNoPendingForPerson(email, request.personType(), request.personNo());
+        String personType = blankToNull(request.personType());
+        String personNo = blankToNull(request.personNo());
+        if (personType != null) {
+            personType = personType.toUpperCase();
+        }
+        String email = resolveRequesterEmail(request.email(), personType, personNo);
+        ticketCsmService.requireNoPendingForPerson(email, personType, personNo);
 
         Ticket ticket = new Ticket();
         ticket.setRequesterEmail(email);
         ticket.setRequesterName(request.name().trim());
-        userRepository.findUserByEmail(email).ifPresent(user -> ticket.setRequesterUserId(user.getId()));
+        if (!PendingRequesterEmail.isPending(email)) {
+            userRepository.findUserByEmail(email).ifPresent(user -> ticket.setRequesterUserId(user.getId()));
+        }
         ticket.setCategory(category.getCode());
         ticket.setSubject(request.subject().trim());
         ticket.setDescription(
@@ -91,11 +99,11 @@ public class QueueService {
         ticket.setStatus(TicketStatus.OPEN);
         ticket.setChannel(TicketChannel.ONSITE_RFID);
         ticket.setQueueNumber(queueNumber);
-        if (request.personType() != null && !request.personType().isBlank()) {
-            ticket.setRequesterPersonType(request.personType().trim().toUpperCase());
+        if (personType != null) {
+            ticket.setRequesterPersonType(personType);
         }
-        if (request.personNo() != null && !request.personNo().isBlank()) {
-            ticket.setRequesterPersonNo(request.personNo().trim());
+        if (personNo != null) {
+            ticket.setRequesterPersonNo(personNo);
         }
 
         ticketRepository.persist(ticket);
@@ -465,6 +473,24 @@ public class QueueService {
                     "That counter is already serving someone — complete or requeue first"
             );
         }
+    }
+
+    private static String resolveRequesterEmail(String rawEmail, String personType, String personNo) {
+        String email = rawEmail != null ? rawEmail.trim().toLowerCase() : "";
+        if (!email.isBlank() && !PendingRequesterEmail.isPending(email)) {
+            return email;
+        }
+        if (personType != null && personNo != null) {
+            return PendingRequesterEmail.forPerson(personType, personNo);
+        }
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email is required");
+    }
+
+    private static String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private Ticket getOnsiteTicketOrThrow(Long ticketId) {

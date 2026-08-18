@@ -47,6 +47,27 @@ public class EmployeeRepository {
         return count != null ? count : 0;
     }
 
+    @Transactional(transactionManager = "gateTransactionManager")
+    public int updateLpuEmail(Long id, String email) {
+        return currentSession()
+                .createMutationQuery(
+                        "UPDATE Employee e SET e.lpuEmail = :email, e.updatedAt = :now "
+                                + "WHERE e.id = :id AND e.deleted = false"
+                )
+                .setParameter("email", email)
+                .setParameter("now", java.time.Instant.now())
+                .setParameter("id", id)
+                .executeUpdate();
+    }
+
+    @Transactional(transactionManager = "gateTransactionManager", readOnly = true)
+    public Optional<Employee> findById(Long id) {
+        return currentSession()
+                .createQuery("FROM Employee e WHERE e.id = :id AND e.deleted = false", Employee.class)
+                .setParameter("id", id)
+                .uniqueResultOptional();
+    }
+
     private static String likeTerm(String term) {
         if (term == null || term.isBlank()) {
             return "";

@@ -266,7 +266,14 @@
             <h3 class="text-xl font-extrabold tracking-tight text-[#14181f] sm:text-2xl">
               What do you need help with?
             </h3>
-            <p class="mt-1 text-sm text-zinc-500 sm:text-base">Choose one concern to get a queue number.</p>
+            <p class="mt-1 text-sm text-zinc-500 sm:text-base">
+              Choose one concern to get a queue number.
+              @if (!p.email) {
+                <span class="mt-1 block font-medium text-[#8d2546]">
+                  No LPU email on file — a second ticket will also be created so MISD can link your email.
+                </span>
+              }
+            </p>
           </div>
 
           @if (error()) {
@@ -320,7 +327,7 @@
 
             <button
               type="submit"
-              [disabled]="submitting() || !person()?.email"
+              [disabled]="submitting()"
               class="inline-flex min-h-14 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-[#8d2546] px-6 text-base font-bold text-white transition-colors hover:bg-[#7a1f3c] disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-16 sm:text-lg"
             >
               @if (submitting()) {
@@ -353,6 +360,13 @@
             Ticket <span class="font-semibold text-zinc-900">{{ ticket.ticketNumber }}</span>
           </p>
           <p class="mt-1 text-sm font-medium text-zinc-500">{{ ticket.categoryLabel }}</p>
+          @if (emailLinkTicket(); as linkTicket) {
+            <p class="mt-4 rounded-2xl bg-[#8d2546]/8 px-4 py-3 text-sm text-zinc-700">
+              A second ticket
+              <span class="font-mono font-semibold text-zinc-900">Q-{{ linkTicket.queueNumber }}</span>
+              was also filed so MISD can link your LPU email.
+            </p>
+          }
           <p class="mt-6 text-base font-semibold text-zinc-900">Please wait to be called.</p>
 
           <button

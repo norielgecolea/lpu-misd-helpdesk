@@ -20,7 +20,7 @@
             {{ current.requesterName }}
           </h3>
           <p class="mt-0.5 truncate text-sm text-gray-600">
-            {{ current.requesterEmail || current.requesterPersonNo || 'Requester' }}
+            {{ displayEmail(current) || current.requesterPersonNo || 'Requester' }}
           </p>
         </div>
         <button

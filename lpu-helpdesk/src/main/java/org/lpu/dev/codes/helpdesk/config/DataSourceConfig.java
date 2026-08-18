@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Primary;
  * Two datasources:
  * <ul>
  *   <li><b>Primary</b> — helpdesk Postgres (users, tickets, queue)</li>
- *   <li><b>Gate</b> — gate attendance Postgres (students, employees) read-only</li>
+ *   <li><b>Gate</b> — gate attendance Postgres (students, employees); LPU email may be encoded</li>
  * </ul>
  */
 @Configuration
@@ -47,7 +47,7 @@ public class DataSourceConfig {
         ds.setPoolName("gate-db");
         ds.setMaximumPoolSize(8);
         ds.setMinimumIdle(0);
-        ds.setReadOnly(true);
+        // Writable so MISD can encode lpu_email onto the local student/employee record.
         // Don't kill app startup if gate Postgres is temporarily down.
         ds.setInitializationFailTimeout(-1);
         ds.setConnectionTimeout(10_000);

@@ -43,6 +43,13 @@ export interface DirectoryProfile {
   position: string | null;
 }
 
+export interface EncodeLpuEmailResponse {
+  email: string;
+  personType: string;
+  personNo: string;
+  ticketsLinked: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class DirectoryService {
   private readonly http = inject(HttpClient);
@@ -79,5 +86,19 @@ export class DirectoryService {
       params = params.set('personNo', opts.personNo);
     }
     return this.http.get<DirectoryProfile>(`${environment.apiBaseUrl}/admin/directory/profile`, { params });
+  }
+
+  encodeLpuEmail(request: {
+    email: string;
+    ticketId?: number | null;
+    personType?: string | null;
+    personNo?: string | null;
+  }): Observable<EncodeLpuEmailResponse> {
+    return this.http.post<EncodeLpuEmailResponse>(`${environment.apiBaseUrl}/admin/directory/encode-email`, {
+      email: request.email,
+      ticketId: request.ticketId ?? undefined,
+      personType: request.personType ?? undefined,
+      personNo: request.personNo ?? undefined,
+    });
   }
 }

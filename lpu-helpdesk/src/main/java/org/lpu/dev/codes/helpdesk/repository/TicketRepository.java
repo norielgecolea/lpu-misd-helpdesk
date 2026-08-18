@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
+import org.lpu.dev.codes.helpdesk.model.PendingRequesterEmail;
 import org.lpu.dev.codes.helpdesk.model.Ticket;
 import org.lpu.dev.codes.helpdesk.model.TicketChannel;
 import org.lpu.dev.codes.helpdesk.model.TicketStatus;
@@ -68,12 +69,14 @@ public class TicketRepository {
         return currentSession()
                 .createQuery(
                         "FROM Ticket t WHERE t.status = :status "
+                                + "AND t.category <> :emailLinkCategory "
                                 + "AND (t.requesterUserId = :userId OR lower(t.requesterEmail) = lower(:email)) "
                                 + "AND t.id NOT IN (SELECT c.ticketId FROM TicketCsm c) "
                                 + "ORDER BY t.createdAt ASC, t.id ASC",
                         Ticket.class
                 )
                 .setParameter("status", TicketStatus.CLOSED)
+                .setParameter("emailLinkCategory", PendingRequesterEmail.LINK_LPU_EMAIL_CATEGORY)
                 .setParameter("userId", requesterUserId)
                 .setParameter("email", email)
                 .setMaxResults(1)
@@ -89,10 +92,11 @@ public class TicketRepository {
     ) {
         StringBuilder hql = new StringBuilder(
                 "FROM Ticket t WHERE t.status = :status "
+                        + "AND t.category <> :emailLinkCategory "
                         + "AND t.id NOT IN (SELECT c.ticketId FROM TicketCsm c) "
                         + "AND ("
         );
-        boolean hasEmail = email != null && !email.isBlank();
+        boolean hasEmail = email != null && !email.isBlank() && !PendingRequesterEmail.isPending(email);
         boolean hasPerson = personType != null && !personType.isBlank()
                 && personNo != null && !personNo.isBlank();
         if (!hasEmail && !hasPerson) {
@@ -111,6 +115,7 @@ public class TicketRepository {
 
         var query = currentSession().createQuery(hql.toString(), Ticket.class)
                 .setParameter("status", TicketStatus.CLOSED)
+                .setParameter("emailLinkCategory", PendingRequesterEmail.LINK_LPU_EMAIL_CATEGORY)
                 .setMaxResults(1);
         if (hasEmail) {
             query.setParameter("email", email);
@@ -127,11 +132,13 @@ public class TicketRepository {
         Long count = currentSession()
                 .createQuery(
                         "SELECT count(t.id) FROM Ticket t WHERE t.status = :status "
+                                + "AND t.category <> :emailLinkCategory "
                                 + "AND (t.requesterUserId = :userId OR lower(t.requesterEmail) = lower(:email)) "
                                 + "AND t.id NOT IN (SELECT c.ticketId FROM TicketCsm c)",
                         Long.class
                 )
                 .setParameter("status", TicketStatus.CLOSED)
+                .setParameter("emailLinkCategory", PendingRequesterEmail.LINK_LPU_EMAIL_CATEGORY)
                 .setParameter("userId", requesterUserId)
                 .setParameter("email", email)
                 .uniqueResult();
@@ -149,7 +156,7 @@ public class TicketRepository {
      */
     @Transactional(readOnly = true)
     public List<Ticket> findHistoryForPerson(String email, String personType, String personNo) {
-        boolean hasEmail = email != null && !email.isBlank();
+        boolean hasEmail = email != null && !email.isBlank() && !PendingRequesterEmail.isPending(email);
         boolean hasPerson = personType != null && !personType.isBlank()
                 && personNo != null && !personNo.isBlank();
         if (!hasEmail && !hasPerson) {
@@ -487,6 +494,45 @@ public class TicketRepository {
                 .createQuery("FROM Ticket t WHERE t.id IN :ids", Ticket.class)
                 .setParameter("ids", ids)
                 .getResultList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Ticket> findByPerson(String personType, String personNo) {
+        if (personType == null || personType.isBlank() || personNo == null || personNo.isBlank()) {
+            return List.of();
+        }
+        return currentSession()
+                .createQuery(
+                        "FROM Ticket t WHERE t.requesterPersonType = :personType "
+                                + "AND t.requesterPersonNo = :personNo "
+                                + "ORDER BY t.createdAt DESC, t.id DESC",
+                        Ticket.class
+                )
+                .setParameter("personType", personType.trim().toUpperCase())
+                .setParameter("personNo", personNo.trim())
+                .getResultList();
+    }
+
+    @Transactional(readOnly = true)
+    public boolean existsOpenEmailLinkForPerson(String personType, String personNo) {
+        if (personType == null || personType.isBlank() || personNo == null || personNo.isBlank()) {
+            return false;
+        }
+        Long count = currentSession()
+                .createQuery(
+                        "SELECT count(t.id) FROM Ticket t WHERE t.category = :category "
+                                + "AND t.status IN (:open, :inProgress) "
+                                + "AND t.requesterPersonType = :personType "
+                                + "AND t.requesterPersonNo = :personNo",
+                        Long.class
+                )
+                .setParameter("category", PendingRequesterEmail.LINK_LPU_EMAIL_CATEGORY)
+                .setParameter("open", TicketStatus.OPEN)
+                .setParameter("inProgress", TicketStatus.IN_PROGRESS)
+                .setParameter("personType", personType.trim().toUpperCase())
+                .setParameter("personNo", personNo.trim())
+                .uniqueResult();
+        return count != null && count > 0;
     }
 
     @Transactional

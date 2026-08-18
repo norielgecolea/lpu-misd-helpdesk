@@ -162,6 +162,7 @@ export class Kiosk implements OnInit, AfterViewInit, OnDestroy {
   protected readonly category = signal('');
   protected readonly concern = signal('');
   protected readonly createdTicket = signal<Ticket | null>(null);
+  protected readonly emailLinkTicket = signal<Ticket | null>(null);
   protected readonly pendingCsm = signal<PendingCsm | null>(null);
   protected readonly csmRating = signal<CsmRating | null>(null);
   protected readonly csmComment = signal('');
@@ -386,23 +387,20 @@ export class Kiosk implements OnInit, AfterViewInit, OnDestroy {
       this.error.set('Please type your concern.');
       return;
     }
-    if (!person.email) {
-      this.error.set('No LPU email on file. Please ask the MISD counter for help.');
-      return;
-    }
 
     const identifier = this.scannedIdentifier || person.rfid?.trim() || person.personNo;
     this.clearFormIdleTimer();
     this.submitting.set(true);
     try {
-      const ticket = await firstValueFrom(
+      const created = await firstValueFrom(
         this.kioskService.createTicket({
           identifier,
           category,
           concern: this.requiresDetail ? this.concern().trim() : undefined,
         }),
       );
-      this.createdTicket.set(ticket);
+      this.createdTicket.set(created.ticket);
+      this.emailLinkTicket.set(created.emailLinkTicket ?? null);
       this.step.set('success');
       playSuccessCue();
       this.scheduleReset();
@@ -461,6 +459,7 @@ export class Kiosk implements OnInit, AfterViewInit, OnDestroy {
     this.csmRating.set(null);
     this.csmComment.set('');
     this.createdTicket.set(null);
+    this.emailLinkTicket.set(null);
     this.concern.set('');
     this.error.set(null);
     this.scanBuffer.set('');

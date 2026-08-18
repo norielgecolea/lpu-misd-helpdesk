@@ -1,6 +1,7 @@
 package org.lpu.dev.codes.helpdesk.dto;
 
 import java.time.Instant;
+import org.lpu.dev.codes.helpdesk.model.PendingRequesterEmail;
 import org.lpu.dev.codes.helpdesk.model.Ticket;
 import org.lpu.dev.codes.helpdesk.service.CategoryLabelCache;
 
@@ -22,6 +23,7 @@ public record TicketResponse(
         Integer queueNumber,
         boolean hasIdPhoto,
         int unreadCount,
+        boolean pendingEmail,
         Instant createdAt,
         Instant updatedAt,
         Instant resolvedAt
@@ -54,6 +56,7 @@ public record TicketResponse(
                 ticket.getQueueNumber(),
                 hasId,
                 Math.max(0, unreadCount),
+                PendingRequesterEmail.isPending(ticket.getRequesterEmail()),
                 ticket.getCreatedAt(),
                 ticket.getUpdatedAt(),
                 ticket.getResolvedAt()

@@ -1,7 +1,7 @@
 import { Component, input, output, signal, effect, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { DirectoryProfile, DirectoryService } from '../../core/directory/directory.service';
-import { Ticket } from '../../core/tickets/ticket.models';
+import { Ticket, displayRequesterEmail, isPendingRequesterEmail } from '../../core/tickets/ticket.models';
 
 export interface TicketSummaryRow {
   label: string;
@@ -90,7 +90,9 @@ export class TicketSummaryDialog {
     try {
       const profile = await firstValueFrom(
         this.directoryService.lookupProfile({
-          email: ticket.requesterEmail,
+          email: isPendingRequesterEmail(ticket.requesterEmail, ticket.pendingEmail)
+            ? null
+            : ticket.requesterEmail,
           personType: ticket.requesterPersonType,
           personNo: ticket.requesterPersonNo,
         }),
@@ -109,7 +111,7 @@ export class TicketSummaryDialog {
     const type = (profile?.found ? profile.personType : ticket.requesterPersonType)?.toUpperCase() ?? null;
     const name = (profile?.found && profile.name) || ticket.requesterName || '—';
     const emailRaw = (profile?.found && profile.email) || ticket.requesterEmail || '';
-    const email = emailRaw || '—';
+    const email = displayRequesterEmail(emailRaw, ticket.pendingEmail && !(profile?.found && profile.email));
     const personNoRaw = (profile?.found && profile.personNo) || ticket.requesterPersonNo || '';
     const personNo = personNoRaw || '—';
     const department = (profile?.found && profile.department) || '—';
@@ -118,7 +120,9 @@ export class TicketSummaryDialog {
     const emailRow: TicketSummaryRow = {
       label: 'LPU Email',
       value: email,
-      copyValue: emailRaw || null,
+      copyValue: isPendingRequesterEmail(emailRaw, ticket.pendingEmail && !(profile?.found && profile.email))
+        ? null
+        : emailRaw || null,
     };
 
     if (type === 'EMPLOYEE') {

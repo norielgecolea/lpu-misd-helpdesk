@@ -47,6 +47,27 @@ public class StudentRepository {
         return count != null ? count : 0;
     }
 
+    @Transactional(transactionManager = "gateTransactionManager")
+    public int updateLpuEmail(Long id, String email) {
+        return currentSession()
+                .createMutationQuery(
+                        "UPDATE Student s SET s.lpuEmail = :email, s.updatedAt = :now "
+                                + "WHERE s.id = :id AND s.deleted = false"
+                )
+                .setParameter("email", email)
+                .setParameter("now", java.time.Instant.now())
+                .setParameter("id", id)
+                .executeUpdate();
+    }
+
+    @Transactional(transactionManager = "gateTransactionManager", readOnly = true)
+    public Optional<Student> findById(Long id) {
+        return currentSession()
+                .createQuery("FROM Student s WHERE s.id = :id AND s.deleted = false", Student.class)
+                .setParameter("id", id)
+                .uniqueResultOptional();
+    }
+
     private static String likeTerm(String term) {
         if (term == null || term.isBlank()) {
             return "";

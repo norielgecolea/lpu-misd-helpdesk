@@ -269,12 +269,40 @@
                   <p class="font-mono text-sm font-bold text-zinc-700">{{ idNo }}</p>
                 }
                 <p class="text-lg font-bold text-zinc-950">{{ entry.ticket.requesterName }}</p>
-                <p class="truncate text-sm text-zinc-500">{{ entry.ticket.requesterEmail }}</p>
+                <p class="truncate text-sm text-zinc-500">{{ requesterEmailLabel(entry.ticket) }}</p>
                 <div class="mt-3 rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2.5">
                   <p class="text-sm font-semibold text-zinc-900">{{ entry.ticket.subject }}</p>
                   <p class="mt-0.5 text-xs text-zinc-500">{{ entry.ticket.categoryLabel }}</p>
                 </div>
               </div>
+
+              @if (canEncode(entry.ticket)) {
+                <form class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3" (ngSubmit)="onEncodeEmail(entry.ticket)">
+                  <p class="text-xs font-bold tracking-wide text-amber-900 uppercase">Encode LPU email</p>
+                  <p class="mt-1 text-xs text-amber-800">
+                    Link this person's local record so all of their tickets attach to the LPU email account.
+                  </p>
+                  <input
+                    type="email"
+                    class="focus:border-primary/55 focus:ring-primary/35 mt-2 w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2"
+                    placeholder="juan.delacruz@lpulaguna.edu.ph"
+                    [ngModel]="encodeEmail()"
+                    (ngModelChange)="encodeEmail.set($event)"
+                    [ngModelOptions]="{ standalone: true }"
+                    [disabled]="encodingEmail() || isBusy(entry.ticket.id)"
+                  />
+                  @if (encodeError()) {
+                    <p class="mt-1.5 text-xs font-medium text-red-700">{{ encodeError() }}</p>
+                  }
+                  <button
+                    type="submit"
+                    [disabled]="encodingEmail() || isBusy(entry.ticket.id) || !encodeEmail().trim()"
+                    class="mt-2 w-full cursor-pointer rounded-lg bg-amber-700 px-3 py-2 text-xs font-bold text-white hover:bg-amber-800 disabled:pointer-events-none disabled:opacity-50"
+                  >
+                    {{ encodingEmail() ? 'Saving…' : 'Save email to record' }}
+                  </button>
+                </form>
+              }
 
               <div class="mt-4 grid grid-cols-2 gap-2">
                 <button

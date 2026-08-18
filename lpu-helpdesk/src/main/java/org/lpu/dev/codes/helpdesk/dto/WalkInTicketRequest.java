@@ -7,7 +7,7 @@ public record WalkInTicketRequest(
         @NotBlank(message = "Name is required")
         String name,
 
-        @NotBlank(message = "Email is required")
+        /** Optional when personType + personNo are set (onsite record with no LPU email yet). */
         @Email(message = "A valid email address is required")
         String email,
 

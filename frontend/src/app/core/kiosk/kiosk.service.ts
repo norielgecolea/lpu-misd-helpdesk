@@ -2,8 +2,8 @@ import { HttpClient, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { PendingCsm, SubmitCsmRequest, Ticket, TicketCategoryOption } from '../tickets/ticket.models';
-import { KioskLookupRequest, KioskPerson, KioskTicketRequest, ServerTime } from './kiosk.models';
+import { PendingCsm, SubmitCsmRequest, TicketCategoryOption } from '../tickets/ticket.models';
+import { KioskLookupRequest, KioskPerson, KioskTicketCreateResponse, KioskTicketRequest, ServerTime } from './kiosk.models';
 
 @Injectable({ providedIn: 'root' })
 export class KioskService {
@@ -43,7 +43,7 @@ export class KioskService {
     });
   }
 
-  createTicket(request: KioskTicketRequest): Observable<Ticket> {
-    return this.http.post<Ticket>(`${this.base}/tickets`, request);
+  createTicket(request: KioskTicketRequest): Observable<KioskTicketCreateResponse> {
+    return this.http.post<KioskTicketCreateResponse>(`${this.base}/tickets`, request);
   }
 }

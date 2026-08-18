@@ -183,8 +183,8 @@
                 <td class="max-w-[10rem] truncate px-2.5 py-1.5 align-middle" [title]="ticket.requesterName">
                   {{ ticket.requesterName }}
                 </td>
-                <td class="max-w-[12rem] truncate px-2.5 py-1.5 align-middle" [title]="ticket.requesterEmail">
-                  {{ ticket.requesterEmail }}
+                <td class="max-w-[12rem] truncate px-2.5 py-1.5 align-middle" [title]="requesterEmailLabel(ticket)">
+                  {{ requesterEmailLabel(ticket) }}
                 </td>
                 <td class="max-w-[9rem] truncate px-2.5 py-1.5 align-middle">
                   {{ ticket.assignedAdminName || 'Unassigned' }}
@@ -279,7 +279,7 @@
               </div>
               <h2 class="mt-0.5 text-sm font-semibold text-zinc-900">{{ ticket.subject }}</h2>
               <p class="mt-0.5 text-[11px] text-zinc-500">
-                {{ ticket.requesterName }} &lt;{{ ticket.requesterEmail }}&gt;
+                {{ ticket.requesterName }} &lt;{{ requesterEmailLabel(ticket) }}&gt;
                 · {{ ticket.createdAt | date: 'MMM d, h:mm a' }}
               </p>
             </div>
@@ -377,7 +377,7 @@
                   <div class="col-span-2">
                     <p class="font-medium text-zinc-500">Requester</p>
                     <p class="mt-0.5 font-medium text-zinc-900">{{ ticket.requesterName }}</p>
-                    <p class="break-all text-zinc-600">{{ ticket.requesterEmail }}</p>
+                    <p class="break-all text-zinc-600">{{ requesterEmailLabel(ticket) }}</p>
                   </div>
                   <div>
                     <p class="font-medium text-zinc-500">Updated</p>
@@ -396,6 +396,31 @@
                     </div>
                   }
                 </div>
+
+                @if (canEncode(ticket)) {
+                  <form class="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2" (ngSubmit)="onEncodeEmail(ticket)">
+                    <p class="text-[10px] font-bold tracking-wide text-amber-900 uppercase">Encode LPU email</p>
+                    <input
+                      type="email"
+                      class="mt-1.5 w-full rounded-md border border-amber-200 bg-white px-2 py-1.5 text-[11px] text-zinc-900 focus:border-[#8d2546] focus:outline-none"
+                      placeholder="name@lpulaguna.edu.ph"
+                      [ngModel]="encodeEmail()"
+                      (ngModelChange)="encodeEmail.set($event)"
+                      [ngModelOptions]="{ standalone: true }"
+                      [disabled]="encodingEmail() || isBusy(ticket.id)"
+                    />
+                    @if (encodeError()) {
+                      <p class="mt-1 text-[11px] font-medium text-red-700">{{ encodeError() }}</p>
+                    }
+                    <button
+                      type="submit"
+                      [disabled]="encodingEmail() || isBusy(ticket.id) || !encodeEmail().trim()"
+                      class="mt-1.5 w-full cursor-pointer rounded-md bg-amber-700 px-2 py-1.5 text-[11px] font-bold text-white hover:bg-amber-800 disabled:opacity-50"
+                    >
+                      {{ encodingEmail() ? 'Saving…' : 'Save email to record' }}
+                    </button>
+                  </form>
+                }
 
                 <div>
                   <p class="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase">ID photo</p>

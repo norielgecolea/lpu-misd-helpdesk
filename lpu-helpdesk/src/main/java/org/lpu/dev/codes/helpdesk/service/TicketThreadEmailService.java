@@ -5,6 +5,7 @@ import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.lpu.dev.codes.helpdesk.config.MailProperties;
+import org.lpu.dev.codes.helpdesk.model.PendingRequesterEmail;
 import org.lpu.dev.codes.helpdesk.model.Ticket;
 import org.lpu.dev.codes.helpdesk.model.TicketStatus;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -131,10 +132,10 @@ public class TicketThreadEmailService {
             String innerHtml
     ) {
         try {
-            if (studentEmail == null || studentEmail.isBlank()) {
-                log.warn("Skipping ticket email for {} — no student address", ticketNumber);
-                return;
-            }
+        if (studentEmail == null || studentEmail.isBlank() || PendingRequesterEmail.isPending(studentEmail)) {
+            log.warn("Skipping ticket email for {} — no deliverable student address", ticketNumber);
+            return;
+        }
             if (messageId == null || messageId.isBlank()) {
                 log.warn("Skipping ticket email for {} — missing Message-ID", ticketNumber);
                 return;

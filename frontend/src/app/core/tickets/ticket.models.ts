@@ -28,6 +28,39 @@ export interface Ticket {
   createdAt: string;
   updatedAt: string;
   resolvedAt: string | null;
+  pendingEmail?: boolean;
+}
+
+export const LINK_LPU_EMAIL_CATEGORY = 'LINK_LPU_EMAIL';
+
+export function isPendingRequesterEmail(
+  email: string | null | undefined,
+  pendingEmail?: boolean,
+): boolean {
+  if (pendingEmail === true) {
+    return true;
+  }
+  if (!email || !email.trim()) {
+    return true;
+  }
+  return email.trim().toLowerCase().endsWith('@pending.invalid');
+}
+
+export function displayRequesterEmail(
+  email: string | null | undefined,
+  pendingEmail?: boolean,
+): string {
+  if (isPendingRequesterEmail(email, pendingEmail)) {
+    return 'No LPU email yet';
+  }
+  return email ?? '';
+}
+
+export function canEncodeLpuEmail(ticket: Pick<Ticket, 'requesterPersonType' | 'requesterPersonNo' | 'requesterEmail' | 'pendingEmail'>): boolean {
+  if (!ticket.requesterPersonType || !ticket.requesterPersonNo) {
+    return false;
+  }
+  return isPendingRequesterEmail(ticket.requesterEmail, ticket.pendingEmail);
 }
 
 export interface CreateTicketRequest {

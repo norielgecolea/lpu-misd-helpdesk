@@ -210,8 +210,21 @@ public class SchemaMigrationConfig {
                     ('ACCOUNT_PASSWORD', 'Account & Password', 30, TRUE, TRUE, TRUE, FALSE),
                     ('SOFTWARE_SYSTEM_ACCESS', 'Software / System Access', 40, TRUE, TRUE, TRUE, FALSE),
                     ('EMAIL_OUTLOOK', 'Email / Outlook', 50, TRUE, TRUE, TRUE, FALSE),
-                    ('OTHERS', 'Others', 60, TRUE, TRUE, TRUE, TRUE)
+                    ('OTHERS', 'Others', 60, TRUE, TRUE, TRUE, TRUE),
+                    ('LINK_LPU_EMAIL', 'Link LPU Email', 90, TRUE, FALSE, FALSE, FALSE)
                 ON CONFLICT (code) DO NOTHING
+                """);
+        jdbc.execute("""
+                UPDATE ticket_categories
+                SET show_on_kiosk = FALSE,
+                    show_online = FALSE,
+                    active = TRUE,
+                    updated_at = NOW()
+                WHERE code = 'LINK_LPU_EMAIL'
+                """);
+        jdbc.execute("""
+                CREATE INDEX IF NOT EXISTS idx_tickets_requester_person
+                    ON tickets (requester_person_type, requester_person_no)
                 """);
 
         jdbc.execute("""
