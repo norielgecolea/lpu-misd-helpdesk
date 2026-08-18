@@ -185,4 +185,8 @@ export class AdminService {
   requeue(ticketId: number): Observable<Ticket> {
     return this.http.post<Ticket>(`${environment.apiBaseUrl}/admin/queue/${ticketId}/requeue`, {});
   }
+
+  holdServing(ticketId: number): Observable<Ticket> {
+    return this.http.post<Ticket>(`${environment.apiBaseUrl}/admin/queue/${ticketId}/hold`, {});
+  }
 }

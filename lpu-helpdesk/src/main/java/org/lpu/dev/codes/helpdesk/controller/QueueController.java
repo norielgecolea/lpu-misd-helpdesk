@@ -103,4 +103,10 @@ public class QueueController {
         Ticket ticket = queueService.requeue(id);
         return ResponseEntity.ok(TicketResponse.from(ticket));
     }
+
+    @PostMapping("/{id}/hold")
+    public ResponseEntity<TicketResponse> hold(@PathVariable Long id) {
+        Ticket ticket = queueService.holdServing(id);
+        return ResponseEntity.ok(TicketResponse.from(ticket));
+    }
 }

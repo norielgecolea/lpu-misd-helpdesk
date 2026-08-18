@@ -225,6 +225,21 @@ export class AdminQueue implements OnInit, OnDestroy {
     }
   }
 
+  protected async onHold(ticketId: number): Promise<void> {
+    this.error.set(null);
+    this.success.set(null);
+    this.setBusy(ticketId, true);
+    try {
+      await firstValueFrom(this.adminService.holdServing(ticketId));
+      this.success.set('Removed from the queue. Ticket is In Progress so it can be finished later.');
+      await this.loadSnapshot();
+    } catch (err) {
+      this.error.set(this.describeError(err));
+    } finally {
+      this.setBusy(ticketId, false);
+    }
+  }
+
   protected openWalkInForm(): void {
     this.walkInError.set(null);
     this.walkInName.set('');

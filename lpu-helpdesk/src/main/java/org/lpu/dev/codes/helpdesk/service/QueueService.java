@@ -298,6 +298,22 @@ public class QueueService {
         return saved;
     }
 
+    /**
+     * Drop this guest from the live queue / now-serving board, but keep the
+     * ticket In Progress so MISD can finish the work later (not the same day).
+     */
+    @Transactional
+    public Ticket holdServing(Long ticketId) {
+        Ticket ticket = requireCurrentlyServing(ticketId);
+        ticket.setStatus(TicketStatus.IN_PROGRESS);
+        ticket.setQueueNumber(null);
+        ticket.setUpdatedAt(Instant.now());
+        Ticket saved = ticketRepository.save(ticket);
+        cancelPendingTransfersForTicket(ticketId);
+        log.info("Queue ticket {} removed from queue and held in progress", saved.getTicketNumber());
+        return saved;
+    }
+
     @Transactional
     public Ticket requeue(Long ticketId) {
         Ticket ticket = getOnsiteTicketOrThrow(ticketId);
@@ -470,7 +486,7 @@ public class QueueService {
         if (alreadyServing) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "That counter is already serving someone — complete or requeue first"
+                    "That counter is already serving someone — complete, requeue, or remove from queue first"
             );
         }
     }
@@ -491,6 +507,19 @@ public class QueueService {
             return null;
         }
         return value.trim();
+    }
+
+    private Ticket requireCurrentlyServing(Long ticketId) {
+        Ticket ticket = getOnsiteTicketOrThrow(ticketId);
+        if (ticket.getStatus() != TicketStatus.IN_PROGRESS
+                || ticket.getAssignedAdminId() == null
+                || ticket.getQueueNumber() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "This ticket is not currently being served in the queue"
+            );
+        }
+        return ticket;
     }
 
     private Ticket getOnsiteTicketOrThrow(Long ticketId) {

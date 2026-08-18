@@ -218,7 +218,7 @@ public class TicketRepository {
         return currentSession()
                 .createQuery(
                         "FROM Ticket t WHERE t.channel = :channel AND t.status = :status AND t.assignedAdminId IS NOT NULL"
-                                + " ORDER BY t.updatedAt ASC",
+                                + " AND t.queueNumber IS NOT NULL ORDER BY t.updatedAt ASC",
                         Ticket.class
                 )
                 .setParameter("channel", TicketChannel.ONSITE_RFID)
