@@ -39,6 +39,7 @@ public class TicketCategoryService {
     @Transactional(readOnly = true)
     public List<TicketCategoryOption> listForKiosk() {
         return ticketCategoryRepository.findActiveForKiosk().stream()
+                .filter(c -> !isEmailLinkCategory(c.getCode()))
                 .map(c -> new TicketCategoryOption(c.getCode(), c.getLabel(), c.isRequiresDetail()))
                 .toList();
     }
@@ -46,6 +47,7 @@ public class TicketCategoryService {
     @Transactional(readOnly = true)
     public List<TicketCategoryOption> listForOnline() {
         return ticketCategoryRepository.findActiveForOnline().stream()
+                .filter(c -> !isEmailLinkCategory(c.getCode()))
                 .map(c -> new TicketCategoryOption(c.getCode(), c.getLabel(), c.isRequiresDetail()))
                 .toList();
     }
@@ -53,6 +55,7 @@ public class TicketCategoryService {
     @Transactional(readOnly = true)
     public List<AdminCategoryResponse> listAll() {
         return ticketCategoryRepository.findAllOrdered().stream()
+                .filter(c -> !isEmailLinkCategory(c.getCode()))
                 .map(AdminCategoryResponse::from)
                 .toList();
     }
@@ -60,7 +63,7 @@ public class TicketCategoryService {
     @Transactional(readOnly = true)
     public TicketCategoryDefinition requireActiveForKiosk(String rawCode) {
         TicketCategoryDefinition category = requireByCode(rawCode);
-        if (!category.isActive() || !category.isShowOnKiosk()) {
+        if (!category.isActive() || !category.isShowOnKiosk() || isEmailLinkCategory(category.getCode())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "That concern is not available on the kiosk");
         }
         return category;
@@ -93,6 +96,9 @@ public class TicketCategoryService {
     @Transactional
     public AdminCategoryResponse create(CreateCategoryRequest request) {
         String code = normalizeCode(request.code());
+        if (isEmailLinkCategory(code)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "That choice is reserved");
+        }
         if (ticketCategoryRepository.existsByCode(code)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "A choice with that code already exists");
         }
@@ -154,6 +160,21 @@ public class TicketCategoryService {
         TicketCategoryDefinition saved = ticketCategoryRepository.save(category);
         categoryLabelCache.reload();
         return AdminCategoryResponse.from(saved);
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        TicketCategoryDefinition category = ticketCategoryRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Choice not found"));
+        if (isEmailLinkCategory(category.getCode())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "That choice cannot be deleted");
+        }
+        ticketCategoryRepository.delete(category);
+        categoryLabelCache.reload();
+    }
+
+    private static boolean isEmailLinkCategory(String code) {
+        return PendingRequesterEmail.LINK_LPU_EMAIL_CATEGORY.equals(code);
     }
 
     private TicketCategoryDefinition requireByCode(String rawCode) {

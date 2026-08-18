@@ -17,7 +17,6 @@ import org.lpu.dev.codes.helpdesk.model.Ticket;
 import org.lpu.dev.codes.helpdesk.model.TicketCategoryDefinition;
 import org.lpu.dev.codes.helpdesk.repository.EmployeeRepository;
 import org.lpu.dev.codes.helpdesk.repository.StudentRepository;
-import org.lpu.dev.codes.helpdesk.repository.TicketRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,7 +34,6 @@ public class KioskService {
     private final TicketCsmService ticketCsmService;
     private final GateAttendanceProperties gateAttendanceProperties;
     private final DirectoryEmailService directoryEmailService;
-    private final TicketRepository ticketRepository;
 
     public KioskService(
             StudentRepository studentRepository,
@@ -44,8 +42,7 @@ public class KioskService {
             TicketCategoryService ticketCategoryService,
             TicketCsmService ticketCsmService,
             GateAttendanceProperties gateAttendanceProperties,
-            DirectoryEmailService directoryEmailService,
-            TicketRepository ticketRepository
+            DirectoryEmailService directoryEmailService
     ) {
         this.studentRepository = studentRepository;
         this.employeeRepository = employeeRepository;
@@ -54,7 +51,6 @@ public class KioskService {
         this.ticketCsmService = ticketCsmService;
         this.gateAttendanceProperties = gateAttendanceProperties;
         this.directoryEmailService = directoryEmailService;
-        this.ticketRepository = ticketRepository;
     }
 
     public KioskPersonResponse lookup(String rawIdentifier) {
@@ -128,37 +124,13 @@ public class KioskService {
                 person.personNo()
         ));
 
-        Ticket emailLinkTicket = null;
-        boolean missingEmail = person.email() == null || person.email().isBlank();
-        if (missingEmail
-                && !PendingRequesterEmail.LINK_LPU_EMAIL_CATEGORY.equals(category.getCode())
-                && !ticketRepository.existsOpenEmailLinkForPerson(person.personType(), person.personNo())) {
-            emailLinkTicket = queueService.createWalkInTicket(new WalkInTicketRequest(
-                    person.name(),
-                    requesterEmail,
-                    PendingRequesterEmail.LINK_LPU_EMAIL_CATEGORY,
-                    "Link LPU email to local record",
-                    "No LPU email is encoded on this "
-                            + person.personType().toLowerCase()
-                            + " record ("
-                            + person.personNo()
-                            + "). Encode the official LPU email so existing and future tickets can be linked to their account.",
-                    person.personType(),
-                    person.personNo()
-            ));
-        }
-
         log.info(
-                "Kiosk ticket created ticketNumber={} personType={} personNo={} emailLinkTicket={}",
+                "Kiosk ticket created ticketNumber={} personType={} personNo={}",
                 ticket.getTicketNumber(),
                 person.personType(),
-                person.personNo(),
-                emailLinkTicket != null ? emailLinkTicket.getTicketNumber() : "none"
+                person.personNo()
         );
-        return new KioskTicketCreateResponse(
-                TicketResponse.from(ticket),
-                emailLinkTicket != null ? TicketResponse.from(emailLinkTicket) : null
-        );
+        return new KioskTicketCreateResponse(TicketResponse.from(ticket), null);
     }
 
     private KioskPersonResponse resolvePerson(String identifier) {

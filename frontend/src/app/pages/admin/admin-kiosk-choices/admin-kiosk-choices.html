@@ -169,6 +169,42 @@
   </div>
 }
 
+@if (deleting(); as category) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+    <button
+      type="button"
+      class="dialog-backdrop-enter absolute inset-0 cursor-pointer bg-zinc-950/45 backdrop-blur-[2px]"
+      (click)="cancelDelete()"
+      aria-label="Cancel delete"
+    ></button>
+    <div class="dialog-panel-enter relative z-10 w-full max-w-md rounded-2xl border border-zinc-950/10 bg-white p-5 shadow-2xl sm:p-6">
+      <h3 class="text-base font-bold text-gray-950">Delete this choice?</h3>
+      <p class="mt-2 text-sm text-gray-600">
+        <span class="font-semibold text-zinc-900">{{ category.label }}</span>
+        will be removed from the kiosk and online form. Tickets already filed with this choice will keep it.
+      </p>
+      <div class="mt-5 flex items-center justify-end gap-3">
+        <button
+          type="button"
+          (click)="cancelDelete()"
+          [disabled]="isBusy(category.id)"
+          class="cursor-pointer rounded-lg px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          (click)="confirmDelete()"
+          [disabled]="isBusy(category.id)"
+          class="inline-flex cursor-pointer items-center justify-center rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800 disabled:opacity-50"
+        >
+          {{ isBusy(category.id) ? 'Deleting…' : 'Delete' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
 @if (loading()) {
   <div class="flex items-center justify-center rounded-2xl border border-zinc-950/10 bg-white p-10">
     <span class="border-primary/30 border-t-primary h-6 w-6 animate-spin rounded-full border-2"></span>
@@ -243,6 +279,14 @@
                     [class.hover:bg-emerald-50]="!category.active"
                   >
                     {{ category.active ? 'Deactivate' : 'Activate' }}
+                  </button>
+                  <button
+                    type="button"
+                    (click)="askDelete(category)"
+                    [disabled]="isBusy(category.id)"
+                    class="cursor-pointer rounded-md px-2.5 py-1 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    Delete
                   </button>
                 </div>
               </td>

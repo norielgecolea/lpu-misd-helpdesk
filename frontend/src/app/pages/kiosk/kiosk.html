@@ -360,13 +360,6 @@
             Ticket <span class="font-semibold text-zinc-900">{{ ticket.ticketNumber }}</span>
           </p>
           <p class="mt-1 text-sm font-medium text-zinc-500">{{ ticket.categoryLabel }}</p>
-          @if (emailLinkTicket(); as linkTicket) {
-            <p class="mt-4 rounded-2xl bg-[#8d2546]/8 px-4 py-3 text-sm text-zinc-700">
-              A second ticket
-              <span class="font-mono font-semibold text-zinc-900">Q-{{ linkTicket.queueNumber }}</span>
-              was also filed so MISD can link your LPU email.
-            </p>
-          }
           <p class="mt-6 text-base font-semibold text-zinc-900">Please wait to be called.</p>
 
           <button

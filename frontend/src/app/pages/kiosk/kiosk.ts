@@ -15,7 +15,7 @@ import { firstValueFrom } from 'rxjs';
 import { playSuccessCue, unlockAudio } from '../../core/audio/cue-sounds';
 import { KioskPerson } from '../../core/kiosk/kiosk.models';
 import { KioskService } from '../../core/kiosk/kiosk.service';
-import { CsmRating, PendingCsm, Ticket, TicketCategoryOption } from '../../core/tickets/ticket.models';
+import { CsmRating, LINK_LPU_EMAIL_CATEGORY, PendingCsm, Ticket, TicketCategoryOption } from '../../core/tickets/ticket.models';
 
 type KioskStep = 'idle' | 'csm' | 'form' | 'success';
 
@@ -162,7 +162,6 @@ export class Kiosk implements OnInit, AfterViewInit, OnDestroy {
   protected readonly category = signal('');
   protected readonly concern = signal('');
   protected readonly createdTicket = signal<Ticket | null>(null);
-  protected readonly emailLinkTicket = signal<Ticket | null>(null);
   protected readonly pendingCsm = signal<PendingCsm | null>(null);
   protected readonly csmRating = signal<CsmRating | null>(null);
   protected readonly csmComment = signal('');
@@ -197,7 +196,9 @@ export class Kiosk implements OnInit, AfterViewInit, OnDestroy {
     this.clockTimer = setInterval(() => this.tickClock(), CLOCK_TICK_MS);
     this.clockSyncTimer = setInterval(() => void this.syncServerClock(), CLOCK_SYNC_MS);
     try {
-      const options = await firstValueFrom(this.kioskService.categories());
+      const options = (await firstValueFrom(this.kioskService.categories())).filter(
+        (option) => option.value !== LINK_LPU_EMAIL_CATEGORY,
+      );
       this.categories.set(options);
       if (options.length > 0) {
         this.category.set(options[0].value);
@@ -400,7 +401,6 @@ export class Kiosk implements OnInit, AfterViewInit, OnDestroy {
         }),
       );
       this.createdTicket.set(created.ticket);
-      this.emailLinkTicket.set(created.emailLinkTicket ?? null);
       this.step.set('success');
       playSuccessCue();
       this.scheduleReset();
@@ -459,7 +459,6 @@ export class Kiosk implements OnInit, AfterViewInit, OnDestroy {
     this.csmRating.set(null);
     this.csmComment.set('');
     this.createdTicket.set(null);
-    this.emailLinkTicket.set(null);
     this.concern.set('');
     this.error.set(null);
     this.scanBuffer.set('');

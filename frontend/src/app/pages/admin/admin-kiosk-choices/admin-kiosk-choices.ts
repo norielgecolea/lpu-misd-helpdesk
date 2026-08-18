@@ -19,6 +19,7 @@ export class AdminKioskChoices implements OnInit {
 
   protected readonly showForm = signal(false);
   protected readonly editing = signal<AdminCategory | null>(null);
+  protected readonly deleting = signal<AdminCategory | null>(null);
   protected readonly submitting = signal(false);
   protected readonly formError = signal<string | null>(null);
 
@@ -63,6 +64,36 @@ export class AdminKioskChoices implements OnInit {
   protected closeForm(): void {
     this.showForm.set(false);
     this.editing.set(null);
+  }
+
+  protected askDelete(category: AdminCategory): void {
+    this.deleting.set(category);
+    this.error.set(null);
+  }
+
+  protected cancelDelete(): void {
+    this.deleting.set(null);
+  }
+
+  protected async confirmDelete(): Promise<void> {
+    const category = this.deleting();
+    if (!category || this.isBusy(category.id)) {
+      return;
+    }
+    this.setBusy(category.id, true);
+    this.error.set(null);
+    try {
+      await firstValueFrom(this.adminService.deleteCategory(category.id));
+      this.categories.update((list) => list.filter((c) => c.id !== category.id));
+      if (this.editing()?.id === category.id) {
+        this.closeForm();
+      }
+      this.deleting.set(null);
+    } catch (err) {
+      this.error.set(this.describeError(err));
+    } finally {
+      this.setBusy(category.id, false);
+    }
   }
 
   protected async submitForm(): Promise<void> {

@@ -93,6 +93,10 @@ export class AdminService {
     return this.http.put<AdminCategory>(`${environment.apiBaseUrl}/admin/categories/${id}`, request);
   }
 
+  deleteCategory(id: number): Observable<void> {
+    return this.http.delete<void>(`${environment.apiBaseUrl}/admin/categories/${id}`);
+  }
+
   // --- Online tickets ---
 
   listTickets(status?: TicketStatus | ''): Observable<Ticket[]> {

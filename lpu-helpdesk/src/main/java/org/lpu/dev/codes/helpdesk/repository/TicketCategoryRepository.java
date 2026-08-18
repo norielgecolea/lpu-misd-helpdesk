@@ -90,4 +90,14 @@ public class TicketCategoryRepository {
     public TicketCategoryDefinition save(TicketCategoryDefinition category) {
         return currentSession().merge(category);
     }
+
+    @Transactional
+    public void delete(TicketCategoryDefinition category) {
+        Session session = currentSession();
+        TicketCategoryDefinition managed = session.contains(category)
+                ? category
+                : session.merge(category);
+        session.remove(managed);
+        session.flush();
+    }
 }
