@@ -94,50 +94,50 @@
       </div>
     } @else {
       <div class="min-h-0 flex-1 overflow-auto overscroll-contain">
-        <table class="w-full min-w-[72rem] table-fixed border-collapse text-left text-xs">
+        <table class="w-full min-w-[84rem] table-fixed border-collapse text-left text-xs">
           <thead class="sticky top-0 z-10 border-b border-zinc-200 bg-zinc-50 text-[10px] font-semibold tracking-wide text-zinc-500 uppercase">
             <tr>
-              <th class="w-[9rem] whitespace-nowrap px-2.5 py-2">
+              <th class="w-[7.5rem] px-2.5 py-2">
                 <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('ticketNumber')">
                   Ticket ID <span class="opacity-70">{{ sortIcon('ticketNumber') }}</span>
                 </button>
               </th>
-              <th class="whitespace-nowrap px-2.5 py-2">
-                <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('subject')">
+              <th class="w-[14rem] px-2.5 py-2">
+                <button type="button" class="inline-flex max-w-full cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('subject')">
                   Concern <span class="opacity-70">{{ sortIcon('subject') }}</span>
                 </button>
               </th>
-              <th class="w-[11rem] whitespace-nowrap px-2.5 py-2">
-                <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('categoryLabel')">
+              <th class="w-[10rem] px-2.5 py-2">
+                <button type="button" class="inline-flex max-w-full cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('categoryLabel')">
                   Category <span class="opacity-70">{{ sortIcon('categoryLabel') }}</span>
                 </button>
               </th>
-              <th class="w-[12rem] whitespace-nowrap px-2.5 py-2">
+              <th class="w-[11rem] px-2.5 py-2">
                 <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('requesterName')">
                   Sender name <span class="opacity-70">{{ sortIcon('requesterName') }}</span>
                 </button>
               </th>
-              <th class="w-[16rem] whitespace-nowrap px-2.5 py-2">
+              <th class="w-[14rem] px-2.5 py-2">
                 <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('requesterEmail')">
                   Sender email <span class="opacity-70">{{ sortIcon('requesterEmail') }}</span>
                 </button>
               </th>
-              <th class="w-[11rem] whitespace-nowrap px-2.5 py-2">
+              <th class="w-[10rem] px-2.5 py-2">
                 <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('assignedAdminName')">
                   Assignee <span class="opacity-70">{{ sortIcon('assignedAdminName') }}</span>
                 </button>
               </th>
-              <th class="w-[7.5rem] whitespace-nowrap px-2.5 py-2">
+              <th class="w-[7.5rem] px-2.5 py-2">
                 <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('status')">
                   Status <span class="opacity-70">{{ sortIcon('status') }}</span>
                 </button>
               </th>
-              <th class="w-[6.5rem] whitespace-nowrap px-2.5 py-2">
+              <th class="w-[6rem] px-2.5 py-2">
                 <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('channel')">
                   Channel <span class="opacity-70">{{ sortIcon('channel') }}</span>
                 </button>
               </th>
-              <th class="w-[9rem] whitespace-nowrap px-2.5 py-2">
+              <th class="w-[8.5rem] px-2.5 py-2">
                 <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('updatedAt')">
                   Updated <span class="opacity-70">{{ sortIcon('updatedAt') }}</span>
                 </button>
@@ -161,30 +161,30 @@
                 "
                 [attr.aria-current]="selectedTicketId() === ticket.id ? 'true' : null"
               >
-                <td class="whitespace-nowrap px-2.5 py-1.5 align-middle">
-                  <div class="flex items-center gap-1.5">
-                    <span class="font-mono text-[11px] font-medium">
+                <td class="overflow-hidden px-2.5 py-1.5 align-middle">
+                  <div class="flex min-w-0 items-center gap-1.5">
+                    <span class="truncate font-mono text-[11px] font-medium">
                       {{ ticket.ticketNumber }}
                     </span>
                     @if ((ticket.unreadCount ?? 0) > 0) {
                       <span
-                        class="inline-flex min-w-[1.1rem] items-center justify-center rounded-full bg-[#8d2546] px-1 py-0.5 text-[9px] font-bold text-white"
+                        class="inline-flex min-w-[1.1rem] shrink-0 items-center justify-center rounded-full bg-[#8d2546] px-1 py-0.5 text-[9px] font-bold text-white"
                       >
                         {{ unreadLabel(ticket.unreadCount) }}
                       </span>
                     }
                   </div>
                 </td>
-                <td class="truncate px-2.5 py-1.5 align-middle font-medium" [title]="ticket.subject">
-                  {{ ticket.subject }}
+                <td class="max-w-0 overflow-hidden px-2.5 py-1.5 align-middle font-medium" [title]="ticket.subject">
+                  <span class="block truncate">{{ ticket.subject }}</span>
                 </td>
-                <td class="truncate px-2.5 py-1.5 align-middle" [title]="ticket.categoryLabel">
-                  {{ ticket.categoryLabel }}
+                <td class="max-w-0 overflow-hidden px-2.5 py-1.5 align-middle" [title]="ticket.categoryLabel">
+                  <span class="block truncate">{{ ticket.categoryLabel }}</span>
                 </td>
-                <td class="truncate px-2.5 py-1.5 align-middle" [title]="ticket.requesterName">
-                  {{ ticket.requesterName }}
+                <td class="max-w-0 overflow-hidden px-2.5 py-1.5 align-middle" [title]="ticket.requesterName">
+                  <span class="block truncate">{{ ticket.requesterName }}</span>
                 </td>
-                <td class="truncate px-2.5 py-1.5 align-middle" [title]="requesterEmailLabel(ticket)">
+                <td class="max-w-0 overflow-hidden px-2.5 py-1.5 align-middle" [title]="requesterEmailLabel(ticket)">
                   <span class="flex min-w-0 items-center gap-1">
                     <span class="truncate">{{ requesterEmailLabel(ticket) }}</span>
                     @if (canLinkDirectory(ticket)) {
@@ -194,18 +194,18 @@
                     }
                   </span>
                 </td>
-                <td class="truncate px-2.5 py-1.5 align-middle">
-                  {{ ticket.assignedAdminName || 'Unassigned' }}
+                <td class="max-w-0 overflow-hidden px-2.5 py-1.5 align-middle">
+                  <span class="block truncate">{{ ticket.assignedAdminName || 'Unassigned' }}</span>
                 </td>
-                <td class="whitespace-nowrap px-2.5 py-1.5 align-middle">
+                <td class="overflow-hidden px-2.5 py-1.5 align-middle">
                   <span class="rounded px-1.5 py-0.5 text-[10px] font-semibold" [class]="statusBadgeClass(ticket.status)">
                     {{ statusLabel(ticket.status) }}
                   </span>
                 </td>
-                <td class="whitespace-nowrap px-2.5 py-1.5 align-middle">
+                <td class="overflow-hidden px-2.5 py-1.5 align-middle">
                   {{ channelLabel(ticket.channel) }}
                 </td>
-                <td class="whitespace-nowrap px-2.5 py-1.5 align-middle opacity-80">
+                <td class="overflow-hidden px-2.5 py-1.5 align-middle opacity-80">
                   {{ ticket.updatedAt | date: 'MMM d, h:mm a' }}
                 </td>
               </tr>
