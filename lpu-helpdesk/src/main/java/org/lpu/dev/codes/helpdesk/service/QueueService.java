@@ -1,7 +1,6 @@
 package org.lpu.dev.codes.helpdesk.service;
 
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -107,8 +106,7 @@ public class QueueService {
         }
 
         ticketRepository.persist(ticket);
-        String datePart = LocalDate.now().toString().replace("-", "");
-        ticket.setTicketNumber("Q-%s-%04d".formatted(datePart, queueNumber));
+        ticket.setTicketNumber(Ticket.formatPublicNumber(ticket.getChannel(), ticket.getCreatedAt(), ticket.getId()));
         Ticket saved = ticketRepository.save(ticket);
         log.info("Walk-in ticket created queueNumber={} ticketNumber={}", queueNumber, saved.getTicketNumber());
         return saved;

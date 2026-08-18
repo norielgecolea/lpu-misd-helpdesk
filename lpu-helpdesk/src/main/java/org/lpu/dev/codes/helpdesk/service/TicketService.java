@@ -1,7 +1,5 @@
 package org.lpu.dev.codes.helpdesk.service;
 
-import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
 import org.lpu.dev.codes.helpdesk.dto.TicketCreateRequest;
@@ -87,7 +85,7 @@ public class TicketService {
         ticket.setChannel(TicketChannel.ONLINE);
 
         ticketRepository.persist(ticket);
-        ticket.setTicketNumber(generateTicketNumber(ticket));
+        ticket.setTicketNumber(Ticket.formatPublicNumber(ticket.getChannel(), ticket.getCreatedAt(), ticket.getId()));
 
         String filename = idPhotoStorageService.storeTicketIdPhoto(ticket.getId(), idPhoto);
         ticket.setIdPhotoFilename(filename);
@@ -141,8 +139,4 @@ public class TicketService {
         return ticket;
     }
 
-    private String generateTicketNumber(Ticket ticket) {
-        int year = Instant.now().atZone(ZoneOffset.UTC).getYear();
-        return "HD-%d-%06d".formatted(year, ticket.getId());
-    }
 }

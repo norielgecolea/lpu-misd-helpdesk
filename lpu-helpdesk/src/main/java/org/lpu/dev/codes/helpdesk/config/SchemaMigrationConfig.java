@@ -295,6 +295,17 @@ public class SchemaMigrationConfig {
                     ON password_reset_tokens (user_id, consumed, expires_at DESC)
                 """);
 
+        jdbc.execute("""
+                UPDATE tickets
+                SET ticket_number = CASE
+                    WHEN channel = 'ONSITE_RFID'
+                        THEN 'OS-' || EXTRACT(YEAR FROM created_at AT TIME ZONE 'Asia/Manila')::int || '-' || id::text
+                    ELSE 'OL-' || EXTRACT(YEAR FROM created_at AT TIME ZONE 'Asia/Manila')::int || '-' || id::text
+                END
+                WHERE ticket_number IS NULL
+                   OR ticket_number !~ '^(OL|OS)-[0-9]{4}-[0-9]+$'
+                """);
+
         log.info("Schema migration applied (users, otp_codes, tickets, ticket_messages, ticket_message_reads, queue_counters, queue_transfer_requests, ticket_categories, ticket_csm, password_reset_tokens)");
         return new SchemaMigrator();
     }

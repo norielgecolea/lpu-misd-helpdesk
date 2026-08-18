@@ -176,8 +176,8 @@ export class TicketSummaryDialog {
 
   private buildSections(ticket: Ticket, profile: DirectoryProfile | null): TicketSummarySection[] {
     return [
-      { title: 'Ticket', rows: this.buildTicketRows(ticket) },
       { title: this.personSectionTitle(ticket, profile), rows: this.buildPersonRows(ticket, profile) },
+      { title: 'Ticket', rows: this.buildTicketRows(ticket) },
     ];
   }
 

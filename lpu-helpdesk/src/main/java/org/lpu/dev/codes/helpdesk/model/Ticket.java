@@ -9,6 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.time.ZoneId;
 
 @Entity
 @Table(name = "tickets")
@@ -18,9 +19,18 @@ public class Ticket {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** Human-readable reference e.g. "HD-2026-000123"; set after insert once the id is known. */
+    /** Human-readable reference e.g. "OL-2026-1" / "OS-2026-1"; set after insert once the id is known. */
     @Column(name = "ticket_number", unique = true, length = 30)
     private String ticketNumber;
+
+    public static final ZoneId DISPLAY_ZONE = ZoneId.of("Asia/Manila");
+
+    public static String formatPublicNumber(TicketChannel channel, Instant createdAt, Long id) {
+        String prefix = channel == TicketChannel.ONSITE_RFID ? "OS" : "OL";
+        Instant when = createdAt != null ? createdAt : Instant.now();
+        int year = when.atZone(DISPLAY_ZONE).getYear();
+        return prefix + "-" + year + "-" + id;
+    }
 
     /**
      * Nullable so onsite RFID-created tickets (no account) can later be
