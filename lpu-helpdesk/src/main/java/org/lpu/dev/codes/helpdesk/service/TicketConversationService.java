@@ -150,7 +150,7 @@ public class TicketConversationService {
         message.setTicketId(ticket.getId());
         message.setAuthorUserId(user.getId());
         message.setAuthorEmail(user.getEmail());
-        message.setAuthorName(user.getName() != null && !user.getName().isBlank() ? user.getName() : user.getEmail());
+        message.setAuthorName(resolveAuthorName(user, ticket));
         message.setAuthorRole(user.getRole().name());
         message.setBody(body != null ? body : "");
         message.setCreatedAt(Instant.now());
@@ -247,5 +247,18 @@ public class TicketConversationService {
     private static boolean isStaff(AuthenticatedUser user) {
         Role role = user.getRole();
         return role == Role.ADMIN || role == Role.SUPER_ADMIN;
+    }
+
+    private static String resolveAuthorName(AuthenticatedUser user, Ticket ticket) {
+        if (user.getRole() == Role.USER) {
+            String ticketName = ticket.getRequesterName();
+            if (ticketName != null && !ticketName.isBlank()) {
+                return ticketName.trim();
+            }
+        }
+        if (user.getName() != null && !user.getName().isBlank()) {
+            return user.getName().trim();
+        }
+        return user.getEmail();
     }
 }

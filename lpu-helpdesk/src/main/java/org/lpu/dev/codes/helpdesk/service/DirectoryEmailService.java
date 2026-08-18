@@ -14,6 +14,7 @@ import org.lpu.dev.codes.helpdesk.model.Ticket;
 import org.lpu.dev.codes.helpdesk.model.User;
 import org.lpu.dev.codes.helpdesk.repository.EmployeeRepository;
 import org.lpu.dev.codes.helpdesk.repository.StudentRepository;
+import org.lpu.dev.codes.helpdesk.repository.TicketMessageRepository;
 import org.lpu.dev.codes.helpdesk.repository.TicketRepository;
 import org.lpu.dev.codes.helpdesk.repository.UserRepository;
 import org.springframework.http.HttpStatus;
@@ -34,6 +35,7 @@ public class DirectoryEmailService {
     private final StudentRepository studentRepository;
     private final EmployeeRepository employeeRepository;
     private final TicketRepository ticketRepository;
+    private final TicketMessageRepository ticketMessageRepository;
     private final UserRepository userRepository;
     private final AuthProperties authProperties;
 
@@ -41,12 +43,14 @@ public class DirectoryEmailService {
             StudentRepository studentRepository,
             EmployeeRepository employeeRepository,
             TicketRepository ticketRepository,
+            TicketMessageRepository ticketMessageRepository,
             UserRepository userRepository,
             AuthProperties authProperties
     ) {
         this.studentRepository = studentRepository;
         this.employeeRepository = employeeRepository;
         this.ticketRepository = ticketRepository;
+        this.ticketMessageRepository = ticketMessageRepository;
         this.userRepository = userRepository;
         this.authProperties = authProperties;
     }
@@ -62,6 +66,7 @@ public class DirectoryEmailService {
         int linked = stampTicket(request.ticketId(), person, email);
         linked += linkTicketsForPerson(person.type(), person.number(), email);
         linked += attachPersonToTicketsForEmail(email, person);
+        syncRequesterDisplayNames(person, email);
 
         log.info(
                 "Encoded LPU email on {} {} ticketsLinked={}",
@@ -69,7 +74,7 @@ public class DirectoryEmailService {
                 person.number(),
                 linked
         );
-        return new EncodeLpuEmailResponse(email, person.type(), person.number(), linked);
+        return new EncodeLpuEmailResponse(email, person.type(), person.number(), person.name(), linked);
     }
 
     /** Attach tickets for this person once their directory email is known. */
@@ -234,16 +239,64 @@ public class DirectoryEmailService {
             ticket.setRequesterEmail(normalized);
             changed = true;
         }
-        if (person.name() != null && !person.name().isBlank()
-                && !person.name().equals(ticket.getRequesterName())) {
-            ticket.setRequesterName(person.name());
-            changed = true;
+        if (person.name() != null && !person.name().isBlank()) {
+            if (!person.name().equals(ticket.getRequesterName())) {
+                ticket.setRequesterName(person.name());
+                changed = true;
+            }
+            syncRequesterDisplayName(ticket, person.name(), normalized);
         }
         if (changed) {
             ticket.setUpdatedAt(Instant.now());
             ticketRepository.save(ticket);
         }
         return changed;
+    }
+
+    /** Rewrite requester chat bubbles and the USER account name to the directory name. */
+    private void syncRequesterDisplayNames(PersonRef person, String email) {
+        if (person.name() == null || person.name().isBlank()) {
+            return;
+        }
+        String name = person.name().trim();
+        updateUserDisplayName(email, name);
+        for (Ticket ticket : ticketRepository.findByPerson(person.type(), person.number())) {
+            syncRequesterDisplayName(ticket, name, null);
+        }
+        if (email != null && !email.isBlank() && !PendingRequesterEmail.isPending(email)) {
+            for (Ticket ticket : ticketRepository.findHistoryForPerson(email.trim().toLowerCase(), null, null)) {
+                syncRequesterDisplayName(ticket, name, null);
+            }
+        }
+    }
+
+    private void syncRequesterDisplayName(Ticket ticket, String name, String email) {
+        if (ticket == null || name == null || name.isBlank()) {
+            return;
+        }
+        String trimmed = name.trim();
+        ticketMessageRepository.updateRequesterAuthorName(ticket.getId(), trimmed);
+        if (!trimmed.equals(ticket.getRequesterName())) {
+            ticket.setRequesterName(trimmed);
+            ticket.setUpdatedAt(Instant.now());
+            ticketRepository.save(ticket);
+        }
+        updateUserDisplayName(email != null ? email : ticket.getRequesterEmail(), trimmed);
+    }
+
+    private void updateUserDisplayName(String email, String name) {
+        if (email == null || email.isBlank() || PendingRequesterEmail.isPending(email)
+                || name == null || name.isBlank()) {
+            return;
+        }
+        String trimmed = name.trim();
+        userRepository.findUserByEmail(email.trim().toLowerCase()).ifPresent(user -> {
+            if (!trimmed.equals(user.getName())) {
+                user.setName(trimmed);
+                user.setUpdatedAt(Instant.now());
+                userRepository.save(user);
+            }
+        });
     }
 
     private String resolveEmail(EncodeLpuEmailRequest request) {

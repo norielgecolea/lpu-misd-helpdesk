@@ -47,6 +47,7 @@ export interface EncodeLpuEmailResponse {
   email: string;
   personType: string;
   personNo: string;
+  name?: string | null;
   ticketsLinked: number;
 }
 

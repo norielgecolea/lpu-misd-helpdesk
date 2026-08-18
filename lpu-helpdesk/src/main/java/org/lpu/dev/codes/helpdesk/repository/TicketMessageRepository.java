@@ -49,4 +49,21 @@ public class TicketMessageRepository {
     public TicketMessage save(TicketMessage message) {
         return currentSession().merge(message);
     }
+
+    /** Keep requester chat bubbles in sync when the directory name is encoded. */
+    @Transactional
+    public int updateRequesterAuthorName(Long ticketId, String name) {
+        if (ticketId == null || name == null || name.isBlank()) {
+            return 0;
+        }
+        return currentSession()
+                .createMutationQuery(
+                        "UPDATE TicketMessage m SET m.authorName = :name "
+                                + "WHERE m.ticketId = :ticketId AND m.authorRole = 'USER' "
+                                + "AND m.authorName <> :name"
+                )
+                .setParameter("name", name.trim())
+                .setParameter("ticketId", ticketId)
+                .executeUpdate();
+    }
 }

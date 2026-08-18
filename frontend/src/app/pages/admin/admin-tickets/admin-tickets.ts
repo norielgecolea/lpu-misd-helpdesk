@@ -18,7 +18,7 @@ import { playMessageCue, unlockAudio } from '../../../core/audio/cue-sounds';
 import { AdminService } from '../../../core/admin/admin.service';
 import { AdminSummary } from '../../../core/admin/admin.models';
 import { AuthService } from '../../../core/auth/auth.service';
-import { Ticket, TicketMessage, TicketStatus, canEncodeLpuEmail, displayRequesterEmail, needsDirectoryLink } from '../../../core/tickets/ticket.models';
+import { Ticket, TicketMessage, TicketStatus, canEncodeLpuEmail, displayRequesterEmail, messageAuthorLabel as formatMessageAuthor, needsDirectoryLink } from '../../../core/tickets/ticket.models';
 import { TicketService } from '../../../core/tickets/ticket.service';
 import { DirectoryService } from '../../../core/directory/directory.service';
 import { environment } from '../../../../environments/environment';
@@ -412,6 +412,14 @@ export class AdminTickets implements OnInit, OnDestroy {
     return message.authorUserId === this.auth.userId();
   }
 
+  protected messageAuthorLabel(message: TicketMessage): string {
+    const ticket = this.selectedTicket();
+    return formatMessageAuthor(message, {
+      isMine: this.isMine(message),
+      requesterName: ticket?.requesterName,
+    });
+  }
+
   protected openIdLightbox(): void {
     if (this.idPhotoUrl() && !this.idPhotoIsPdf()) {
       this.idLightboxOpen.set(true);
@@ -434,6 +442,7 @@ export class AdminTickets implements OnInit, OnDestroy {
   protected async onDirectoryLinked(): Promise<void> {
     this.closeSummary();
     await this.loadTickets(true);
+    await this.reloadSelectedMessages();
   }
 
   protected openHistory(ticket: Ticket, event?: Event): void {
@@ -650,14 +659,17 @@ export class AdminTickets implements OnInit, OnDestroy {
             ...row,
             requesterPersonType: result.personType,
             requesterPersonNo: result.personNo,
+            requesterName: result.name?.trim() || row.requesterName,
             directoryUnlinked: false,
           };
         }),
       );
+      this.applyDirectoryNameToMessages(result.name);
       this.linkPersonNo.set('');
       this.linkPersonType.set('');
       this.linkDirectoryError.set(null);
       await this.loadTickets(true);
+      await this.reloadSelectedMessages();
     } catch (err) {
       this.linkDirectoryError.set(this.describeError(err));
     } finally {
@@ -686,6 +698,7 @@ export class AdminTickets implements OnInit, OnDestroy {
       );
       this.encodeEmail.set('');
       await this.loadTickets(true);
+      await this.reloadSelectedMessages();
     } catch (err) {
       this.encodeError.set(this.describeError(err));
     } finally {
@@ -710,6 +723,27 @@ export class AdminTickets implements OnInit, OnDestroy {
       // ignore
     }
     return 'split';
+  }
+
+  private async reloadSelectedMessages(): Promise<void> {
+    const id = this.selectedTicketId();
+    if (id != null) {
+      await this.loadMessages(id, false);
+    }
+  }
+
+  private applyDirectoryNameToMessages(name: string | null | undefined): void {
+    const directoryName = name?.trim();
+    if (!directoryName) {
+      return;
+    }
+    this.messages.update((list) =>
+      list.map((message) =>
+        (message.authorRole ?? '').toUpperCase() === 'USER'
+          ? { ...message, authorName: directoryName }
+          : message,
+      ),
+    );
   }
 
   private async loadMessages(ticketId: number, showSpinner: boolean): Promise<void> {

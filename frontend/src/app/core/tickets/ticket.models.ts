@@ -102,6 +102,24 @@ export interface TicketMessage {
   createdAt: string;
 }
 
+export function isRequesterMessage(message: Pick<TicketMessage, 'authorRole'>): boolean {
+  return (message.authorRole ?? '').toUpperCase() === 'USER';
+}
+
+export function messageAuthorLabel(
+  message: TicketMessage,
+  opts: { isMine: boolean; requesterName?: string | null },
+): string {
+  if (opts.isMine) {
+    return 'You';
+  }
+  const directoryName = opts.requesterName?.trim();
+  if (directoryName && isRequesterMessage(message)) {
+    return directoryName;
+  }
+  return message.authorName;
+}
+
 export type CsmRating = 'SAD' | 'NEUTRAL' | 'HAPPY';
 
 export interface PendingCsm {

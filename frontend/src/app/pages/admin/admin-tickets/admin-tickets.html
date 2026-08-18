@@ -559,7 +559,7 @@
                         [class.text-zinc-500]="!isMine(message)"
                       >
                         <span class="font-semibold">
-                          {{ isMine(message) ? 'You' : message.authorName }}
+                          {{ messageAuthorLabel(message) }}
                         </span>
                         <span>{{ message.createdAt | date: 'MMM d, h:mm a' }}</span>
                       </div>
