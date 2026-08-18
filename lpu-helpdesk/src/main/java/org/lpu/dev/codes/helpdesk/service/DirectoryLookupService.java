@@ -1,9 +1,9 @@
 package org.lpu.dev.codes.helpdesk.service;
 
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import org.lpu.dev.codes.helpdesk.dto.DirectoryIdentity;
 import org.lpu.dev.codes.helpdesk.dto.DirectoryProfileResponse;
-import org.lpu.dev.codes.helpdesk.model.Employee;
-import org.lpu.dev.codes.helpdesk.model.Student;
 import org.lpu.dev.codes.helpdesk.repository.EmployeeRepository;
 import org.lpu.dev.codes.helpdesk.repository.StudentRepository;
 import org.springframework.stereotype.Service;
@@ -12,8 +12,11 @@ import org.springframework.stereotype.Service;
 @Service
 public class DirectoryLookupService {
 
+    private static final long CACHE_TTL_MS = 120_000;
+
     private final StudentRepository studentRepository;
     private final EmployeeRepository employeeRepository;
+    private final ConcurrentHashMap<String, CacheEntry> profileCache = new ConcurrentHashMap<>();
 
     public DirectoryLookupService(StudentRepository studentRepository, EmployeeRepository employeeRepository) {
         this.studentRepository = studentRepository;
@@ -31,29 +34,45 @@ public class DirectoryLookupService {
     /**
      * Resolve a student/employee profile for ticket summaries.
      * Preference: personType + personNo → personNo alone → email.
+     * Looks up identity columns only (never the ID photo blob).
      */
     public DirectoryProfileResponse resolveProfile(String email, String personType, String personNo) {
         String type = normalizeType(personType);
         String number = blankToNull(personNo);
         String normalizedEmail = normalizeEmail(email);
+        String cacheKey = (type == null ? "" : type) + "|"
+                + (number == null ? "" : number) + "|"
+                + (normalizedEmail == null ? "" : normalizedEmail);
+        long now = System.currentTimeMillis();
+        CacheEntry cached = profileCache.get(cacheKey);
+        if (cached != null && cached.expiresAtMillis() > now) {
+            return cached.profile();
+        }
 
+        DirectoryProfileResponse profile = lookup(type, number, normalizedEmail);
+        profileCache.put(cacheKey, new CacheEntry(profile, now + CACHE_TTL_MS));
+        return profile;
+    }
+
+    private DirectoryProfileResponse lookup(String type, String number, String normalizedEmail) {
         if (number != null) {
             if ("STUDENT".equals(type)) {
-                Optional<DirectoryProfileResponse> student = studentRepository.findByRfidOrStudentNo(number)
-                        .map(this::fromStudent);
+                Optional<DirectoryProfileResponse> student = studentRepository.findIdentityByRfidOrStudentNo(number)
+                        .map(DirectoryIdentity::toProfile);
                 if (student.isPresent()) {
                     return student.get();
                 }
             } else if ("EMPLOYEE".equals(type)) {
-                Optional<DirectoryProfileResponse> employee = employeeRepository.findByRfidOrEmployeeNo(number)
-                        .map(this::fromEmployee);
+                Optional<DirectoryProfileResponse> employee = employeeRepository.findIdentityByRfidOrEmployeeNo(number)
+                        .map(DirectoryIdentity::toProfile);
                 if (employee.isPresent()) {
                     return employee.get();
                 }
             } else {
-                Optional<DirectoryProfileResponse> byNumber = studentRepository.findByRfidOrStudentNo(number)
-                        .map(this::fromStudent)
-                        .or(() -> employeeRepository.findByRfidOrEmployeeNo(number).map(this::fromEmployee));
+                Optional<DirectoryProfileResponse> byNumber = studentRepository.findIdentityByRfidOrStudentNo(number)
+                        .map(DirectoryIdentity::toProfile)
+                        .or(() -> employeeRepository.findIdentityByRfidOrEmployeeNo(number)
+                                .map(DirectoryIdentity::toProfile));
                 if (byNumber.isPresent()) {
                     return byNumber.get();
                 }
@@ -61,41 +80,16 @@ public class DirectoryLookupService {
         }
 
         if (normalizedEmail != null) {
-            Optional<DirectoryProfileResponse> byEmail = studentRepository.findByLpuEmail(normalizedEmail)
-                    .map(this::fromStudent)
-                    .or(() -> employeeRepository.findByLpuEmail(normalizedEmail).map(this::fromEmployee));
+            Optional<DirectoryProfileResponse> byEmail = studentRepository.findIdentityByLpuEmail(normalizedEmail)
+                    .map(DirectoryIdentity::toProfile)
+                    .or(() -> employeeRepository.findIdentityByLpuEmail(normalizedEmail)
+                            .map(DirectoryIdentity::toProfile));
             if (byEmail.isPresent()) {
                 return byEmail.get();
             }
         }
 
         return DirectoryProfileResponse.notFound();
-    }
-
-    private DirectoryProfileResponse fromStudent(Student student) {
-        return new DirectoryProfileResponse(
-                true,
-                "STUDENT",
-                blankToNull(student.getName()),
-                blankToNull(student.getLpuEmail()),
-                blankToNull(student.getStudentNo()),
-                blankToNull(student.getDepartment()),
-                blankToNull(student.getCourse()),
-                null
-        );
-    }
-
-    private DirectoryProfileResponse fromEmployee(Employee employee) {
-        return new DirectoryProfileResponse(
-                true,
-                "EMPLOYEE",
-                blankToNull(employee.getName()),
-                blankToNull(employee.getLpuEmail()),
-                blankToNull(employee.getEmployeeNo()),
-                blankToNull(employee.getDepartment()),
-                null,
-                blankToNull(employee.getPosition())
-        );
     }
 
     private static String normalizeType(String personType) {
@@ -116,4 +110,6 @@ public class DirectoryLookupService {
         }
         return value.trim();
     }
+
+    private record CacheEntry(DirectoryProfileResponse profile, long expiresAtMillis) {}
 }

@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, of, shareReplay, tap, finalize } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 export interface Student {
@@ -54,6 +54,9 @@ export interface EncodeLpuEmailResponse {
 @Injectable({ providedIn: 'root' })
 export class DirectoryService {
   private readonly http = inject(HttpClient);
+  private readonly profileCache = new Map<string, { at: number; profile: DirectoryProfile }>();
+  private readonly inflight = new Map<string, Observable<DirectoryProfile>>();
+  private static readonly PROFILE_TTL_MS = 120_000;
 
   pageStudents(search = '', offset = 0, limit = 50): Observable<PageResponse<Student>> {
     const params = new HttpParams()
@@ -76,6 +79,20 @@ export class DirectoryService {
     personType?: string | null;
     personNo?: string | null;
   }): Observable<DirectoryProfile> {
+    const key = [
+      (opts.personType ?? '').trim().toUpperCase(),
+      (opts.personNo ?? '').trim(),
+      (opts.email ?? '').trim().toLowerCase(),
+    ].join('|');
+    const cached = this.profileCache.get(key);
+    if (cached && Date.now() - cached.at < DirectoryService.PROFILE_TTL_MS) {
+      return of(cached.profile);
+    }
+    const pending = this.inflight.get(key);
+    if (pending) {
+      return pending;
+    }
+
     let params = new HttpParams();
     if (opts.email) {
       params = params.set('email', opts.email);
@@ -86,7 +103,15 @@ export class DirectoryService {
     if (opts.personNo) {
       params = params.set('personNo', opts.personNo);
     }
-    return this.http.get<DirectoryProfile>(`${environment.apiBaseUrl}/admin/directory/profile`, { params });
+    const request$ = this.http
+      .get<DirectoryProfile>(`${environment.apiBaseUrl}/admin/directory/profile`, { params })
+      .pipe(
+        tap((profile) => this.profileCache.set(key, { at: Date.now(), profile })),
+        finalize(() => this.inflight.delete(key)),
+        shareReplay(1),
+      );
+    this.inflight.set(key, request$);
+    return request$;
   }
 
   encodeLpuEmail(request: {

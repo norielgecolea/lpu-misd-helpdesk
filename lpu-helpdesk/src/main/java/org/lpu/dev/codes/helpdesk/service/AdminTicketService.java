@@ -32,25 +32,20 @@ public class AdminTicketService {
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
     private final TicketThreadEmailService ticketThreadEmailService;
-    private final DirectoryEmailService directoryEmailService;
 
     public AdminTicketService(
             TicketRepository ticketRepository,
             UserRepository userRepository,
-            TicketThreadEmailService ticketThreadEmailService,
-            DirectoryEmailService directoryEmailService
+            TicketThreadEmailService ticketThreadEmailService
     ) {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
         this.ticketThreadEmailService = ticketThreadEmailService;
-        this.directoryEmailService = directoryEmailService;
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public List<Ticket> listTickets(TicketStatus status) {
-        List<Ticket> tickets = ticketRepository.findAllOrderByCreatedAtDesc(status);
-        directoryEmailService.healMissingPersonIdentity(tickets);
-        return tickets;
+        return ticketRepository.findAllOrderByCreatedAtDesc(status);
     }
 
     @Transactional(readOnly = true)

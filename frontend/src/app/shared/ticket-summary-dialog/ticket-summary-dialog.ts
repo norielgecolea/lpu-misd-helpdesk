@@ -1,4 +1,4 @@
-import { Component, input, output, signal, effect, inject, OnDestroy } from '@angular/core';
+import { Component, input, output, signal, effect, inject, OnDestroy, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { DirectoryProfile, DirectoryService } from '../../core/directory/directory.service';
@@ -49,22 +49,31 @@ export class TicketSummaryDialog implements OnDestroy {
   protected readonly idLightboxOpen = signal(false);
 
   private copyResetTimer: ReturnType<typeof setTimeout> | null = null;
+  private loadedLookupKey: string | null = null;
+  private loadedPhotoTicketId: number | null = null;
 
   constructor() {
     effect(() => {
       const ticket = this.ticket();
-      if (ticket) {
-        this.sections.set(this.buildSections(ticket, null));
-        void this.load(ticket);
-      } else {
+      if (!ticket) {
         this.profile.set(null);
         this.sections.set([]);
         this.error.set(null);
         this.loading.set(false);
         this.copiedKey.set(null);
+        this.loadedLookupKey = null;
+        this.loadedPhotoTicketId = null;
         this.resetLinkForm();
         this.revokeIdPhoto();
+        return;
       }
+      const key = this.lookupKey(ticket);
+      if (key === this.loadedLookupKey) {
+        untracked(() => this.sections.set(this.buildSections(ticket, this.profile())));
+        return;
+      }
+      this.loadedLookupKey = key;
+      void this.load(ticket);
     });
   }
 
@@ -172,12 +181,20 @@ export class TicketSummaryDialog implements OnDestroy {
     }
   }
 
+  private lookupKey(ticket: Ticket): string {
+    return [
+      ticket.id,
+      ticket.requesterPersonType ?? '',
+      ticket.requesterPersonNo ?? '',
+      ticket.requesterEmail ?? '',
+    ].join('|');
+  }
+
   private async load(ticket: Ticket): Promise<void> {
     this.loading.set(true);
     this.error.set(null);
-    this.profile.set(null);
     this.copiedKey.set(null);
-    this.sections.set(this.buildSections(ticket, null));
+    this.sections.set(this.buildSections(ticket, this.profile()));
     void this.loadIdPhoto(ticket);
     try {
       const profile = await firstValueFrom(
@@ -193,7 +210,7 @@ export class TicketSummaryDialog implements OnDestroy {
       this.sections.set(this.buildSections(ticket, profile));
     } catch {
       this.error.set('Could not load directory details.');
-      this.sections.set(this.buildSections(ticket, null));
+      this.sections.set(this.buildSections(ticket, this.profile()));
     } finally {
       this.loading.set(false);
     }
@@ -234,7 +251,11 @@ export class TicketSummaryDialog implements OnDestroy {
   }
 
   private async loadIdPhoto(ticket: Ticket): Promise<void> {
+    if (this.loadedPhotoTicketId === ticket.id && this.idPhotoUrl()) {
+      return;
+    }
     this.revokeIdPhoto();
+    this.loadedPhotoTicketId = ticket.id;
     if (!ticket.hasIdPhoto) {
       return;
     }

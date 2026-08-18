@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
+import org.lpu.dev.codes.helpdesk.dto.DirectoryIdentity;
 import org.lpu.dev.codes.helpdesk.model.Employee;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
@@ -74,6 +75,57 @@ public class EmployeeRepository {
             return "";
         }
         return "%" + term.trim().toLowerCase() + "%";
+    }
+
+    @Transactional(transactionManager = "gateTransactionManager", readOnly = true)
+    public Optional<DirectoryIdentity> findIdentityByRfidOrEmployeeNo(String identifier) {
+        if (identifier == null || identifier.isBlank()) {
+            return Optional.empty();
+        }
+        return currentSession()
+                .createQuery(
+                        "SELECT e.name, e.lpuEmail, e.employeeNo, e.department, e.position "
+                                + "FROM Employee e WHERE e.deleted = false "
+                                + "AND (e.rfid = :identifier OR e.employeeNo = :identifier)",
+                        Object[].class
+                )
+                .setParameter("identifier", identifier.trim())
+                .setMaxResults(1)
+                .getResultList()
+                .stream()
+                .findFirst()
+                .map(EmployeeRepository::toIdentity);
+    }
+
+    @Transactional(transactionManager = "gateTransactionManager", readOnly = true)
+    public Optional<DirectoryIdentity> findIdentityByLpuEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return Optional.empty();
+        }
+        return currentSession()
+                .createQuery(
+                        "SELECT e.name, e.lpuEmail, e.employeeNo, e.department, e.position "
+                                + "FROM Employee e WHERE e.deleted = false AND lower(e.lpuEmail) = :email",
+                        Object[].class
+                )
+                .setParameter("email", email.trim().toLowerCase())
+                .setMaxResults(1)
+                .getResultList()
+                .stream()
+                .findFirst()
+                .map(EmployeeRepository::toIdentity);
+    }
+
+    private static DirectoryIdentity toIdentity(Object[] row) {
+        return new DirectoryIdentity(
+                "EMPLOYEE",
+                (String) row[0],
+                (String) row[1],
+                (String) row[2],
+                (String) row[3],
+                null,
+                (String) row[4]
+        );
     }
 
     @Transactional(transactionManager = "gateTransactionManager", readOnly = true)

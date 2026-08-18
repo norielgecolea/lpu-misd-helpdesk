@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
+import org.lpu.dev.codes.helpdesk.dto.DirectoryIdentity;
 import org.lpu.dev.codes.helpdesk.model.Student;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
@@ -74,6 +75,57 @@ public class StudentRepository {
             return "";
         }
         return "%" + term.trim().toLowerCase() + "%";
+    }
+
+    @Transactional(transactionManager = "gateTransactionManager", readOnly = true)
+    public Optional<DirectoryIdentity> findIdentityByRfidOrStudentNo(String identifier) {
+        if (identifier == null || identifier.isBlank()) {
+            return Optional.empty();
+        }
+        return currentSession()
+                .createQuery(
+                        "SELECT s.name, s.lpuEmail, s.studentNo, s.department, s.course "
+                                + "FROM Student s WHERE s.deleted = false "
+                                + "AND (s.rfid = :identifier OR s.studentNo = :identifier)",
+                        Object[].class
+                )
+                .setParameter("identifier", identifier.trim())
+                .setMaxResults(1)
+                .getResultList()
+                .stream()
+                .findFirst()
+                .map(StudentRepository::toIdentity);
+    }
+
+    @Transactional(transactionManager = "gateTransactionManager", readOnly = true)
+    public Optional<DirectoryIdentity> findIdentityByLpuEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return Optional.empty();
+        }
+        return currentSession()
+                .createQuery(
+                        "SELECT s.name, s.lpuEmail, s.studentNo, s.department, s.course "
+                                + "FROM Student s WHERE s.deleted = false AND lower(s.lpuEmail) = :email",
+                        Object[].class
+                )
+                .setParameter("email", email.trim().toLowerCase())
+                .setMaxResults(1)
+                .getResultList()
+                .stream()
+                .findFirst()
+                .map(StudentRepository::toIdentity);
+    }
+
+    private static DirectoryIdentity toIdentity(Object[] row) {
+        return new DirectoryIdentity(
+                "STUDENT",
+                (String) row[0],
+                (String) row[1],
+                (String) row[2],
+                (String) row[3],
+                (String) row[4],
+                null
+        );
     }
 
     @Transactional(transactionManager = "gateTransactionManager", readOnly = true)
