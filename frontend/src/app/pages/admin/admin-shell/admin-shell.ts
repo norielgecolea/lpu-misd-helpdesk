@@ -131,6 +131,12 @@ export class AdminShell {
     );
   });
 
+  /** Tickets tables should use the full main column instead of the default page cap. */
+  protected readonly isWidePage = computed(() => {
+    const url = this.currentUrl().split('?')[0];
+    return url.startsWith('/admin/my-tickets') || url.startsWith('/admin/tickets');
+  });
+
   protected readonly roleLabel = computed(() =>
     this.auth.user()?.role === 'SUPER_ADMIN' ? 'Super Admin' : 'Admin',
   );

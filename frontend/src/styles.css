@@ -228,7 +228,7 @@ html.dark {
 }
 
 .ticket-workspace {
-  --ticket-list-basis: min(56rem, 58%);
+  --ticket-list-basis: min(90rem, 72%);
 }
 
 .ticket-workspace--narrow-list {

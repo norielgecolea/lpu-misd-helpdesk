@@ -291,7 +291,9 @@
       [class.overflow-y-auto]="!isFillHeightPage()"
     >
       <div
-        class="mx-auto flex w-full max-w-[100rem] flex-col gap-4"
+        class="mx-auto flex w-full flex-col gap-4"
+        [class.max-w-[100rem]]="!isWidePage()"
+        [class.max-w-none]="isWidePage()"
         [class.page-fill]="isFillHeightPage()"
         [class.min-h-0]="isFillHeightPage()"
         [class.h-full]="isFillHeightPage()"

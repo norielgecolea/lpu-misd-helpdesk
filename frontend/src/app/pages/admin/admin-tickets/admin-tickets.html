@@ -94,10 +94,10 @@
       </div>
     } @else {
       <div class="min-h-0 flex-1 overflow-auto overscroll-contain">
-        <table class="w-full min-w-[64rem] border-collapse text-left text-xs">
+        <table class="w-full min-w-[72rem] table-fixed border-collapse text-left text-xs">
           <thead class="sticky top-0 z-10 border-b border-zinc-200 bg-zinc-50 text-[10px] font-semibold tracking-wide text-zinc-500 uppercase">
             <tr>
-              <th class="whitespace-nowrap px-2.5 py-2">
+              <th class="w-[9rem] whitespace-nowrap px-2.5 py-2">
                 <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('ticketNumber')">
                   Ticket ID <span class="opacity-70">{{ sortIcon('ticketNumber') }}</span>
                 </button>
@@ -107,37 +107,37 @@
                   Concern <span class="opacity-70">{{ sortIcon('subject') }}</span>
                 </button>
               </th>
-              <th class="whitespace-nowrap px-2.5 py-2">
+              <th class="w-[11rem] whitespace-nowrap px-2.5 py-2">
                 <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('categoryLabel')">
                   Category <span class="opacity-70">{{ sortIcon('categoryLabel') }}</span>
                 </button>
               </th>
-              <th class="whitespace-nowrap px-2.5 py-2">
+              <th class="w-[12rem] whitespace-nowrap px-2.5 py-2">
                 <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('requesterName')">
                   Sender name <span class="opacity-70">{{ sortIcon('requesterName') }}</span>
                 </button>
               </th>
-              <th class="whitespace-nowrap px-2.5 py-2">
+              <th class="w-[16rem] whitespace-nowrap px-2.5 py-2">
                 <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('requesterEmail')">
                   Sender email <span class="opacity-70">{{ sortIcon('requesterEmail') }}</span>
                 </button>
               </th>
-              <th class="whitespace-nowrap px-2.5 py-2">
+              <th class="w-[11rem] whitespace-nowrap px-2.5 py-2">
                 <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('assignedAdminName')">
                   Assignee <span class="opacity-70">{{ sortIcon('assignedAdminName') }}</span>
                 </button>
               </th>
-              <th class="whitespace-nowrap px-2.5 py-2">
+              <th class="w-[7.5rem] whitespace-nowrap px-2.5 py-2">
                 <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('status')">
                   Status <span class="opacity-70">{{ sortIcon('status') }}</span>
                 </button>
               </th>
-              <th class="whitespace-nowrap px-2.5 py-2">
+              <th class="w-[6.5rem] whitespace-nowrap px-2.5 py-2">
                 <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('channel')">
                   Channel <span class="opacity-70">{{ sortIcon('channel') }}</span>
                 </button>
               </th>
-              <th class="whitespace-nowrap px-2.5 py-2">
+              <th class="w-[9rem] whitespace-nowrap px-2.5 py-2">
                 <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('updatedAt')">
                   Updated <span class="opacity-70">{{ sortIcon('updatedAt') }}</span>
                 </button>
@@ -175,16 +175,16 @@
                     }
                   </div>
                 </td>
-                <td class="max-w-[14rem] truncate px-2.5 py-1.5 align-middle font-medium" [title]="ticket.subject">
+                <td class="truncate px-2.5 py-1.5 align-middle font-medium" [title]="ticket.subject">
                   {{ ticket.subject }}
                 </td>
-                <td class="max-w-[9rem] truncate px-2.5 py-1.5 align-middle" [title]="ticket.categoryLabel">
+                <td class="truncate px-2.5 py-1.5 align-middle" [title]="ticket.categoryLabel">
                   {{ ticket.categoryLabel }}
                 </td>
-                <td class="max-w-[10rem] truncate px-2.5 py-1.5 align-middle" [title]="ticket.requesterName">
+                <td class="truncate px-2.5 py-1.5 align-middle" [title]="ticket.requesterName">
                   {{ ticket.requesterName }}
                 </td>
-                <td class="max-w-[12rem] truncate px-2.5 py-1.5 align-middle" [title]="requesterEmailLabel(ticket)">
+                <td class="truncate px-2.5 py-1.5 align-middle" [title]="requesterEmailLabel(ticket)">
                   <span class="flex min-w-0 items-center gap-1">
                     <span class="truncate">{{ requesterEmailLabel(ticket) }}</span>
                     @if (canLinkDirectory(ticket)) {
@@ -194,7 +194,7 @@
                     }
                   </span>
                 </td>
-                <td class="max-w-[9rem] truncate px-2.5 py-1.5 align-middle">
+                <td class="truncate px-2.5 py-1.5 align-middle">
                   {{ ticket.assignedAdminName || 'Unassigned' }}
                 </td>
                 <td class="whitespace-nowrap px-2.5 py-1.5 align-middle">
