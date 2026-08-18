@@ -17,12 +17,43 @@
     >
       <div class="shrink-0 px-5 pt-5 sm:px-6 sm:pt-6">
         <div class="mb-4 flex items-start justify-between gap-3">
-          <div class="min-w-0">
-            <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">Ticket summary</p>
-            <h3 id="ticket-summary-title" class="mt-0.5 text-base font-bold text-gray-950">
-              {{ current.requesterName }}
-            </h3>
-            <p class="mt-0.5 font-mono text-sm text-gray-600">{{ current.ticketNumber }}</p>
+          <div class="flex min-w-0 items-start gap-3">
+            @if (current.hasIdPhoto) {
+              <div class="shrink-0">
+                @if (idPhotoLoading()) {
+                  <div class="flex h-16 w-16 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50">
+                    <span class="h-4 w-4 animate-spin rounded-full border-2 border-zinc-200 border-t-[#8d2546]"></span>
+                  </div>
+                } @else if (idPhotoUrl(); as photoUrl) {
+                  @if (idPhotoIsPdf()) {
+                    <a
+                      [href]="photoUrl"
+                      target="_blank"
+                      rel="noopener"
+                      class="flex h-16 w-16 cursor-pointer items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 text-[11px] font-bold text-[#8d2546] hover:bg-zinc-100"
+                    >
+                      PDF
+                    </a>
+                  } @else {
+                    <button
+                      type="button"
+                      (click)="openIdLightbox()"
+                      class="h-16 w-16 cursor-pointer overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50 hover:border-zinc-400"
+                      title="View ID photo"
+                    >
+                      <img [src]="photoUrl" alt="Requester ID photo" class="h-full w-full object-cover" />
+                    </button>
+                  }
+                }
+              </div>
+            }
+            <div class="min-w-0">
+              <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">Ticket summary</p>
+              <h3 id="ticket-summary-title" class="mt-0.5 text-base font-bold text-gray-950">
+                {{ current.requesterName }}
+              </h3>
+              <p class="mt-0.5 font-mono text-sm text-gray-600">{{ current.ticketNumber }}</p>
+            </div>
           </div>
           <button
             type="button"
@@ -172,5 +203,26 @@
         </button>
       </div>
     </div>
+
+    @if (idLightboxOpen() && idPhotoUrl(); as photoUrl) {
+      <div class="absolute inset-0 z-20 flex items-center justify-center p-4">
+        <button
+          type="button"
+          class="absolute inset-0 cursor-pointer bg-zinc-950/70"
+          (click)="closeIdLightbox()"
+          aria-label="Close ID photo"
+        ></button>
+        <div class="relative z-10 max-h-[90dvh] max-w-4xl overflow-auto rounded-lg bg-white p-2 shadow-xl">
+          <img [src]="photoUrl" alt="Requester ID photo full size" class="max-h-[85dvh] w-auto object-contain" />
+          <button
+            type="button"
+            (click)="closeIdLightbox()"
+            class="absolute top-3 right-3 cursor-pointer rounded-md bg-white/90 px-2.5 py-1 text-xs font-medium text-zinc-700 shadow hover:bg-white"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    }
   </div>
 }

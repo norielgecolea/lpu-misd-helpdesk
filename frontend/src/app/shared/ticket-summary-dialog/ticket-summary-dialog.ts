@@ -1,8 +1,9 @@
-import { Component, input, output, signal, effect, inject } from '@angular/core';
+import { Component, input, output, signal, effect, inject, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { DirectoryProfile, DirectoryService } from '../../core/directory/directory.service';
 import { Ticket, displayRequesterEmail, isPendingRequesterEmail, needsDirectoryLink } from '../../core/tickets/ticket.models';
+import { TicketService } from '../../core/tickets/ticket.service';
 import { environment } from '../../../environments/environment';
 
 export interface TicketSummaryRow {
@@ -23,8 +24,9 @@ export interface TicketSummarySection {
   imports: [FormsModule],
   templateUrl: './ticket-summary-dialog.html',
 })
-export class TicketSummaryDialog {
+export class TicketSummaryDialog implements OnDestroy {
   private readonly directoryService = inject(DirectoryService);
+  private readonly ticketService = inject(TicketService);
 
   /** When set, the dialog is open for this ticket. */
   readonly ticket = input<Ticket | null>(null);
@@ -41,6 +43,10 @@ export class TicketSummaryDialog {
   protected readonly linkPersonNo = signal('');
   protected readonly linking = signal(false);
   protected readonly linkError = signal<string | null>(null);
+  protected readonly idPhotoUrl = signal<string | null>(null);
+  protected readonly idPhotoIsPdf = signal(false);
+  protected readonly idPhotoLoading = signal(false);
+  protected readonly idLightboxOpen = signal(false);
 
   private copyResetTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -57,8 +63,16 @@ export class TicketSummaryDialog {
         this.loading.set(false);
         this.copiedKey.set(null);
         this.resetLinkForm();
+        this.revokeIdPhoto();
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    this.revokeIdPhoto();
+    if (this.copyResetTimer) {
+      clearTimeout(this.copyResetTimer);
+    }
   }
 
   protected canLinkDirectory(ticket: Ticket): boolean {
@@ -127,6 +141,16 @@ export class TicketSummaryDialog {
     this.close();
   }
 
+  protected openIdLightbox(): void {
+    if (this.idPhotoUrl() && !this.idPhotoIsPdf()) {
+      this.idLightboxOpen.set(true);
+    }
+  }
+
+  protected closeIdLightbox(): void {
+    this.idLightboxOpen.set(false);
+  }
+
   protected async copyValue(row: TicketSummaryRow): Promise<void> {
     const text = row.copyValue?.trim();
     if (!text) {
@@ -154,6 +178,7 @@ export class TicketSummaryDialog {
     this.profile.set(null);
     this.copiedKey.set(null);
     this.sections.set(this.buildSections(ticket, null));
+    void this.loadIdPhoto(ticket);
     try {
       const profile = await firstValueFrom(
         this.directoryService.lookupProfile({
@@ -205,8 +230,35 @@ export class TicketSummaryDialog {
     if (ticket.resolvedAt) {
       rows.push({ label: 'Resolved', value: this.formatWhen(ticket.resolvedAt) });
     }
-    rows.push({ label: 'ID photo', value: ticket.hasIdPhoto ? 'Yes' : 'No' });
     return rows;
+  }
+
+  private async loadIdPhoto(ticket: Ticket): Promise<void> {
+    this.revokeIdPhoto();
+    if (!ticket.hasIdPhoto) {
+      return;
+    }
+    this.idPhotoLoading.set(true);
+    try {
+      const blob = await firstValueFrom(this.ticketService.getIdPhoto(ticket.id));
+      this.idPhotoIsPdf.set(blob.type === 'application/pdf' || blob.type.includes('pdf'));
+      this.idPhotoUrl.set(URL.createObjectURL(blob));
+    } catch {
+      this.idPhotoUrl.set(null);
+    } finally {
+      this.idPhotoLoading.set(false);
+    }
+  }
+
+  private revokeIdPhoto(): void {
+    const url = this.idPhotoUrl();
+    if (url) {
+      URL.revokeObjectURL(url);
+    }
+    this.idPhotoUrl.set(null);
+    this.idPhotoIsPdf.set(false);
+    this.idPhotoLoading.set(false);
+    this.idLightboxOpen.set(false);
   }
 
   private buildPersonRows(ticket: Ticket, profile: DirectoryProfile | null): TicketSummaryRow[] {

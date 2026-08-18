@@ -262,79 +262,81 @@
             ← Back to tickets
           </button>
 
-          <div class="flex items-center gap-2.5">
-            @if (ticket.hasIdPhoto) {
-              <div class="shrink-0">
-                @if (idPhotoLoading()) {
-                  <div class="flex h-11 w-11 items-center justify-center rounded-md border border-zinc-200 bg-zinc-50">
-                    <span class="h-4 w-4 animate-spin rounded-full border-2 border-zinc-200 border-t-[#8d2546]"></span>
-                  </div>
-                } @else if (idPhotoError()) {
-                  <div
-                    class="flex h-11 w-11 items-center justify-center rounded-md border border-red-200 bg-red-50 text-[9px] font-semibold text-red-600"
-                    [title]="idPhotoError()"
-                  >
-                    ID
-                  </div>
-                } @else if (idPhotoUrl(); as photoUrl) {
-                  @if (idPhotoIsPdf()) {
-                    <a
-                      [href]="photoUrl"
-                      target="_blank"
-                      rel="noopener"
-                      class="flex h-11 w-11 cursor-pointer items-center justify-center rounded-md border border-zinc-200 bg-zinc-50 text-[10px] font-bold text-[#8d2546] hover:bg-zinc-100"
-                      title="Open ID PDF"
+          <div class="flex min-w-0 flex-col gap-2">
+            <div class="flex min-w-0 items-center gap-2.5">
+              @if (ticket.hasIdPhoto) {
+                <div class="shrink-0">
+                  @if (idPhotoLoading()) {
+                    <div class="flex h-12 w-12 items-center justify-center rounded-md border border-zinc-200 bg-zinc-50">
+                      <span class="h-4 w-4 animate-spin rounded-full border-2 border-zinc-200 border-t-[#8d2546]"></span>
+                    </div>
+                  } @else if (idPhotoError()) {
+                    <div
+                      class="flex h-12 w-12 items-center justify-center rounded-md border border-red-200 bg-red-50 text-[9px] font-semibold text-red-600"
+                      [title]="idPhotoError()"
                     >
-                      PDF
-                    </a>
-                  } @else {
-                    <button
-                      type="button"
-                      (click)="openIdLightbox()"
-                      class="h-11 w-11 cursor-pointer overflow-hidden rounded-md border border-zinc-200 bg-zinc-50 hover:border-zinc-400"
-                      title="View ID photo"
-                    >
-                      <img [src]="photoUrl" alt="Requester ID photo" class="h-full w-full object-cover" />
-                    </button>
+                      ID
+                    </div>
+                  } @else if (idPhotoUrl(); as photoUrl) {
+                    @if (idPhotoIsPdf()) {
+                      <a
+                        [href]="photoUrl"
+                        target="_blank"
+                        rel="noopener"
+                        class="flex h-12 w-12 cursor-pointer items-center justify-center rounded-md border border-zinc-200 bg-zinc-50 text-[10px] font-bold text-[#8d2546] hover:bg-zinc-100"
+                        title="Open ID PDF"
+                      >
+                        PDF
+                      </a>
+                    } @else {
+                      <button
+                        type="button"
+                        (click)="openIdLightbox()"
+                        class="h-12 w-12 cursor-pointer overflow-hidden rounded-md border border-zinc-200 bg-zinc-50 hover:border-zinc-400"
+                        title="View ID photo"
+                      >
+                        <img [src]="photoUrl" alt="Requester ID photo" class="h-full w-full object-cover" />
+                      </button>
+                    }
                   }
-                }
-              </div>
-            }
+                </div>
+              }
 
-            <div class="min-w-0 flex-1">
-              <div class="flex flex-wrap items-center gap-1.5">
-                <span class="font-mono text-xs font-semibold text-zinc-800">{{ ticket.ticketNumber }}</span>
-                <span class="rounded px-1.5 py-0.5 text-[10px] font-semibold" [class]="statusBadgeClass(ticket.status)">
-                  {{ statusLabel(ticket.status) }}
-                </span>
-                <span class="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600">
-                  {{ ticket.categoryLabel }}
-                </span>
-                <span class="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600">
-                  {{ channelLabel(ticket.channel) }}
-                </span>
-                @if (live()) {
-                  <span class="inline-flex items-center gap-1.5 text-[10px] font-medium text-emerald-700">
-                    <span class="relative flex h-1.5 w-1.5">
-                      <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60"></span>
-                      <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                    </span>
-                    Live
+              <div class="min-w-0 flex-1">
+                <div class="flex min-w-0 flex-wrap items-center gap-1.5">
+                  <span class="font-mono text-xs font-semibold text-zinc-800">{{ ticket.ticketNumber }}</span>
+                  <span class="rounded px-1.5 py-0.5 text-[10px] font-semibold" [class]="statusBadgeClass(ticket.status)">
+                    {{ statusLabel(ticket.status) }}
                   </span>
-                }
+                  <span class="max-w-full truncate rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600">
+                    {{ ticket.categoryLabel }}
+                  </span>
+                  <span class="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600">
+                    {{ channelLabel(ticket.channel) }}
+                  </span>
+                  @if (live()) {
+                    <span class="inline-flex items-center gap-1.5 text-[10px] font-medium text-emerald-700">
+                      <span class="relative flex h-1.5 w-1.5">
+                        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60"></span>
+                        <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                      </span>
+                      Live
+                    </span>
+                  }
+                </div>
+                <h2 class="mt-0.5 truncate text-sm font-semibold text-zinc-900">{{ ticket.subject }}</h2>
+                <p class="mt-0.5 truncate text-[11px] text-zinc-500">
+                  {{ ticket.requesterName }}
+                  @if (ticket.requesterPersonNo) {
+                    · {{ ticket.requesterPersonType === 'EMPLOYEE' ? 'Emp' : 'Stud' }} {{ ticket.requesterPersonNo }}
+                  }
+                  · {{ requesterEmailLabel(ticket) }}
+                  · {{ ticket.createdAt | date: 'MMM d, h:mm a' }}
+                </p>
               </div>
-              <h2 class="mt-0.5 truncate text-sm font-semibold text-zinc-900">{{ ticket.subject }}</h2>
-              <p class="mt-0.5 truncate text-[11px] text-zinc-500">
-                {{ ticket.requesterName }}
-                @if (ticket.requesterPersonNo) {
-                  · {{ ticket.requesterPersonType === 'EMPLOYEE' ? 'Emp' : 'Stud' }} {{ ticket.requesterPersonNo }}
-                }
-                · {{ requesterEmailLabel(ticket) }}
-                · {{ ticket.createdAt | date: 'MMM d, h:mm a' }}
-              </p>
             </div>
 
-            <div class="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+            <div class="flex min-w-0 flex-wrap items-center gap-1.5">
               @if (layoutMode() === 'split') {
                 <button
                   type="button"
@@ -361,6 +363,25 @@
                   List
                 </button>
               }
+              @if (ticket.hasIdPhoto && idPhotoIsPdf() && idPhotoUrl(); as photoUrl) {
+                <a
+                  [href]="photoUrl"
+                  target="_blank"
+                  rel="noopener"
+                  class="inline-flex h-7 items-center rounded-md border border-zinc-300 bg-white px-2.5 text-[11px] font-semibold text-zinc-800 hover:bg-zinc-50"
+                >
+                  View ID
+                </a>
+              } @else if (ticket.hasIdPhoto) {
+                <button
+                  type="button"
+                  (click)="openIdLightbox()"
+                  [disabled]="!idPhotoUrl() || idPhotoLoading()"
+                  class="h-7 cursor-pointer rounded-md border border-zinc-300 bg-white px-2.5 text-[11px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  View ID
+                </button>
+              }
               <button
                 type="button"
                 (click)="openSummary(ticket)"
@@ -376,7 +397,7 @@
                 History
               </button>
               <select
-                class="h-7 min-w-[8rem] rounded-md border border-zinc-300 bg-white px-2 text-[11px] disabled:opacity-50"
+                class="h-7 min-w-[7rem] flex-1 rounded-md border border-zinc-300 bg-white px-2 text-[11px] sm:flex-none sm:min-w-[8rem] disabled:opacity-50"
                 [ngModel]="ticket.assignedAdminId ?? ''"
                 (ngModelChange)="onAssign(ticket, $event)"
                 [ngModelOptions]="{ standalone: true }"
@@ -389,7 +410,7 @@
                 }
               </select>
               <select
-                class="h-7 min-w-[7.5rem] rounded-md border border-zinc-300 bg-white px-2 text-[11px] disabled:opacity-50"
+                class="h-7 min-w-[7rem] flex-1 rounded-md border border-zinc-300 bg-white px-2 text-[11px] sm:flex-none sm:min-w-[7.5rem] disabled:opacity-50"
                 [ngModel]="ticket.status"
                 (ngModelChange)="onStatusChange(ticket, $event)"
                 [ngModelOptions]="{ standalone: true }"
