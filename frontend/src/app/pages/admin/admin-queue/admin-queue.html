@@ -544,6 +544,7 @@
   [ticket]="summaryTicket()"
   (closed)="closeSummary()"
   (viewHistory)="openHistory($event)"
+  (directoryLinked)="onDirectoryLinked()"
 />
 <app-ticket-history-dialog
   [ticket]="historyTicket()"

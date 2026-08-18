@@ -22,8 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Encodes an LPU email onto a gate directory record and attaches all of that
- * person's tickets to the matching helpdesk user account.
+ * Encodes an LPU email onto a gate directory record and attaches tickets in
+ * both directions: kiosk tickets that already have a person identity, and
+ * online tickets that already have the email but no student/employee number.
  */
 @Service
 public class DirectoryEmailService {
@@ -52,12 +53,14 @@ public class DirectoryEmailService {
 
     @Transactional
     public EncodeLpuEmailResponse encode(EncodeLpuEmailRequest request) {
-        String email = requireAllowedLpuEmail(request.email());
+        String email = resolveEmail(request);
         PersonRef person = resolvePerson(request);
         ensureEmailNotTakenBySomeoneElse(email, person);
+        ensurePersonEmailCompatible(person, email);
 
         writeDirectoryEmail(person, email);
         int linked = linkTicketsForPerson(person.type(), person.number(), email);
+        linked += attachPersonToTicketsForEmail(email, person);
 
         log.info(
                 "Encoded LPU email on {} {} ticketsLinked={}",
@@ -108,12 +111,16 @@ public class DirectoryEmailService {
             return;
         }
         String normalized = email.trim().toLowerCase();
-        studentRepository.findByLpuEmail(normalized).ifPresent(student ->
-                linkTicketsForPerson("STUDENT", student.getStudentNo(), normalized)
-        );
-        employeeRepository.findByLpuEmail(normalized).ifPresent(employee ->
-                linkTicketsForPerson("EMPLOYEE", employee.getEmployeeNo(), normalized)
-        );
+        studentRepository.findByLpuEmail(normalized).ifPresent(student -> {
+            PersonRef person = fromStudent(student);
+            linkTicketsForPerson(person.type(), person.number(), normalized);
+            attachPersonToTicketsForEmail(normalized, person);
+        });
+        employeeRepository.findByLpuEmail(normalized).ifPresent(employee -> {
+            PersonRef person = fromEmployee(employee);
+            linkTicketsForPerson(person.type(), person.number(), normalized);
+            attachPersonToTicketsForEmail(normalized, person);
+        });
 
         Instant now = Instant.now();
         for (Ticket ticket : ticketRepository.findHistoryForPerson(normalized, null, null)) {
@@ -126,33 +133,137 @@ public class DirectoryEmailService {
         }
     }
 
+    /**
+     * Stamp student/employee identity onto tickets that already have this LPU email
+     * (online tickets filed before the address was encoded on the directory record).
+     */
+    private int attachPersonToTicketsForEmail(String email, PersonRef person) {
+        if (person == null || email == null || email.isBlank() || PendingRequesterEmail.isPending(email)) {
+            return 0;
+        }
+        String normalized = email.trim().toLowerCase();
+        Instant now = Instant.now();
+        int updated = 0;
+        for (Ticket ticket : ticketRepository.findHistoryForPerson(normalized, null, null)) {
+            boolean changed = false;
+            if (!person.type().equalsIgnoreCase(nullToEmpty(ticket.getRequesterPersonType()))
+                    || !person.number().equalsIgnoreCase(nullToEmpty(ticket.getRequesterPersonNo()))) {
+                ticket.setRequesterPersonType(person.type());
+                ticket.setRequesterPersonNo(person.number());
+                changed = true;
+            }
+            if (person.name() != null && !person.name().isBlank()
+                    && (ticket.getRequesterName() == null
+                    || ticket.getRequesterName().isBlank()
+                    || ticket.getRequesterName().equalsIgnoreCase(ticket.getRequesterEmail()))) {
+                ticket.setRequesterName(person.name());
+                changed = true;
+            }
+            if (changed) {
+                ticket.setUpdatedAt(now);
+                ticketRepository.save(ticket);
+                updated++;
+            }
+        }
+        return updated;
+    }
+
+    private String resolveEmail(EncodeLpuEmailRequest request) {
+        String email = blankToNull(request.email());
+        if (email == null && request.ticketId() != null) {
+            Ticket ticket = ticketRepository.findById(request.ticketId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
+            email = blankToNull(ticket.getRequesterEmail());
+        }
+        return requireAllowedLpuEmail(email);
+    }
+
     private PersonRef resolvePerson(EncodeLpuEmailRequest request) {
         String type = blankToNull(request.personType());
         String number = blankToNull(request.personNo());
         if ((type == null || number == null) && request.ticketId() != null) {
             Ticket ticket = ticketRepository.findById(request.ticketId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
-            type = blankToNull(ticket.getRequesterPersonType());
-            number = blankToNull(ticket.getRequesterPersonNo());
+            if (type == null) {
+                type = blankToNull(ticket.getRequesterPersonType());
+            }
+            if (number == null) {
+                number = blankToNull(ticket.getRequesterPersonNo());
+            }
         }
-        if (type == null || number == null) {
+        if (number == null) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Provide personType and personNo, or a ticket that has a directory identity"
+                    "Provide a student or employee number"
             );
+        }
+        if (type == null) {
+            return resolvePersonByNumber(number);
         }
         type = type.toUpperCase();
         if ("STUDENT".equals(type)) {
             Student student = studentRepository.findByRfidOrStudentNo(number)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student record not found"));
-            return new PersonRef("STUDENT", student.getId(), student.getStudentNo());
+            return fromStudent(student);
         }
         if ("EMPLOYEE".equals(type)) {
             Employee employee = employeeRepository.findByRfidOrEmployeeNo(number)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee record not found"));
-            return new PersonRef("EMPLOYEE", employee.getId(), employee.getEmployeeNo());
+            return fromEmployee(employee);
         }
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "personType must be STUDENT or EMPLOYEE");
+    }
+
+    private PersonRef resolvePersonByNumber(String number) {
+        var student = studentRepository.findByRfidOrStudentNo(number);
+        var employee = employeeRepository.findByRfidOrEmployeeNo(number);
+        if (student.isPresent() && employee.isPresent()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "That number matches both a student and an employee. Choose Student or Employee."
+            );
+        }
+        if (student.isPresent()) {
+            return fromStudent(student.get());
+        }
+        if (employee.isPresent()) {
+            return fromEmployee(employee.get());
+        }
+        throw new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "No student or employee record matches that number"
+        );
+    }
+
+    private static PersonRef fromStudent(Student student) {
+        return new PersonRef(
+                "STUDENT",
+                student.getId(),
+                student.getStudentNo(),
+                student.getName(),
+                student.getLpuEmail()
+        );
+    }
+
+    private static PersonRef fromEmployee(Employee employee) {
+        return new PersonRef(
+                "EMPLOYEE",
+                employee.getId(),
+                employee.getEmployeeNo(),
+                employee.getName(),
+                employee.getLpuEmail()
+        );
+    }
+
+    private void ensurePersonEmailCompatible(PersonRef person, String email) {
+        String existing = blankToNull(person.existingEmail());
+        if (existing != null && !existing.equalsIgnoreCase(email)) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "This " + person.type().toLowerCase()
+                            + " already has a different LPU email on file (" + existing + ")"
+            );
+        }
     }
 
     private void ensureEmailNotTakenBySomeoneElse(String email, PersonRef person) {
@@ -215,6 +326,10 @@ public class DirectoryEmailService {
         return value.trim();
     }
 
-    private record PersonRef(String type, Long id, String number) {
+    private static String nullToEmpty(String value) {
+        return value == null ? "" : value;
+    }
+
+    private record PersonRef(String type, Long id, String number, String name, String existingEmail) {
     }
 }

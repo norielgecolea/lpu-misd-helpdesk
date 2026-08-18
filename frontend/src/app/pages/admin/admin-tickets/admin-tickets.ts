@@ -18,7 +18,7 @@ import { playMessageCue, unlockAudio } from '../../../core/audio/cue-sounds';
 import { AdminService } from '../../../core/admin/admin.service';
 import { AdminSummary } from '../../../core/admin/admin.models';
 import { AuthService } from '../../../core/auth/auth.service';
-import { Ticket, TicketMessage, TicketStatus, canEncodeLpuEmail, displayRequesterEmail } from '../../../core/tickets/ticket.models';
+import { Ticket, TicketMessage, TicketStatus, canEncodeLpuEmail, displayRequesterEmail, needsDirectoryLink } from '../../../core/tickets/ticket.models';
 import { TicketService } from '../../../core/tickets/ticket.service';
 import { DirectoryService } from '../../../core/directory/directory.service';
 import { environment } from '../../../../environments/environment';
@@ -108,6 +108,10 @@ export class AdminTickets implements OnInit, OnDestroy {
   protected readonly encodeEmail = signal('');
   protected readonly encodingEmail = signal(false);
   protected readonly encodeError = signal<string | null>(null);
+  protected readonly linkPersonType = signal('');
+  protected readonly linkPersonNo = signal('');
+  protected readonly linkingDirectory = signal(false);
+  protected readonly linkDirectoryError = signal<string | null>(null);
 
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private listPollTimer: ReturnType<typeof setInterval> | null = null;
@@ -304,6 +308,7 @@ export class AdminTickets implements OnInit, OnDestroy {
     this.messageError.set(null);
     this.messages.set([]);
     this.clearUnreadLocally(ticket.id);
+    this.resetDirectoryLinkForm();
     await Promise.all([this.loadMessages(ticket.id, true), this.loadIdPhoto(ticket)]);
     this.startPolling();
   }
@@ -318,6 +323,7 @@ export class AdminTickets implements OnInit, OnDestroy {
     this.messageError.set(null);
     this.live.set(false);
     this.revokeIdPhoto();
+    this.resetDirectoryLinkForm();
   }
 
   protected async sendMessage(): Promise<void> {
@@ -423,6 +429,11 @@ export class AdminTickets implements OnInit, OnDestroy {
 
   protected closeSummary(): void {
     this.summaryTicket.set(null);
+  }
+
+  protected async onDirectoryLinked(): Promise<void> {
+    this.closeSummary();
+    await this.loadTickets(true);
   }
 
   protected openHistory(ticket: Ticket, event?: Event): void {
@@ -590,6 +601,53 @@ export class AdminTickets implements OnInit, OnDestroy {
 
   protected canEncode(ticket: Ticket): boolean {
     return canEncodeLpuEmail(ticket);
+  }
+
+  protected canLinkDirectory(ticket: Ticket): boolean {
+    return needsDirectoryLink(ticket);
+  }
+
+  private resetDirectoryLinkForm(): void {
+    this.linkPersonType.set('');
+    this.linkPersonNo.set('');
+    this.linkDirectoryError.set(null);
+    this.linkingDirectory.set(false);
+  }
+
+  protected async onLinkDirectory(ticket: Ticket): Promise<void> {
+    this.linkDirectoryError.set(null);
+    const personNo = this.linkPersonNo().trim();
+    if (!personNo) {
+      this.linkDirectoryError.set('Enter a student or employee number.');
+      return;
+    }
+    const email = ticket.requesterEmail?.trim().toLowerCase() ?? '';
+    const domain = environment.allowedEmailDomain.toLowerCase();
+    if (!email.endsWith(`@${domain}`)) {
+      this.linkDirectoryError.set(`This ticket does not have an @${domain} address to encode.`);
+      return;
+    }
+
+    this.linkingDirectory.set(true);
+    try {
+      const personType = this.linkPersonType().trim().toUpperCase();
+      await firstValueFrom(
+        this.directory.encodeLpuEmail({
+          email,
+          ticketId: ticket.id,
+          personType: personType || null,
+          personNo,
+        }),
+      );
+      this.linkPersonNo.set('');
+      this.linkPersonType.set('');
+      this.linkDirectoryError.set(null);
+      await this.loadTickets(true);
+    } catch (err) {
+      this.linkDirectoryError.set(this.describeError(err));
+    } finally {
+      this.linkingDirectory.set(false);
+    }
   }
 
   protected async onEncodeEmail(ticket: Ticket): Promise<void> {

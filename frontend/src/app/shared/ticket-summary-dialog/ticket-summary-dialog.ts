@@ -1,7 +1,9 @@
 import { Component, input, output, signal, effect, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { DirectoryProfile, DirectoryService } from '../../core/directory/directory.service';
-import { Ticket, displayRequesterEmail, isPendingRequesterEmail } from '../../core/tickets/ticket.models';
+import { Ticket, displayRequesterEmail, isPendingRequesterEmail, needsDirectoryLink } from '../../core/tickets/ticket.models';
+import { environment } from '../../../environments/environment';
 
 export interface TicketSummaryRow {
   label: string;
@@ -12,6 +14,7 @@ export interface TicketSummaryRow {
 
 @Component({
   selector: 'app-ticket-summary-dialog',
+  imports: [FormsModule],
   templateUrl: './ticket-summary-dialog.html',
 })
 export class TicketSummaryDialog {
@@ -21,12 +24,17 @@ export class TicketSummaryDialog {
   readonly ticket = input<Ticket | null>(null);
   readonly closed = output<void>();
   readonly viewHistory = output<Ticket>();
+  readonly directoryLinked = output<Ticket>();
 
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly profile = signal<DirectoryProfile | null>(null);
   protected readonly rows = signal<TicketSummaryRow[]>([]);
   protected readonly copiedKey = signal<string | null>(null);
+  protected readonly linkPersonType = signal('');
+  protected readonly linkPersonNo = signal('');
+  protected readonly linking = signal(false);
+  protected readonly linkError = signal<string | null>(null);
 
   private copyResetTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -41,8 +49,59 @@ export class TicketSummaryDialog {
         this.error.set(null);
         this.loading.set(false);
         this.copiedKey.set(null);
+        this.resetLinkForm();
       }
     });
+  }
+
+  protected canLinkDirectory(ticket: Ticket): boolean {
+    return needsDirectoryLink(ticket);
+  }
+
+  protected async onLinkDirectory(ticket: Ticket): Promise<void> {
+    this.linkError.set(null);
+    const personNo = this.linkPersonNo().trim();
+    if (!personNo) {
+      this.linkError.set('Enter a student or employee number.');
+      return;
+    }
+    const email = ticket.requesterEmail?.trim().toLowerCase() ?? '';
+    const domain = environment.allowedEmailDomain.toLowerCase();
+    if (!email.endsWith(`@${domain}`)) {
+      this.linkError.set(`This ticket does not have an @${domain} address to encode.`);
+      return;
+    }
+
+    this.linking.set(true);
+    try {
+      const personType = this.linkPersonType().trim().toUpperCase();
+      await firstValueFrom(
+        this.directoryService.encodeLpuEmail({
+          email,
+          ticketId: ticket.id,
+          personType: personType || null,
+          personNo,
+        }),
+      );
+      this.resetLinkForm();
+      this.directoryLinked.emit(ticket);
+      this.close();
+    } catch (err) {
+      const message =
+        err && typeof err === 'object' && 'error' in err
+          ? ((err as { error?: { message?: string } }).error?.message ?? null)
+          : null;
+      this.linkError.set(message ?? 'Could not link this email to the local record.');
+    } finally {
+      this.linking.set(false);
+    }
+  }
+
+  private resetLinkForm(): void {
+    this.linkPersonType.set('');
+    this.linkPersonNo.set('');
+    this.linkError.set(null);
+    this.linking.set(false);
   }
 
   protected close(): void {

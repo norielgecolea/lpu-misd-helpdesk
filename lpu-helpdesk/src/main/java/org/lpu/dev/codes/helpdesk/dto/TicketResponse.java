@@ -24,6 +24,7 @@ public record TicketResponse(
         boolean hasIdPhoto,
         int unreadCount,
         boolean pendingEmail,
+        boolean directoryUnlinked,
         Instant createdAt,
         Instant updatedAt,
         Instant resolvedAt
@@ -38,6 +39,7 @@ public record TicketResponse(
 
     public static TicketResponse from(Ticket ticket, String assignedAdminName, int unreadCount) {
         boolean hasId = ticket.getIdPhotoFilename() != null && !ticket.getIdPhotoFilename().isBlank();
+        boolean pendingEmail = PendingRequesterEmail.isPending(ticket.getRequesterEmail());
         return new TicketResponse(
                 ticket.getId(),
                 ticket.getTicketNumber(),
@@ -56,10 +58,21 @@ public record TicketResponse(
                 ticket.getQueueNumber(),
                 hasId,
                 Math.max(0, unreadCount),
-                PendingRequesterEmail.isPending(ticket.getRequesterEmail()),
+                pendingEmail,
+                isDirectoryUnlinked(ticket, pendingEmail),
                 ticket.getCreatedAt(),
                 ticket.getUpdatedAt(),
                 ticket.getResolvedAt()
         );
+    }
+
+    /** Real LPU email on the ticket, but no student/employee number attached yet. */
+    private static boolean isDirectoryUnlinked(Ticket ticket, boolean pendingEmail) {
+        if (pendingEmail) {
+            return false;
+        }
+        String type = ticket.getRequesterPersonType();
+        String number = ticket.getRequesterPersonNo();
+        return type == null || type.isBlank() || number == null || number.isBlank();
     }
 }

@@ -184,7 +184,14 @@
                   {{ ticket.requesterName }}
                 </td>
                 <td class="max-w-[12rem] truncate px-2.5 py-1.5 align-middle" [title]="requesterEmailLabel(ticket)">
-                  {{ requesterEmailLabel(ticket) }}
+                  <span class="flex min-w-0 items-center gap-1">
+                    <span class="truncate">{{ requesterEmailLabel(ticket) }}</span>
+                    @if (canLinkDirectory(ticket)) {
+                      <span class="shrink-0 rounded bg-amber-100 px-1 py-0.5 text-[9px] font-bold tracking-wide text-amber-800 uppercase">
+                        Unlinked
+                      </span>
+                    }
+                  </span>
                 </td>
                 <td class="max-w-[9rem] truncate px-2.5 py-1.5 align-middle">
                   {{ ticket.assignedAdminName || 'Unassigned' }}
@@ -359,6 +366,59 @@
           </div>
         </div>
 
+        @if (canLinkDirectory(ticket)) {
+          <form
+            class="shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-2.5 sm:px-4"
+            (ngSubmit)="onLinkDirectory(ticket)"
+          >
+            <p class="text-[10px] font-bold tracking-wide text-amber-900 uppercase">Not in local directory</p>
+            <p class="mt-0.5 text-[11px] leading-snug text-amber-800">
+              This LPU email is not on a student or employee record. Enter their ID number to encode it and attach this ticket.
+            </p>
+            <div class="mt-2 flex flex-wrap items-end gap-1.5">
+              <div class="flex min-w-[7.5rem] flex-col gap-0.5">
+                <label class="text-[10px] font-medium text-amber-900" for="link-person-type">Type</label>
+                <select
+                  id="link-person-type"
+                  class="rounded-md border border-amber-200 bg-white px-2 py-1.5 text-[11px] text-zinc-900 focus:border-[#8d2546] focus:outline-none"
+                  [ngModel]="linkPersonType()"
+                  (ngModelChange)="linkPersonType.set($event)"
+                  [ngModelOptions]="{ standalone: true }"
+                  [disabled]="linkingDirectory() || isBusy(ticket.id)"
+                >
+                  <option value="">Auto-detect</option>
+                  <option value="STUDENT">Student</option>
+                  <option value="EMPLOYEE">Employee</option>
+                </select>
+              </div>
+              <div class="flex min-w-[10rem] flex-1 flex-col gap-0.5">
+                <label class="text-[10px] font-medium text-amber-900" for="link-person-no">Student / employee no.</label>
+                <input
+                  id="link-person-no"
+                  type="text"
+                  autocomplete="off"
+                  class="rounded-md border border-amber-200 bg-white px-2 py-1.5 text-[11px] text-zinc-900 focus:border-[#8d2546] focus:outline-none"
+                  placeholder="e.g. 2021-00001"
+                  [ngModel]="linkPersonNo()"
+                  (ngModelChange)="linkPersonNo.set($event)"
+                  [ngModelOptions]="{ standalone: true }"
+                  [disabled]="linkingDirectory() || isBusy(ticket.id)"
+                />
+              </div>
+              <button
+                type="submit"
+                [disabled]="linkingDirectory() || isBusy(ticket.id) || !linkPersonNo().trim()"
+                class="cursor-pointer rounded-md bg-amber-700 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-amber-800 disabled:opacity-50"
+              >
+                {{ linkingDirectory() ? 'Linking…' : 'Link record' }}
+              </button>
+            </div>
+            @if (linkDirectoryError()) {
+              <p class="mt-1.5 text-[11px] font-medium text-red-700">{{ linkDirectoryError() }}</p>
+            }
+          </form>
+        }
+
         <div class="flex min-h-0 flex-1 flex-col overflow-hidden xl:flex-row">
           <!-- Ticket details + ID (right of chat on xl) -->
           @if (layoutMode() !== 'chat') {
@@ -378,6 +438,12 @@
                     <p class="font-medium text-zinc-500">Requester</p>
                     <p class="mt-0.5 font-medium text-zinc-900">{{ ticket.requesterName }}</p>
                     <p class="break-all text-zinc-600">{{ requesterEmailLabel(ticket) }}</p>
+                    @if (ticket.requesterPersonNo) {
+                      <p class="mt-0.5 font-mono text-zinc-600">
+                        {{ ticket.requesterPersonType === 'EMPLOYEE' ? 'Employee' : 'Student' }}
+                        {{ ticket.requesterPersonNo }}
+                      </p>
+                    }
                   </div>
                   <div>
                     <p class="font-medium text-zinc-500">Updated</p>
@@ -644,6 +710,7 @@
   [ticket]="summaryTicket()"
   (closed)="closeSummary()"
   (viewHistory)="openHistory($event)"
+  (directoryLinked)="onDirectoryLinked()"
 />
 <app-ticket-history-dialog
   [ticket]="historyTicket()"

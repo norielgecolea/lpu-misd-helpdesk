@@ -323,6 +323,11 @@ export class AdminQueue implements OnInit, OnDestroy {
     this.summaryTicket.set(null);
   }
 
+  protected async onDirectoryLinked(): Promise<void> {
+    this.closeSummary();
+    await this.loadSnapshot();
+  }
+
   protected openHistory(ticket: Ticket): void {
     this.summaryTicket.set(null);
     this.historyTicket.set(ticket);

@@ -8,13 +8,13 @@ public record EncodeLpuEmailRequest(
         @Email(message = "A valid email address is required")
         String email,
 
-        /** STUDENT or EMPLOYEE. Optional when {@code ticketId} is provided. */
+        /** STUDENT or EMPLOYEE. Optional when the number is unique, or when {@code ticketId} already has identity. */
         String personType,
 
-        /** Student / employee number. Optional when {@code ticketId} is provided. */
+        /** Student / employee number. Required to link an online email that is not yet on a directory record. */
         String personNo,
 
-        /** When set, person identity is taken from this ticket if type/number are omitted. */
+        /** When set, missing email/identity fields are taken from this ticket. */
         Long ticketId
 ) {
 }

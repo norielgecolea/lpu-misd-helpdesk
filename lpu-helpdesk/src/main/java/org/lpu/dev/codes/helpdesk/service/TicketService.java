@@ -63,8 +63,10 @@ public class TicketService {
         ticketCsmService.requireNoPendingForUser(requester);
 
         TicketCategoryDefinition category = ticketCategoryService.requireActiveForOnline(request.category());
-        String requesterName = directoryLookupService.findNameByLpuEmail(requester.getEmail())
-                .orElse(requester.getName() != null && !requester.getName().isBlank()
+        var profile = directoryLookupService.resolveProfile(requester.getEmail(), null, null);
+        String requesterName = profile.found() && profile.name() != null && !profile.name().isBlank()
+                ? profile.name().trim()
+                : (requester.getName() != null && !requester.getName().isBlank()
                         ? requester.getName()
                         : requester.getEmail());
 
@@ -74,6 +76,10 @@ public class TicketService {
         ticket.setRequesterUserId(requester.getId());
         ticket.setRequesterEmail(requester.getEmail());
         ticket.setRequesterName(requesterName);
+        if (profile.found()) {
+            ticket.setRequesterPersonType(profile.personType());
+            ticket.setRequesterPersonNo(profile.personNo());
+        }
         ticket.setCategory(category.getCode());
         ticket.setSubject(request.subject().trim());
         ticket.setDescription(description);

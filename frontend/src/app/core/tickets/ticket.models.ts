@@ -29,6 +29,8 @@ export interface Ticket {
   updatedAt: string;
   resolvedAt: string | null;
   pendingEmail?: boolean;
+  /** True when the ticket has a real LPU email that is not on a student/employee record. */
+  directoryUnlinked?: boolean;
 }
 
 export const LINK_LPU_EMAIL_CATEGORY = 'LINK_LPU_EMAIL';
@@ -61,6 +63,21 @@ export function canEncodeLpuEmail(ticket: Pick<Ticket, 'requesterPersonType' | '
     return false;
   }
   return isPendingRequesterEmail(ticket.requesterEmail, ticket.pendingEmail);
+}
+
+export function needsDirectoryLink(
+  ticket: Pick<Ticket, 'requesterPersonType' | 'requesterPersonNo' | 'requesterEmail' | 'pendingEmail' | 'directoryUnlinked'>,
+): boolean {
+  if (ticket.directoryUnlinked === true) {
+    return true;
+  }
+  if (ticket.directoryUnlinked === false) {
+    return false;
+  }
+  if (isPendingRequesterEmail(ticket.requesterEmail, ticket.pendingEmail)) {
+    return false;
+  }
+  return !ticket.requesterPersonType?.trim() || !ticket.requesterPersonNo?.trim();
 }
 
 export interface CreateTicketRequest {
