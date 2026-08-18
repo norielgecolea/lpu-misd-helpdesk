@@ -25,16 +25,15 @@
   </header>
 
   <div
-    class="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col gap-4 overflow-hidden px-4 py-4 sm:px-6 lg:flex-row lg:gap-5 lg:py-5"
+    class="ticket-workspace ticket-workspace--narrow-list mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col gap-4 overflow-hidden px-4 py-4 sm:px-6 lg:flex-row lg:gap-5 lg:py-5"
     [class.max-w-none]="layoutMode() !== 'split'"
+    [attr.data-layout]="layoutMode()"
   >
     <!-- Ticket list -->
     <aside
-      class="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white"
+      class="ticket-pane ticket-pane-list flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white"
       [ngClass]="{
         'max-lg:hidden': selectedTicketId() !== null && layoutMode() !== 'list',
-        'lg:hidden': layoutMode() === 'chat',
-        'lg:w-[22rem] lg:flex-none lg:shrink-0': layoutMode() === 'split',
       }"
     >
       <div class="flex items-center justify-between gap-3 border-b border-zinc-100 px-4 py-3">
@@ -131,8 +130,12 @@
                   }
                 </button>
 
-                @if (!isGroupCollapsed(group.status)) {
-                  <ul>
+                <div
+                  class="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none"
+                  [class.grid-rows-[1fr]]="!isGroupCollapsed(group.status)"
+                  [class.grid-rows-[0fr]]="isGroupCollapsed(group.status)"
+                >
+                  <ul class="min-h-0 overflow-hidden">
                     @for (ticket of group.tickets; track ticket.id) {
                       <li>
                         <button
@@ -166,7 +169,7 @@
                       </li>
                     }
                   </ul>
-                }
+                </div>
               </section>
             }
           }
@@ -176,18 +179,18 @@
 
     <!-- Conversation pane -->
     <section
-      class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white"
+      class="ticket-pane ticket-pane-chat flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white"
       [ngClass]="{
         'max-lg:hidden': selectedTicketId() === null,
-        'lg:hidden': layoutMode() === 'list',
       }"
     >
-      @if (!selectedTicket()) {
+      @if (selectedTickets().length === 0) {
         <div class="flex flex-1 items-center justify-center px-6 text-center">
           <p class="text-sm text-zinc-500">Select a ticket</p>
         </div>
       } @else {
-        @if (selectedTicket(); as ticket) {
+        @for (ticket of selectedTickets(); track ticket.id) {
+          <div class="ticket-thread-enter flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <div class="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-100 px-4 py-3 sm:px-5">
             <div class="min-w-0">
               <button
@@ -392,6 +395,7 @@
               </div>
             }
           </form>
+          </div>
         }
       }
     </section>
@@ -400,8 +404,8 @@
   <!-- New ticket modal -->
   @if (showForm()) {
     <div class="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true">
-      <button type="button" class="absolute inset-0 cursor-pointer bg-zinc-900/40" (click)="closeForm()" aria-label="Close"></button>
-      <div class="relative z-10 max-h-[92dvh] w-full overflow-y-auto rounded-t-xl border border-zinc-200 bg-white sm:max-w-lg sm:rounded-xl">
+      <button type="button" class="dialog-backdrop-enter absolute inset-0 cursor-pointer bg-zinc-900/40" (click)="closeForm()" aria-label="Close"></button>
+      <div class="dialog-panel-enter relative z-10 max-h-[92dvh] w-full overflow-y-auto rounded-t-xl border border-zinc-200 bg-white sm:max-w-lg sm:rounded-xl">
         <div class="sticky top-0 flex items-center justify-between border-b border-zinc-100 bg-white px-5 py-3.5">
           <h3 class="text-base font-semibold">New ticket</h3>
           <button type="button" (click)="closeForm()" class="cursor-pointer text-sm text-zinc-500 hover:text-zinc-800">Close</button>

@@ -10,6 +10,12 @@ export interface TicketSummaryRow {
   value: string;
   /** When set, show a copy-to-clipboard control for this row. */
   copyValue?: string | null;
+  multiline?: boolean;
+}
+
+export interface TicketSummarySection {
+  title: string;
+  rows: TicketSummaryRow[];
 }
 
 @Component({
@@ -29,7 +35,7 @@ export class TicketSummaryDialog {
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly profile = signal<DirectoryProfile | null>(null);
-  protected readonly rows = signal<TicketSummaryRow[]>([]);
+  protected readonly sections = signal<TicketSummarySection[]>([]);
   protected readonly copiedKey = signal<string | null>(null);
   protected readonly linkPersonType = signal('');
   protected readonly linkPersonNo = signal('');
@@ -42,10 +48,11 @@ export class TicketSummaryDialog {
     effect(() => {
       const ticket = this.ticket();
       if (ticket) {
+        this.sections.set(this.buildSections(ticket, null));
         void this.load(ticket);
       } else {
         this.profile.set(null);
-        this.rows.set([]);
+        this.sections.set([]);
         this.error.set(null);
         this.loading.set(false);
         this.copiedKey.set(null);
@@ -146,6 +153,7 @@ export class TicketSummaryDialog {
     this.error.set(null);
     this.profile.set(null);
     this.copiedKey.set(null);
+    this.sections.set(this.buildSections(ticket, null));
     try {
       const profile = await firstValueFrom(
         this.directoryService.lookupProfile({
@@ -157,16 +165,51 @@ export class TicketSummaryDialog {
         }),
       );
       this.profile.set(profile);
-      this.rows.set(this.buildRows(ticket, profile));
+      this.sections.set(this.buildSections(ticket, profile));
     } catch {
       this.error.set('Could not load directory details.');
-      this.rows.set(this.buildRows(ticket, null));
+      this.sections.set(this.buildSections(ticket, null));
     } finally {
       this.loading.set(false);
     }
   }
 
-  private buildRows(ticket: Ticket, profile: DirectoryProfile | null): TicketSummaryRow[] {
+  private buildSections(ticket: Ticket, profile: DirectoryProfile | null): TicketSummarySection[] {
+    return [
+      { title: 'Ticket', rows: this.buildTicketRows(ticket) },
+      { title: this.personSectionTitle(ticket, profile), rows: this.buildPersonRows(ticket, profile) },
+    ];
+  }
+
+  private buildTicketRows(ticket: Ticket): TicketSummaryRow[] {
+    const rows: TicketSummaryRow[] = [
+      {
+        label: 'Ticket ID',
+        value: ticket.ticketNumber || '—',
+        copyValue: ticket.ticketNumber || null,
+      },
+      { label: 'Title', value: ticket.subject?.trim() || '—', multiline: true },
+      { label: 'Description', value: ticket.description?.trim() || '—', multiline: true },
+      { label: 'Category', value: ticket.categoryLabel || ticket.category || '—' },
+      { label: 'Status', value: this.statusLabel(ticket.status) },
+      { label: 'Channel', value: ticket.channel === 'ONSITE_RFID' ? 'Onsite' : 'Online' },
+      { label: 'Assignee', value: ticket.assignedAdminName?.trim() || 'Unassigned' },
+    ];
+    if (ticket.queueNumber != null) {
+      rows.push({ label: 'Queue number', value: `#${ticket.queueNumber}` });
+    }
+    rows.push(
+      { label: 'Date submitted', value: this.formatWhen(ticket.createdAt) },
+      { label: 'Last updated', value: this.formatWhen(ticket.updatedAt) },
+    );
+    if (ticket.resolvedAt) {
+      rows.push({ label: 'Resolved', value: this.formatWhen(ticket.resolvedAt) });
+    }
+    rows.push({ label: 'ID photo', value: ticket.hasIdPhoto ? 'Yes' : 'No' });
+    return rows;
+  }
+
+  private buildPersonRows(ticket: Ticket, profile: DirectoryProfile | null): TicketSummaryRow[] {
     const type = (profile?.found ? profile.personType : ticket.requesterPersonType)?.toUpperCase() ?? null;
     const name = (profile?.found && profile.name) || ticket.requesterName || '—';
     const emailRaw = (profile?.found && profile.email) || ticket.requesterEmail || '';
@@ -175,6 +218,7 @@ export class TicketSummaryDialog {
     const personNo = personNoRaw || '—';
     const department = (profile?.found && profile.department) || '—';
     const course = (profile?.found && profile.course) || '—';
+    const position = (profile?.found && profile.position) || '—';
 
     const emailRow: TicketSummaryRow = {
       label: 'LPU Email',
@@ -194,11 +238,11 @@ export class TicketSummaryDialog {
           copyValue: personNoRaw || null,
         },
         { label: 'Department', value: department },
+        { label: 'Position', value: position },
       ];
     }
 
-    // Student (or unknown — show the fuller student-oriented set with ticket fallbacks)
-    return [
+    const rows: TicketSummaryRow[] = [
       { label: 'Name', value: name },
       emailRow,
       { label: 'Course', value: course },
@@ -209,5 +253,52 @@ export class TicketSummaryDialog {
         copyValue: personNoRaw || null,
       },
     ];
+    if (type && type !== 'STUDENT') {
+      rows.splice(2, 0, { label: 'Record type', value: type });
+    }
+    return rows;
+  }
+
+  private personSectionTitle(ticket: Ticket, profile: DirectoryProfile | null): string {
+    const type = (profile?.found ? profile.personType : ticket.requesterPersonType)?.toUpperCase();
+    if (type === 'EMPLOYEE') {
+      return 'Employee';
+    }
+    if (type === 'STUDENT') {
+      return 'Student';
+    }
+    return 'Requester';
+  }
+
+  private statusLabel(status: Ticket['status']): string {
+    switch (status) {
+      case 'OPEN':
+        return 'Open';
+      case 'IN_PROGRESS':
+        return 'In progress';
+      case 'RESOLVED':
+        return 'Resolved';
+      case 'CLOSED':
+        return 'Closed';
+      default:
+        return status;
+    }
+  }
+
+  private formatWhen(value: string | null | undefined): string {
+    if (!value) {
+      return '—';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return '—';
+    }
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(date);
   }
 }

@@ -183,6 +183,11 @@ export class AdminTickets implements OnInit, OnDestroy {
     return this.filteredTickets().find((t) => t.id === id) ?? this.tickets().find((t) => t.id === id) ?? null;
   });
 
+  protected readonly selectedTickets = computed(() => {
+    const ticket = this.selectedTicket();
+    return ticket ? [ticket] : [];
+  });
+
   protected readonly statusOptions: { value: StatusFilter; label: string }[] = [
     { value: '', label: 'All statuses' },
     { value: 'OPEN', label: 'Open' },

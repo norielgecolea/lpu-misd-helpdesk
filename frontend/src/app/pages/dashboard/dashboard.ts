@@ -108,6 +108,11 @@ export class Dashboard implements OnInit, OnDestroy {
     return this.tickets().find((t) => t.id === id) ?? null;
   });
 
+  protected readonly selectedTickets = computed(() => {
+    const ticket = this.selectedTicket();
+    return ticket ? [ticket] : [];
+  });
+
   protected readonly ticketGroups = computed((): TicketGroup[] => {
     const list = this.tickets();
     return GROUP_ORDER.map((status) => {
