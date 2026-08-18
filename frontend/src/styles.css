@@ -3,8 +3,11 @@
 @import 'tailwindcss/preflight.css' layer(base);
 @import 'tailwindcss/utilities.css';
 
+/* Class-based dark mode — do not follow OS prefers-color-scheme. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  color-scheme: light;
+  color-scheme: light only;
 
   --font-sans:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans',

@@ -9,13 +9,13 @@
     <meta name="theme-color" content="#9b1c1c" />
     <script>
       try {
-        if (localStorage.getItem('lpu-helpdesk-theme') === 'dark') {
-          document.documentElement.classList.add('dark');
-          document.documentElement.style.colorScheme = 'dark';
-        } else {
-          document.documentElement.style.colorScheme = 'light';
-        }
-      } catch (_) {}
+        var dark = localStorage.getItem('lpu-helpdesk-theme') === 'dark';
+        document.documentElement.classList.toggle('dark', dark);
+        document.documentElement.style.colorScheme = dark ? 'dark' : 'only light';
+      } catch (_) {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.style.colorScheme = 'only light';
+      }
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

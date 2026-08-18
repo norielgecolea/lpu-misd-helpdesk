@@ -12,7 +12,12 @@ export class ThemeService {
   readonly isDark = computed(() => this.mode() === 'dark');
 
   constructor() {
-    this.apply(this.mode());
+    const mode = this.mode();
+    this.apply(mode);
+    // Persist light when unset so the app never falls back to OS appearance.
+    if (this.readRaw() == null) {
+      this.persist(mode);
+    }
   }
 
   toggle(): void {
@@ -22,6 +27,22 @@ export class ThemeService {
   setMode(mode: ThemeMode): void {
     this.mode.set(mode);
     this.apply(mode);
+    this.persist(mode);
+  }
+
+  private readStored(): ThemeMode {
+    return this.readRaw() === 'dark' ? 'dark' : 'light';
+  }
+
+  private readRaw(): string | null {
+    try {
+      return localStorage.getItem(STORAGE_KEY);
+    } catch {
+      return null;
+    }
+  }
+
+  private persist(mode: ThemeMode): void {
     try {
       localStorage.setItem(STORAGE_KEY, mode);
     } catch {
@@ -29,23 +50,11 @@ export class ThemeService {
     }
   }
 
-  private readStored(): ThemeMode {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored === 'dark' || stored === 'light') {
-        return stored;
-      }
-    } catch {
-      // ignore
-    }
-    return 'light';
-  }
-
   private apply(mode: ThemeMode): void {
     if (typeof document === 'undefined') {
       return;
     }
     document.documentElement.classList.toggle('dark', mode === 'dark');
-    document.documentElement.style.colorScheme = mode;
+    document.documentElement.style.colorScheme = mode === 'dark' ? 'dark' : 'only light';
   }
 }
