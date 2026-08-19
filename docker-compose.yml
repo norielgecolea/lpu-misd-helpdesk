@@ -38,7 +38,7 @@ services:
       APP_ADMIN_BASE_URL: ${APP_ADMIN_BASE_URL:-https://helpdeskadmin.lpulaguna.com}
       APP_MSAL_TENANT_ID: ${APP_MSAL_TENANT_ID:-}
       APP_MSAL_CLIENT_ID: ${APP_MSAL_CLIENT_ID:-}
-      APP_ALLOWED_EMAIL_DOMAIN: ${APP_ALLOWED_EMAIL_DOMAIN:-lpulaguna.edu.ph}
+      APP_ALLOWED_EMAIL_DOMAIN: ${APP_ALLOWED_EMAIL_DOMAIN:-lpulaguna.edu.ph,lpusc.edu.ph}
       APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost:*,http://127.0.0.1:*,http://10.1.10.12,http://helpdesk.lpu-laguna.edu.ph,http://*.lpu-laguna.edu.ph,https://helpdesk.lpulaguna.com,https://*.lpulaguna.com,https://helpdesk.lpu-laguna.edu.ph,https://*.lpu-laguna.edu.ph}
       GATE_ATTENDANCE_DB_HOST: ${GATE_ATTENDANCE_DB_HOST:-}
       GATE_ATTENDANCE_DB_PORT: ${GATE_ATTENDANCE_DB_PORT:-5432}

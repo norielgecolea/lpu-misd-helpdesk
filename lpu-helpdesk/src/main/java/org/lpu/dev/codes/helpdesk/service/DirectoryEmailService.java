@@ -440,11 +440,10 @@ public class DirectoryEmailService {
 
     private String requireAllowedLpuEmail(String raw) {
         String email = raw == null ? "" : raw.trim().toLowerCase();
-        String suffix = "@" + authProperties.getAllowedEmailDomain().toLowerCase();
-        if (email.isBlank() || !email.endsWith(suffix)) {
+        if (email.isBlank() || !authProperties.isAllowedEmail(email)) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Use an @" + authProperties.getAllowedEmailDomain() + " address"
+                    "Use an " + authProperties.allowedDomainsDisplay() + " address"
             );
         }
         return email;

@@ -62,7 +62,7 @@ app:
     tenant-id: ${APP_MSAL_TENANT_ID:}
     client-id: ${APP_MSAL_CLIENT_ID:}
   auth:
-    allowed-email-domain: ${APP_ALLOWED_EMAIL_DOMAIN:lpulaguna.edu.ph}
+    allowed-email-domain: ${APP_ALLOWED_EMAIL_DOMAIN:lpulaguna.edu.ph,lpusc.edu.ph}
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:*,http://127.0.0.1:*,http://10.1.10.12,http://helpdesk.lpu-laguna.edu.ph,http://*.lpu-laguna.edu.ph,https://helpdesk.lpulaguna.com,https://*.lpulaguna.com,https://helpdesk.lpu-laguna.edu.ph,https://*.lpu-laguna.edu.ph}
   gate-attendance:

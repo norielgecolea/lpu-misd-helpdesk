@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { AdminService } from '../../../core/admin/admin.service';
-import { AuthService } from '../../../core/auth/auth.service';
+import { AuthService, isAllowedUserEmail, allowedUserEmailLabel } from '../../../core/auth/auth.service';
 import {
   AdminSummary,
   NowServingEntry,
@@ -13,7 +13,6 @@ import {
 import { Ticket, TicketCategoryOption, canEncodeLpuEmail, displayRequesterEmail } from '../../../core/tickets/ticket.models';
 import { TicketService } from '../../../core/tickets/ticket.service';
 import { DirectoryService } from '../../../core/directory/directory.service';
-import { environment } from '../../../../environments/environment';
 import { TicketSummaryDialog } from '../../../shared/ticket-summary-dialog/ticket-summary-dialog';
 import { TicketHistoryDialog } from '../../../shared/ticket-history-dialog/ticket-history-dialog';
 
@@ -302,9 +301,8 @@ export class AdminQueue implements OnInit, OnDestroy {
     this.error.set(null);
     this.success.set(null);
     const email = this.encodeEmail().trim().toLowerCase();
-    const domain = environment.allowedEmailDomain.toLowerCase();
-    if (!email.endsWith(`@${domain}`)) {
-      this.encodeError.set(`Use an @${domain} address.`);
+    if (!isAllowedUserEmail(email)) {
+      this.encodeError.set(`Use an ${allowedUserEmailLabel()} address.`);
       return;
     }
 

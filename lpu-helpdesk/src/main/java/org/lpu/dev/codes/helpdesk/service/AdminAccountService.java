@@ -112,7 +112,7 @@ public class AdminAccountService {
     }
 
     private void requireAllowedDomain(String email) {
-        String suffix = "@" + authProperties.getAllowedEmailDomain().toLowerCase();
+        String suffix = "@" + authProperties.primaryEmailDomain();
         if (!email.endsWith(suffix)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Admin accounts must use a " + suffix + " email");
         }

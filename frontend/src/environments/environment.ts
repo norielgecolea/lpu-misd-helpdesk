@@ -17,4 +17,5 @@ export const environment = {
   // Defense in depth: also checked client-side after sign-in, and must be
   // re-validated by the backend when it exchanges the Microsoft ID token.
   allowedEmailDomain: 'lpulaguna.edu.ph',
+  allowedEmailDomains: ['lpulaguna.edu.ph', 'lpusc.edu.ph'],
 };

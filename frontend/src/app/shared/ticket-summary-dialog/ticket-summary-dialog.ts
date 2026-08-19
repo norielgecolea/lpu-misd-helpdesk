@@ -4,7 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { DirectoryProfile, DirectoryService } from '../../core/directory/directory.service';
 import { Ticket, displayRequesterEmail, isPendingRequesterEmail, needsDirectoryLink } from '../../core/tickets/ticket.models';
 import { TicketService } from '../../core/tickets/ticket.service';
-import { environment } from '../../../environments/environment';
+import { isAllowedUserEmail, allowedUserEmailLabel } from '../../core/auth/auth.service';
 
 export interface TicketSummaryRow {
   label: string;
@@ -96,9 +96,8 @@ export class TicketSummaryDialog implements OnDestroy {
       return;
     }
     const email = ticket.requesterEmail?.trim().toLowerCase() ?? '';
-    const domain = environment.allowedEmailDomain.toLowerCase();
-    if (!email.endsWith(`@${domain}`)) {
-      this.linkError.set(`This ticket does not have an @${domain} address to encode.`);
+    if (!isAllowedUserEmail(email)) {
+      this.linkError.set(`This ticket does not have an ${allowedUserEmailLabel()} address to encode.`);
       return;
     }
 

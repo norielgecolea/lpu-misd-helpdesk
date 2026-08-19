@@ -19,8 +19,24 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ADMIN_ROLES: AppRole[] = ['ADMIN', 'SUPER_ADMIN'];
 const STAFF_ROLES: AppRole[] = ['ADMIN', 'SUPER_ADMIN', 'MONITORING'];
 
-/** Thrown when an account/email outside @lpulaguna.edu.ph tries to sign in. */
+/** Thrown when an account/email outside the allowed LPU domains tries to sign in. */
 export class InvalidEmailDomainError extends Error {}
+
+export function allowedUserEmailDomains(): string[] {
+  const domains = environment.allowedEmailDomains ?? [environment.allowedEmailDomain];
+  return domains.map((domain) => domain.trim().toLowerCase()).filter((domain) => domain.length > 0);
+}
+
+export function allowedUserEmailLabel(): string {
+  return allowedUserEmailDomains()
+    .map((domain) => `@${domain}`)
+    .join(' or ');
+}
+
+export function isAllowedUserEmail(email: string): boolean {
+  const normalized = email.trim().toLowerCase();
+  return allowedUserEmailDomains().some((domain) => normalized.endsWith(`@${domain}`));
+}
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -169,19 +185,19 @@ export class AuthService {
     return response.message;
   }
 
-  /** Throws {@link InvalidEmailDomainError} for anything outside the LPU Laguna domain. */
+  /** Throws {@link InvalidEmailDomainError} for emails outside the allowed LPU domains. */
   private normalizeEmail(email: string): string {
     const normalized = email.trim().toLowerCase();
     if (!EMAIL_PATTERN.test(normalized) || !this.isAllowedEmail(normalized)) {
       throw new InvalidEmailDomainError(
-        `Please use a valid @${environment.allowedEmailDomain} email address.`,
+        `Please use a valid ${allowedUserEmailLabel()} email address.`,
       );
     }
     return normalized;
   }
 
   private isAllowedEmail(email: string): boolean {
-    return email.toLowerCase().endsWith(`@${environment.allowedEmailDomain}`);
+    return isAllowedUserEmail(email);
   }
 
   async logout(redirectTo = '/'): Promise<void> {

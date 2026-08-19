@@ -10,4 +10,5 @@ export const environment = {
     redirectUri: typeof window !== 'undefined' ? window.location.origin : '',
   },
   allowedEmailDomain: 'lpulaguna.edu.ph',
+  allowedEmailDomains: ['lpulaguna.edu.ph', 'lpusc.edu.ph'],
 };

@@ -82,12 +82,10 @@ public class AuthService {
     }
 
     private void requireAllowedDomain(String email) {
-        String normalized = email == null ? "" : email.trim().toLowerCase();
-        String suffix = "@" + authProperties.getAllowedEmailDomain().toLowerCase();
-        if (!normalized.endsWith(suffix)) {
+        if (!authProperties.isAllowedEmail(email)) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
-                    "Only " + suffix + " accounts may sign in"
+                    "Only " + authProperties.allowedDomainsDisplay() + " accounts may sign in"
             );
         }
     }
