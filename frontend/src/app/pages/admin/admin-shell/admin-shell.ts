@@ -81,7 +81,7 @@ export class AdminShell {
       items: [
         { label: 'Dashboard', route: '/admin/dashboard', icon: 'dashboard' },
         { label: 'My tickets', route: '/admin/my-tickets', icon: 'my-tickets' },
-        { label: 'Tickets', route: '/admin/tickets', icon: 'tickets' },
+        { label: 'Online Tickets', route: '/admin/tickets', icon: 'tickets' },
         { label: 'Onsite tickets', route: '/admin/onsite-tickets', icon: 'onsite' },
         { label: 'Queue', route: '/admin/queue', icon: 'queue' },
         { label: 'Analytics Recap', route: '/admin/analytics', icon: 'analytics' },
