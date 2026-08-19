@@ -62,7 +62,7 @@ type SortDir = 'asc' | 'desc';
   },
 })
 export class AdminTickets implements OnInit, OnDestroy {
-  @ViewChild('messageEnd') private messageEnd?: ElementRef<HTMLElement>;
+  @ViewChild('messageList') private messageList?: ElementRef<HTMLElement>;
 
   private readonly adminService = inject(AdminService);
   private readonly ticketService = inject(TicketService);
@@ -120,6 +120,7 @@ export class AdminTickets implements OnInit, OnDestroy {
   private knownOtherUnread = 0;
   private ticketsReady = false;
   private pendingFocusTicket: Ticket | null = null;
+  private stickToBottom = true;
 
   protected readonly filteredTickets = computed(() => {
     const scope = this.scopeFilter();
@@ -313,6 +314,7 @@ export class AdminTickets implements OnInit, OnDestroy {
     this.messages.set([]);
     this.clearUnreadLocally(ticket.id);
     this.resetDirectoryLinkForm();
+    this.stickToBottom = true;
     await Promise.all([this.loadMessages(ticket.id, true), this.loadIdPhoto(ticket)]);
     this.startPolling();
   }
@@ -350,7 +352,7 @@ export class AdminTickets implements OnInit, OnDestroy {
       this.draft.set('');
       this.clearDraftAttachment();
       await this.ensureAttachmentUrls([created]);
-      queueMicrotask(() => this.scrollToBottom());
+      this.keepThreadAtBottom(true);
     } catch (err) {
       this.messageError.set(this.describeError(err));
     } finally {
@@ -759,7 +761,7 @@ export class AdminTickets implements OnInit, OnDestroy {
       await this.ensureAttachmentUrls(messages);
       this.live.set(true);
       if (showSpinner || messages.length > previousCount) {
-        queueMicrotask(() => this.scrollToBottom());
+        this.keepThreadAtBottom(showSpinner);
       }
     } catch (err) {
       if (showSpinner) {
@@ -794,9 +796,9 @@ export class AdminTickets implements OnInit, OnDestroy {
       this.clearUnreadLocally(ticketId);
       if (hasNewFromOther) {
         playMessageCue();
-        queueMicrotask(() => this.scrollToBottom());
-      } else if (newcomers.length > 0) {
-        queueMicrotask(() => this.scrollToBottom());
+      }
+      if (newcomers.length > 0) {
+        this.keepThreadAtBottom();
       }
     } catch {
       if (!silent) {
@@ -888,8 +890,39 @@ export class AdminTickets implements OnInit, OnDestroy {
     });
   }
 
+  protected onMessageListScroll(): void {
+    this.stickToBottom = this.isThreadNearBottom();
+  }
+
+  protected onThreadMediaLoaded(): void {
+    this.keepThreadAtBottom();
+  }
+
+  private isThreadNearBottom(thresholdPx = 96): boolean {
+    const el = this.messageList?.nativeElement;
+    if (!el) {
+      return true;
+    }
+    return el.scrollHeight - el.scrollTop - el.clientHeight <= thresholdPx;
+  }
+
+  private keepThreadAtBottom(force = false): void {
+    if (!force && !this.stickToBottom) {
+      return;
+    }
+    this.stickToBottom = true;
+    requestAnimationFrame(() => {
+      this.scrollToBottom();
+      requestAnimationFrame(() => this.scrollToBottom());
+    });
+  }
+
   private scrollToBottom(): void {
-    this.messageEnd?.nativeElement?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    const el = this.messageList?.nativeElement;
+    if (!el) {
+      return;
+    }
+    el.scrollTop = el.scrollHeight;
   }
 
   private async loadTickets(showSpinner: boolean): Promise<void> {

@@ -51,7 +51,7 @@ interface TicketGroup {
   templateUrl: './dashboard.html',
 })
 export class Dashboard implements OnInit, OnDestroy {
-  @ViewChild('messageEnd') private messageEnd?: ElementRef<HTMLElement>;
+  @ViewChild('messageList') private messageList?: ElementRef<HTMLElement>;
 
   protected readonly auth = inject(AuthService);
   private readonly ticketService = inject(TicketService);
@@ -102,6 +102,7 @@ export class Dashboard implements OnInit, OnDestroy {
   private listPollInFlight = false;
   private unreadPrimed = false;
   private knownOtherUnread = 0;
+  private stickToBottom = true;
 
   protected readonly selectedTicket = computed(() => {
     const id = this.selectedTicketId();
@@ -205,6 +206,7 @@ export class Dashboard implements OnInit, OnDestroy {
     this.messageError.set(null);
     this.live.set(false);
     this.clearUnreadLocally(ticket.id);
+    this.stickToBottom = true;
     await this.loadMessages(ticket.id, true);
     this.startPolling();
   }
@@ -427,7 +429,7 @@ export class Dashboard implements OnInit, OnDestroy {
       this.draft.set('');
       this.clearDraftAttachment();
       await this.ensureAttachmentUrls([created]);
-      queueMicrotask(() => this.scrollToBottom());
+      this.keepThreadAtBottom(true);
     } catch (err: unknown) {
       this.messageError.set(this.describeError(err));
     } finally {
@@ -490,7 +492,7 @@ export class Dashboard implements OnInit, OnDestroy {
       await this.ensureAttachmentUrls(messages);
       this.live.set(true);
       if (showSpinner || messages.length > previousCount) {
-        queueMicrotask(() => this.scrollToBottom());
+        this.keepThreadAtBottom(showSpinner);
       }
     } catch (err: unknown) {
       if (showSpinner) {
@@ -525,9 +527,9 @@ export class Dashboard implements OnInit, OnDestroy {
       this.clearUnreadLocally(ticketId);
       if (hasNewFromOther) {
         playMessageCue();
-        queueMicrotask(() => this.scrollToBottom());
-      } else if (newcomers.length > 0) {
-        queueMicrotask(() => this.scrollToBottom());
+      }
+      if (newcomers.length > 0) {
+        this.keepThreadAtBottom();
       }
     } catch {
       // keep existing messages on background poll failure
@@ -587,8 +589,39 @@ export class Dashboard implements OnInit, OnDestroy {
     });
   }
 
+  protected onMessageListScroll(): void {
+    this.stickToBottom = this.isThreadNearBottom();
+  }
+
+  protected onThreadMediaLoaded(): void {
+    this.keepThreadAtBottom();
+  }
+
+  private isThreadNearBottom(thresholdPx = 96): boolean {
+    const el = this.messageList?.nativeElement;
+    if (!el) {
+      return true;
+    }
+    return el.scrollHeight - el.scrollTop - el.clientHeight <= thresholdPx;
+  }
+
+  private keepThreadAtBottom(force = false): void {
+    if (!force && !this.stickToBottom) {
+      return;
+    }
+    this.stickToBottom = true;
+    requestAnimationFrame(() => {
+      this.scrollToBottom();
+      requestAnimationFrame(() => this.scrollToBottom());
+    });
+  }
+
   private scrollToBottom(): void {
-    this.messageEnd?.nativeElement?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    const el = this.messageList?.nativeElement;
+    if (!el) {
+      return;
+    }
+    el.scrollTop = el.scrollHeight;
   }
 
   private async loadDirectoryName(): Promise<void> {
