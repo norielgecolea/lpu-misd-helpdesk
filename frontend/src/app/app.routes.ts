@@ -50,7 +50,8 @@ export const routes: Routes = [
     canActivate: [adminGuard],
     children: [
       { path: '', redirectTo: 'tickets', pathMatch: 'full' },
-      { path: 'tickets', component: AdminTickets, data: { scope: 'all' } },
+      { path: 'tickets', component: AdminTickets, data: { scope: 'all', channel: 'ONLINE' } },
+      { path: 'onsite-tickets', component: AdminTickets, data: { scope: 'all', channel: 'ONSITE_RFID' } },
       { path: 'my-tickets', component: AdminTickets, data: { scope: 'mine' } },
       { path: 'queue', component: AdminQueue },
       { path: 'dashboard', component: AdminDashboard },

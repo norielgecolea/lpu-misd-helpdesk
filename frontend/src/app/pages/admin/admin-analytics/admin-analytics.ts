@@ -38,6 +38,7 @@ import {
   AnalyticsTicketList,
   AnalyticsTicketListItem,
 } from '../../../core/admin/admin.models';
+import { adminTicketsPathForChannel } from '../../../core/tickets/ticket.models';
 import { AnalyticsTicketListDialog } from '../../../shared/analytics-ticket-list-dialog/analytics-ticket-list-dialog';
 
 Chart.register(
@@ -196,7 +197,7 @@ export class AdminAnalytics implements OnInit, AfterViewInit, OnDestroy {
 
   protected onTicketSelected(item: AnalyticsTicketListItem): void {
     this.closeTicketList();
-    void this.router.navigate(['/admin/tickets'], {
+    void this.router.navigate([adminTicketsPathForChannel(item.channel)], {
       queryParams: { ticket: item.id },
     });
   }

@@ -10,7 +10,7 @@ import {
   QueueSnapshot,
   QueueTransferRequest,
 } from '../../../core/admin/admin.models';
-import { Ticket, TicketCategoryOption, canEncodeLpuEmail, displayRequesterEmail } from '../../../core/tickets/ticket.models';
+import { Ticket, TicketCategoryOption, adminTicketsPathForChannel, canEncodeLpuEmail, displayRequesterEmail } from '../../../core/tickets/ticket.models';
 import { TicketService } from '../../../core/tickets/ticket.service';
 import { DirectoryService } from '../../../core/directory/directory.service';
 import { TicketSummaryDialog } from '../../../shared/ticket-summary-dialog/ticket-summary-dialog';
@@ -353,7 +353,7 @@ export class AdminQueue implements OnInit, OnDestroy {
   protected onHistoryTicketSelected(ticket: Ticket): void {
     this.historyTicket.set(null);
     this.summaryTicket.set(null);
-    void this.router.navigate(['/admin/tickets'], {
+    void this.router.navigate([adminTicketsPathForChannel(ticket.channel)], {
       queryParams: { ticket: ticket.id },
       state: { focusTicket: ticket },
     });

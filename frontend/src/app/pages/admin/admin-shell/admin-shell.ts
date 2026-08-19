@@ -11,6 +11,7 @@ interface NavItem {
   route: string;
   icon:
     | 'tickets'
+    | 'onsite'
     | 'my-tickets'
     | 'queue'
     | 'dashboard'
@@ -81,6 +82,7 @@ export class AdminShell {
         { label: 'Dashboard', route: '/admin/dashboard', icon: 'dashboard' },
         { label: 'My tickets', route: '/admin/my-tickets', icon: 'my-tickets' },
         { label: 'Tickets', route: '/admin/tickets', icon: 'tickets' },
+        { label: 'Onsite tickets', route: '/admin/onsite-tickets', icon: 'onsite' },
         { label: 'Queue', route: '/admin/queue', icon: 'queue' },
         { label: 'Analytics Recap', route: '/admin/analytics', icon: 'analytics' },
         { label: 'CSM by admin', route: '/admin/csm', icon: 'csm' },
@@ -125,6 +127,7 @@ export class AdminShell {
     return (
       url.startsWith('/admin/my-tickets')
       || url.startsWith('/admin/tickets')
+      || url.startsWith('/admin/onsite-tickets')
       || url.startsWith('/admin/queue')
       || url.startsWith('/admin/students')
       || url.startsWith('/admin/employees')
@@ -134,7 +137,11 @@ export class AdminShell {
   /** Tickets tables should use the full main column instead of the default page cap. */
   protected readonly isWidePage = computed(() => {
     const url = this.currentUrl().split('?')[0];
-    return url.startsWith('/admin/my-tickets') || url.startsWith('/admin/tickets');
+    return (
+      url.startsWith('/admin/my-tickets')
+      || url.startsWith('/admin/tickets')
+      || url.startsWith('/admin/onsite-tickets')
+    );
   });
 
   protected readonly roleLabel = computed(() =>

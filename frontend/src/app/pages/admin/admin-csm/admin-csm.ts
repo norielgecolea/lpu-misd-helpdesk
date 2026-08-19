@@ -29,6 +29,7 @@ import {
   AnalyticsAssigneeCsm,
   AnalyticsTicketListItem,
 } from '../../../core/admin/admin.models';
+import { adminTicketsPathForChannel } from '../../../core/tickets/ticket.models';
 
 Chart.register(CategoryScale, LinearScale, BarElement, BarController, Tooltip, Legend);
 
@@ -125,7 +126,7 @@ export class AdminCsm implements OnInit, AfterViewInit, OnDestroy {
   }
 
   protected openTicket(item: AnalyticsTicketListItem): void {
-    void this.router.navigate(['/admin/tickets'], {
+    void this.router.navigate([adminTicketsPathForChannel(item.channel)], {
       queryParams: { ticket: item.id },
     });
   }

@@ -18,7 +18,7 @@ import { playMessageCue, unlockAudio } from '../../../core/audio/cue-sounds';
 import { AdminService } from '../../../core/admin/admin.service';
 import { AdminSummary } from '../../../core/admin/admin.models';
 import { AuthService, isAllowedUserEmail, allowedUserEmailLabel } from '../../../core/auth/auth.service';
-import { Ticket, TicketMessage, TicketStatus, canEncodeLpuEmail, displayRequesterEmail, messageAuthorLabel as formatMessageAuthor, needsDirectoryLink } from '../../../core/tickets/ticket.models';
+import { Ticket, TicketChannel, TicketMessage, TicketStatus, adminTicketsPathForChannel, canEncodeLpuEmail, displayRequesterEmail, messageAuthorLabel as formatMessageAuthor, needsDirectoryLink } from '../../../core/tickets/ticket.models';
 import { TicketService } from '../../../core/tickets/ticket.service';
 import { DirectoryService } from '../../../core/directory/directory.service';
 import { TicketSummaryDialog } from '../../../shared/ticket-summary-dialog/ticket-summary-dialog';
@@ -71,6 +71,13 @@ export class AdminTickets implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   protected readonly auth = inject(AuthService);
 
+  protected readonly pageHeading = computed(() => {
+    if (this.scopeLocked()) {
+      return 'My tickets';
+    }
+    return this.channelLocked() === 'ONSITE_RFID' ? 'Onsite tickets' : 'Tickets';
+  });
+
   protected readonly tickets = signal<Ticket[]>([]);
   protected readonly assignees = signal<AdminSummary[]>([]);
   protected readonly loading = signal(true);
@@ -79,6 +86,8 @@ export class AdminTickets implements OnInit, OnDestroy {
   protected readonly scopeFilter = signal<ScopeFilter>('all');
   /** When true, scope is fixed to Mine (My tickets route). */
   protected readonly scopeLocked = signal(false);
+  /** When set, list is limited to that channel. Null on My tickets (mixed). */
+  protected readonly channelLocked = signal<TicketChannel | null>(null);
   protected readonly layoutMode = signal<LayoutMode>(this.readLayoutMode());
   protected readonly listPage = signal(1);
   protected readonly sortKey = signal<SortKey>('updatedAt');
@@ -128,6 +137,10 @@ export class AdminTickets implements OnInit, OnDestroy {
     const statusFilter = this.statusFilter();
     return this.tickets().filter((ticket) => {
       if (statusFilter && ticket.status !== statusFilter) {
+        return false;
+      }
+      const channelLock = this.channelLocked();
+      if (channelLock && ticket.channel !== channelLock) {
         return false;
       }
       if (scope === 'mine') {
@@ -212,6 +225,8 @@ export class AdminTickets implements OnInit, OnDestroy {
       const mine = data['scope'] === 'mine';
       this.scopeLocked.set(mine);
       this.scopeFilter.set(mine ? 'mine' : 'all');
+      this.channelLocked.set(mine ? null : data['channel'] === 'ONSITE_RFID' ? 'ONSITE_RFID' : 'ONLINE');
+      this.statusFilter.set('');
       this.listPage.set(1);
       this.ensureSelectionVisible();
     });
@@ -463,7 +478,10 @@ export class AdminTickets implements OnInit, OnDestroy {
 
   protected async onHistoryTicketSelected(ticket: Ticket): Promise<void> {
     this.closeHistory();
-    await this.focusTicket(ticket);
+    const openedHere = await this.focusTicket(ticket);
+    if (!openedHere) {
+      return;
+    }
     void this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { ticket: ticket.id },
@@ -510,7 +528,15 @@ export class AdminTickets implements OnInit, OnDestroy {
     }
   }
 
-  private async focusTicket(ticket: Ticket): Promise<void> {
+  private async focusTicket(ticket: Ticket): Promise<boolean> {
+    const channelLock = this.channelLocked();
+    if (channelLock && ticket.channel !== channelLock) {
+      void this.router.navigate([adminTicketsPathForChannel(ticket.channel)], {
+        queryParams: { ticket: ticket.id },
+        state: { focusTicket: ticket },
+      });
+      return false;
+    }
     this.statusFilter.set('');
     if (!this.scopeLocked()) {
       this.scopeFilter.set('all');
@@ -523,6 +549,7 @@ export class AdminTickets implements OnInit, OnDestroy {
     });
     this.listPage.set(1);
     await this.selectTicket(ticket);
+    return true;
   }
 
   private compareTickets(a: Ticket, b: Ticket, key: SortKey): number {

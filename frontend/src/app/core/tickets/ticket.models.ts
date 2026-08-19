@@ -1,6 +1,10 @@
 export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
 export type TicketChannel = 'ONLINE' | 'ONSITE_RFID';
 
+export function adminTicketsPathForChannel(channel: string | null | undefined): string {
+  return channel === 'ONSITE_RFID' ? '/admin/onsite-tickets' : '/admin/tickets';
+}
+
 export interface TicketCategoryOption {
   value: string;
   label: string;

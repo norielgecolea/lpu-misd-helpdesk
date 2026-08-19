@@ -12,13 +12,15 @@
     <div class="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-zinc-100 px-3 py-2.5">
       <div class="min-w-0">
         <h2 class="text-sm font-semibold text-zinc-900">
-          {{ scopeLocked() ? 'My tickets' : 'Tickets' }}
+          {{ pageHeading() }}
         </h2>
         <p class="text-[11px] text-zinc-500">
           @if (scopeLocked()) {
             Assigned to you · {{ listRangeLabel() }}
+          } @else if (channelLocked() === 'ONSITE_RFID') {
+            Walk-in / kiosk · {{ listRangeLabel() }}
           } @else {
-            {{ listRangeLabel() }}
+            Online · {{ listRangeLabel() }}
           }
         </p>
       </div>
@@ -85,10 +87,15 @@
           <p class="text-xs text-zinc-500">
             Open
             <a routerLink="/admin/tickets" class="font-semibold text-[#8d2546] hover:underline">Tickets</a>
+            or
+            <a routerLink="/admin/onsite-tickets" class="font-semibold text-[#8d2546] hover:underline">Onsite tickets</a>
             to pick up unassigned work.
           </p>
+        } @else if (channelLocked() === 'ONSITE_RFID') {
+          <p class="text-sm font-medium text-zinc-800">No onsite tickets found</p>
+          <p class="text-xs text-zinc-500">Try a different filter.</p>
         } @else {
-          <p class="text-sm font-medium text-zinc-800">No tickets found</p>
+          <p class="text-sm font-medium text-zinc-800">No online tickets found</p>
           <p class="text-xs text-zinc-500">Try a different filter.</p>
         }
       </div>
@@ -132,11 +139,13 @@
                   Status <span class="opacity-70">{{ sortIcon('status') }}</span>
                 </button>
               </th>
-              <th class="w-[6rem] px-2.5 py-2">
-                <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('channel')">
-                  Channel <span class="opacity-70">{{ sortIcon('channel') }}</span>
-                </button>
-              </th>
+              @if (!channelLocked()) {
+                <th class="w-[6rem] px-2.5 py-2">
+                  <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('channel')">
+                    Channel <span class="opacity-70">{{ sortIcon('channel') }}</span>
+                  </button>
+                </th>
+              }
               <th class="w-[8.5rem] px-2.5 py-2">
                 <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('updatedAt')">
                   Updated <span class="opacity-70">{{ sortIcon('updatedAt') }}</span>
@@ -202,9 +211,11 @@
                     {{ statusLabel(ticket.status) }}
                   </span>
                 </td>
-                <td class="overflow-hidden px-2.5 py-1.5 align-middle">
-                  {{ channelLabel(ticket.channel) }}
-                </td>
+                @if (!channelLocked()) {
+                  <td class="overflow-hidden px-2.5 py-1.5 align-middle">
+                    {{ channelLabel(ticket.channel) }}
+                  </td>
+                }
                 <td class="overflow-hidden px-2.5 py-1.5 align-middle opacity-80">
                   {{ ticket.updatedAt | date: 'MMM d, h:mm a' }}
                 </td>
