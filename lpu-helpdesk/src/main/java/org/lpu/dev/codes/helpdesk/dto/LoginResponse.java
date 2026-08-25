@@ -10,6 +10,8 @@ public record LoginResponse(
         long expiresInMs,
         boolean needsStudentInfo,
         String declaredStudentName,
-        String declaredStudentNo
+        String declaredStudentNo,
+        String declaredPersonType,
+        String declaredLpuEmail
 ) {
 }

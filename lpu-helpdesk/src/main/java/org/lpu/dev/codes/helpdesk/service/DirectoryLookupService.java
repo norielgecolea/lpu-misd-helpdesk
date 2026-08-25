@@ -32,6 +32,35 @@ public class DirectoryLookupService {
     }
 
     /**
+     * Use directory data only when the ID number finds a person of the given type
+     * and that record’s LPU email matches the email the user provided.
+     * Otherwise return notFound so callers keep the user’s typed values.
+     */
+    public DirectoryProfileResponse resolveIfIdAndLpuEmailMatch(
+            String personType,
+            String personNo,
+            String lpuEmail
+    ) {
+        if (personType == null || personType.isBlank()
+                || personNo == null || personNo.isBlank()
+                || lpuEmail == null || lpuEmail.isBlank()) {
+            return DirectoryProfileResponse.notFound();
+        }
+        DirectoryProfileResponse profile = resolveProfile(null, personType, personNo);
+        if (!profile.found()) {
+            return DirectoryProfileResponse.notFound();
+        }
+        String directoryEmail = profile.email();
+        if (directoryEmail == null || directoryEmail.isBlank()) {
+            return DirectoryProfileResponse.notFound();
+        }
+        if (!directoryEmail.trim().equalsIgnoreCase(lpuEmail.trim())) {
+            return DirectoryProfileResponse.notFound();
+        }
+        return profile;
+    }
+
+    /**
      * Resolve a student/employee profile for ticket summaries.
      * Preference: personType + personNo → personNo alone → email.
      * Looks up identity columns only (never the ID photo blob).

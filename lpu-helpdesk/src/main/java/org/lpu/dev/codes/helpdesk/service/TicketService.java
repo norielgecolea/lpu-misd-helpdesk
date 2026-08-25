@@ -92,22 +92,33 @@ public class TicketService {
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
             String declaredName = user.getDeclaredStudentName();
             String declaredNo = user.getDeclaredStudentNo();
-            if (declaredName == null || declaredName.isBlank() || declaredNo == null || declaredNo.isBlank()) {
+            String declaredType = user.getDeclaredPersonType();
+            String declaredLpuEmail = user.getDeclaredLpuEmail();
+            if (declaredName == null || declaredName.isBlank()
+                    || declaredNo == null || declaredNo.isBlank()
+                    || declaredType == null || declaredType.isBlank()
+                    || declaredLpuEmail == null || declaredLpuEmail.isBlank()) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
-                        "Please enter your student name and ID number before creating a ticket"
+                        "Please enter your name, ID number, person type, and LPU email before creating a ticket"
                 );
             }
-            DirectoryProfileResponse profile = directoryLookupService.resolveProfile(null, "STUDENT", declaredNo.trim());
+            String type = declaredType.trim().toUpperCase();
+            DirectoryProfileResponse profile = directoryLookupService.resolveIfIdAndLpuEmailMatch(
+                    type,
+                    declaredNo.trim(),
+                    declaredLpuEmail.trim()
+            );
             if (profile.found()) {
                 requesterName = profile.name() != null && !profile.name().isBlank()
                         ? profile.name().trim()
                         : declaredName.trim();
-                personType = profile.personType() != null ? profile.personType() : "STUDENT";
+                personType = profile.personType() != null ? profile.personType() : type;
                 personNo = profile.personNo() != null ? profile.personNo() : declaredNo.trim();
             } else {
+                // No verified directory match — keep exactly what the user entered.
                 requesterName = declaredName.trim();
-                personType = "STUDENT";
+                personType = type;
                 personNo = declaredNo.trim();
             }
         }

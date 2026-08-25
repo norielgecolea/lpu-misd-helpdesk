@@ -51,8 +51,8 @@ public class ProfileService {
     }
 
     /**
-     * Outside-email users must declare student name + ID once. Saves on the user
-     * and prefers the official directory name when the student number matches.
+     * Outside-email users declare person type, name, ID, and LPU email once.
+     * Directory name is used only when ID + LPU email both match a campus record.
      */
     @Transactional
     public UserProfileResponse saveStudentInfo(AuthenticatedUser principal, StudentInfoRequest request) {
@@ -69,19 +69,36 @@ public class ProfileService {
             );
         }
 
-        String studentName = request.studentName().trim();
-        String studentNo = request.studentNo().trim();
-        if (studentName.isEmpty() || studentNo.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Student name and ID number are required");
+        String personType = normalizePersonType(request.personType());
+        String displayInput = request.studentName().trim();
+        String personNo = request.studentNo().trim();
+        String lpuEmail = request.lpuEmail().trim().toLowerCase();
+        if (displayInput.isEmpty() || personNo.isEmpty() || lpuEmail.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Name, ID number, and LPU email are required"
+            );
+        }
+        if (!authProperties.isAllowedEmail(lpuEmail)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "LPU email must be a campus address (" + authProperties.allowedDomainsDisplay() + ")"
+            );
         }
 
-        DirectoryProfileResponse directory = directoryLookupService.resolveProfile(null, "STUDENT", studentNo);
+        DirectoryProfileResponse directory = directoryLookupService.resolveIfIdAndLpuEmailMatch(
+                personType,
+                personNo,
+                lpuEmail
+        );
         String displayName = directory.found() && directory.name() != null && !directory.name().isBlank()
                 ? directory.name().trim()
-                : studentName;
+                : displayInput;
 
-        user.setDeclaredStudentName(studentName);
-        user.setDeclaredStudentNo(studentNo);
+        user.setDeclaredPersonType(personType);
+        user.setDeclaredStudentName(displayInput);
+        user.setDeclaredStudentNo(personNo);
+        user.setDeclaredLpuEmail(lpuEmail);
         user.setName(displayName);
         user.setUpdatedAt(Instant.now());
         userRepository.save(user);
@@ -98,6 +115,22 @@ public class ProfileService {
         }
         String name = user.getDeclaredStudentName();
         String no = user.getDeclaredStudentNo();
-        return name == null || name.isBlank() || no == null || no.isBlank();
+        String type = user.getDeclaredPersonType();
+        String lpuEmail = user.getDeclaredLpuEmail();
+        return name == null || name.isBlank()
+                || no == null || no.isBlank()
+                || type == null || type.isBlank()
+                || lpuEmail == null || lpuEmail.isBlank();
+    }
+
+    private static String normalizePersonType(String personType) {
+        if (personType == null || personType.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Person type is required");
+        }
+        String normalized = personType.trim().toUpperCase();
+        if (!"STUDENT".equals(normalized) && !"EMPLOYEE".equals(normalized)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Person type must be STUDENT or EMPLOYEE");
+        }
+        return normalized;
     }
 }

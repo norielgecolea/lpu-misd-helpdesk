@@ -552,15 +552,47 @@
       <div class="absolute inset-0 bg-zinc-900/50" aria-hidden="true"></div>
       <div class="relative z-10 max-h-[92dvh] w-full overflow-y-auto rounded-t-xl border border-zinc-200 bg-white sm:max-w-lg sm:rounded-xl">
         <div class="sticky top-0 border-b border-zinc-100 bg-white px-5 py-3.5">
-          <p class="text-[11px] font-semibold tracking-wide text-[#8d2546] uppercase">Student information</p>
+          <p class="text-[11px] font-semibold tracking-wide text-[#8d2546] uppercase">Campus information</p>
           <h3 class="text-base font-semibold text-zinc-900">Tell us who you are</h3>
           <p class="mt-1 text-xs text-zinc-500">
-            You’re signed in with an outside email. Enter your student name and ID number once — we’ll use them on your tickets.
+            You’re signed in with an outside email. Enter your details once — directory records are used only when your ID number and LPU email both match.
           </p>
         </div>
         <form class="px-5 py-5" (ngSubmit)="submitStudentInfo()" novalidate>
           <div class="flex flex-col gap-1.5">
-            <label class="text-sm font-medium text-zinc-800" for="studentName">Student name</label>
+            <span class="text-sm font-medium text-zinc-800">I am a</span>
+            <div class="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                (click)="personType.set('STUDENT')"
+                class="cursor-pointer rounded-md border px-3 py-2 text-sm font-semibold transition-colors"
+                [class.border-[#8d2546]]="personType() === 'STUDENT'"
+                [class.bg-[#8d2546]/[0.08]]="personType() === 'STUDENT'"
+                [class.text-[#8d2546]]="personType() === 'STUDENT'"
+                [class.border-zinc-300]="personType() !== 'STUDENT'"
+                [class.text-zinc-700]="personType() !== 'STUDENT'"
+                [disabled]="savingStudentInfo()"
+              >
+                Student
+              </button>
+              <button
+                type="button"
+                (click)="personType.set('EMPLOYEE')"
+                class="cursor-pointer rounded-md border px-3 py-2 text-sm font-semibold transition-colors"
+                [class.border-[#8d2546]]="personType() === 'EMPLOYEE'"
+                [class.bg-[#8d2546]/[0.08]]="personType() === 'EMPLOYEE'"
+                [class.text-[#8d2546]]="personType() === 'EMPLOYEE'"
+                [class.border-zinc-300]="personType() !== 'EMPLOYEE'"
+                [class.text-zinc-700]="personType() !== 'EMPLOYEE'"
+                [disabled]="savingStudentInfo()"
+              >
+                Employee
+              </button>
+            </div>
+          </div>
+
+          <div class="mt-4 flex flex-col gap-1.5">
+            <label class="text-sm font-medium text-zinc-800" for="studentName">Full name</label>
             <input
               id="studentName"
               type="text"
@@ -575,7 +607,9 @@
             />
           </div>
           <div class="mt-4 flex flex-col gap-1.5">
-            <label class="text-sm font-medium text-zinc-800" for="studentNo">Student ID number</label>
+            <label class="text-sm font-medium text-zinc-800" for="studentNo">
+              {{ personType() === 'EMPLOYEE' ? 'Employee ID number' : 'Student ID number' }}
+            </label>
             <input
               id="studentNo"
               type="text"
@@ -588,6 +622,24 @@
               [ngModelOptions]="{ standalone: true }"
               [disabled]="savingStudentInfo()"
             />
+          </div>
+          <div class="mt-4 flex flex-col gap-1.5">
+            <label class="text-sm font-medium text-zinc-800" for="lpuEmail">LPU email</label>
+            <input
+              id="lpuEmail"
+              type="email"
+              autocomplete="email"
+              maxlength="255"
+              placeholder="juan.delacruz@lpulaguna.edu.ph"
+              class="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-[#8d2546] focus:outline-none"
+              [ngModel]="lpuEmail()"
+              (ngModelChange)="lpuEmail.set($event)"
+              [ngModelOptions]="{ standalone: true }"
+              [disabled]="savingStudentInfo()"
+            />
+            <p class="text-[11px] text-zinc-500">
+              Used only to verify your campus record. If ID and email don’t both match, your typed name and ID are kept as-is.
+            </p>
           </div>
 
           @if (studentInfoError()) {

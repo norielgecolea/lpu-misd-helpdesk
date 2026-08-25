@@ -82,7 +82,9 @@ public class AuthService {
                 jwtService.getExpirationMs(),
                 needsStudentInfo,
                 user.getDeclaredStudentName(),
-                user.getDeclaredStudentNo()
+                user.getDeclaredStudentNo(),
+                user.getDeclaredPersonType(),
+                user.getDeclaredLpuEmail()
         );
     }
 
@@ -95,7 +97,12 @@ public class AuthService {
         }
         String name = user.getDeclaredStudentName();
         String no = user.getDeclaredStudentNo();
-        return name == null || name.isBlank() || no == null || no.isBlank();
+        String type = user.getDeclaredPersonType();
+        String lpuEmail = user.getDeclaredLpuEmail();
+        return name == null || name.isBlank()
+                || no == null || no.isBlank()
+                || type == null || type.isBlank()
+                || lpuEmail == null || lpuEmail.isBlank();
     }
 
     private void requireAllowedDomain(String email) {

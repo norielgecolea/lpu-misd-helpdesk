@@ -9,7 +9,9 @@ public record UserProfileResponse(
         String role,
         boolean needsStudentInfo,
         String declaredStudentName,
-        String declaredStudentNo
+        String declaredStudentNo,
+        String declaredPersonType,
+        String declaredLpuEmail
 ) {
     public static UserProfileResponse from(User user, boolean needsStudentInfo) {
         return new UserProfileResponse(
@@ -19,7 +21,9 @@ public record UserProfileResponse(
                 user.getRole().name(),
                 needsStudentInfo,
                 user.getDeclaredStudentName(),
-                user.getDeclaredStudentNo()
+                user.getDeclaredStudentNo(),
+                user.getDeclaredPersonType(),
+                user.getDeclaredLpuEmail()
         );
     }
 }

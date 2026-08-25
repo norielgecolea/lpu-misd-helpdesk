@@ -99,8 +99,10 @@ export class Dashboard implements OnInit, OnDestroy {
   protected readonly csmLabels = CSM_LABEL;
 
   protected readonly needsStudentInfo = signal(false);
+  protected readonly personType = signal<'STUDENT' | 'EMPLOYEE'>('STUDENT');
   protected readonly studentName = signal('');
   protected readonly studentNo = signal('');
+  protected readonly lpuEmail = signal('');
   protected readonly savingStudentInfo = signal(false);
   protected readonly studentInfoError = signal<string | null>(null);
 
@@ -254,15 +256,22 @@ export class Dashboard implements OnInit, OnDestroy {
     }
     const name = this.studentName().trim();
     const no = this.studentNo().trim();
-    if (!name || !no) {
-      this.studentInfoError.set('Please enter your student name and ID number.');
+    const lpuEmail = this.lpuEmail().trim();
+    const personType = this.personType();
+    if (!name || !no || !lpuEmail) {
+      this.studentInfoError.set('Please enter your name, ID number, and LPU email.');
       return;
     }
     this.studentInfoError.set(null);
     this.savingStudentInfo.set(true);
     try {
       const profile = await firstValueFrom(
-        this.profileService.saveStudentInfo({ studentName: name, studentNo: no }),
+        this.profileService.saveStudentInfo({
+          personType,
+          studentName: name,
+          studentNo: no,
+          lpuEmail,
+        }),
       );
       this.needsStudentInfo.set(!!profile.needsStudentInfo);
       this.displayName.set(profile.name);
@@ -271,9 +280,13 @@ export class Dashboard implements OnInit, OnDestroy {
         needsStudentInfo: profile.needsStudentInfo,
         declaredStudentName: profile.declaredStudentName,
         declaredStudentNo: profile.declaredStudentNo,
+        declaredPersonType: profile.declaredPersonType,
+        declaredLpuEmail: profile.declaredLpuEmail,
       });
       this.studentName.set('');
       this.studentNo.set('');
+      this.lpuEmail.set('');
+      this.personType.set('STUDENT');
     } catch (err: unknown) {
       this.studentInfoError.set(this.describeError(err));
     } finally {
@@ -681,6 +694,8 @@ export class Dashboard implements OnInit, OnDestroy {
         needsStudentInfo: profile.needsStudentInfo,
         declaredStudentName: profile.declaredStudentName,
         declaredStudentNo: profile.declaredStudentNo,
+        declaredPersonType: profile.declaredPersonType,
+        declaredLpuEmail: profile.declaredLpuEmail,
       });
     } catch {
       // keep session name

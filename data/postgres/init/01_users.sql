@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS users (
     active         BOOLEAN      NOT NULL DEFAULT TRUE,
     declared_student_name VARCHAR(150),
     declared_student_no   VARCHAR(50),
+    declared_person_type  VARCHAR(20),
+    declared_lpu_email    VARCHAR(255),
     last_login_at  TIMESTAMPTZ,
     created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW()

@@ -33,6 +33,8 @@ export interface LoginResponse {
   needsStudentInfo?: boolean;
   declaredStudentName?: string | null;
   declaredStudentNo?: string | null;
+  declaredPersonType?: string | null;
+  declaredLpuEmail?: string | null;
 }
 
 export type AppRole = 'USER' | 'ADMIN' | 'SUPER_ADMIN' | 'MONITORING';
@@ -45,4 +47,6 @@ export interface AuthUser {
   needsStudentInfo?: boolean;
   declaredStudentName?: string | null;
   declaredStudentNo?: string | null;
+  declaredPersonType?: string | null;
+  declaredLpuEmail?: string | null;
 }

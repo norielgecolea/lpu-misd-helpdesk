@@ -54,9 +54,17 @@ public class User {
     @Column(name = "declared_student_name", length = 150)
     private String declaredStudentName;
 
-    /** Declared student ID number for outside-email users. */
+    /** Declared student/employee ID number for outside-email users. */
     @Column(name = "declared_student_no", length = 50)
     private String declaredStudentNo;
+
+    /** STUDENT or EMPLOYEE — declared by outside-email users. */
+    @Column(name = "declared_person_type", length = 20)
+    private String declaredPersonType;
+
+    /** Campus LPU email used to verify directory match (may differ from login email). */
+    @Column(name = "declared_lpu_email", length = 255)
+    private String declaredLpuEmail;
 
     @Column(name = "last_login_at")
     private Instant lastLoginAt;
@@ -161,6 +169,22 @@ public class User {
 
     public void setDeclaredStudentNo(String declaredStudentNo) {
         this.declaredStudentNo = declaredStudentNo;
+    }
+
+    public String getDeclaredPersonType() {
+        return declaredPersonType;
+    }
+
+    public void setDeclaredPersonType(String declaredPersonType) {
+        this.declaredPersonType = declaredPersonType;
+    }
+
+    public String getDeclaredLpuEmail() {
+        return declaredLpuEmail;
+    }
+
+    public void setDeclaredLpuEmail(String declaredLpuEmail) {
+        this.declaredLpuEmail = declaredLpuEmail;
     }
 
     public Instant getLastLoginAt() {

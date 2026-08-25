@@ -111,6 +111,8 @@ public class SchemaMigrationConfig {
         jdbc.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS id_uploaded_at TIMESTAMPTZ");
         jdbc.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS declared_student_name VARCHAR(150)");
         jdbc.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS declared_student_no VARCHAR(50)");
+        jdbc.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS declared_person_type VARCHAR(20)");
+        jdbc.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS declared_lpu_email VARCHAR(255)");
         jdbc.execute("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS assigned_admin_id BIGINT REFERENCES users(id)");
         jdbc.execute("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS queue_number INT");
         jdbc.execute("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS id_photo_filename VARCHAR(255)");

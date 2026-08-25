@@ -65,6 +65,8 @@ public class AdminAuthService {
                 jwtService.getExpirationMs(rememberMe),
                 false,
                 null,
+                null,
+                null,
                 null
         );
     }

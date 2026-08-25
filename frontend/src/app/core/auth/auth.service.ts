@@ -261,6 +261,8 @@ export class AuthService {
       needsStudentInfo: response.needsStudentInfo ?? false,
       declaredStudentName: response.declaredStudentName ?? null,
       declaredStudentNo: response.declaredStudentNo ?? null,
+      declaredPersonType: response.declaredPersonType ?? null,
+      declaredLpuEmail: response.declaredLpuEmail ?? null,
     };
     this.tokenSignal.set(response.token);
     this.userSignal.set(user);
