@@ -38,6 +38,7 @@ import {
   AnalyticsTicketList,
   AnalyticsTicketListItem,
 } from '../../../core/admin/admin.models';
+import { CSM_CHART_LABELS, CSM_LABEL } from '../../../core/csm/csm-labels';
 import { adminTicketsPathForChannel } from '../../../core/tickets/ticket.models';
 import { AnalyticsTicketListDialog } from '../../../shared/analytics-ticket-list-dialog/analytics-ticket-list-dialog';
 
@@ -93,6 +94,7 @@ export class AdminAnalytics implements OnInit, AfterViewInit, OnDestroy {
   protected readonly ticketListLoading = signal(false);
   protected readonly ticketListError = signal<string | null>(null);
   protected readonly ticketList = signal<AnalyticsTicketList | null>(null);
+  protected readonly csmLabels = CSM_LABEL;
 
   protected readonly reportOpen = signal(false);
   protected readonly reportMode = signal<ReportMode>('range');
@@ -301,14 +303,14 @@ export class AdminAnalytics implements OnInit, AfterViewInit, OnDestroy {
     push('SECTION', 'CSM overall');
     push('Metric', 'Value');
     push('Total ratings', summary.totals.csmCount);
-    push('Sad', summary.totals.csmByRating['SAD'] ?? 0);
-    push('Neh', summary.totals.csmByRating['NEUTRAL'] ?? 0);
-    push('Happy', summary.totals.csmByRating['HAPPY'] ?? 0);
-    push('Happy %', summary.totals.csmHappyPercent ?? '');
+    push(CSM_LABEL.SAD, summary.totals.csmByRating['SAD'] ?? 0);
+    push(CSM_LABEL.NEUTRAL, summary.totals.csmByRating['NEUTRAL'] ?? 0);
+    push(CSM_LABEL.HAPPY, summary.totals.csmByRating['HAPPY'] ?? 0);
+    push(`${CSM_LABEL.HAPPY} %`, summary.totals.csmHappyPercent ?? '');
     blank();
 
     push('SECTION', 'CSM per admin');
-    push('Admin', 'Sad', 'Neh', 'Happy', 'Total', 'Happy %');
+    push('Admin', CSM_LABEL.SAD, CSM_LABEL.NEUTRAL, CSM_LABEL.HAPPY, 'Total', `${CSM_LABEL.HAPPY} %`);
     for (const row of csmByAdmin) {
       const happyPct =
         row.total > 0 ? Math.round((row.happy * 1000) / row.total) / 10 : '';
@@ -468,7 +470,7 @@ export class AdminAnalytics implements OnInit, AfterViewInit, OnDestroy {
         new Chart(this.csmCanvas.nativeElement, {
           type: 'bar',
           data: {
-            labels: ['Sad', 'Neh', 'Happy'],
+            labels: [...CSM_CHART_LABELS],
             datasets: [
               {
                 label: 'CSM ratings',
@@ -478,7 +480,7 @@ export class AdminAnalytics implements OnInit, AfterViewInit, OnDestroy {
             ],
           },
           options: {
-            ...this.baseOptions('CSM faces'),
+            ...this.baseOptions('CSM ratings'),
             onClick: (_event, elements) => {
               if (!elements.length) {
                 return;
@@ -496,7 +498,7 @@ export class AdminAnalytics implements OnInit, AfterViewInit, OnDestroy {
               }
             },
             plugins: {
-              ...this.baseOptions('CSM faces').plugins,
+              ...this.baseOptions('CSM ratings').plugins,
               legend: { display: false },
             },
           },

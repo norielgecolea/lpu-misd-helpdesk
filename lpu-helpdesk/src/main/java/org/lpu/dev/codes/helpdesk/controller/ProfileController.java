@@ -1,11 +1,15 @@
 package org.lpu.dev.codes.helpdesk.controller;
 
+import jakarta.validation.Valid;
+import org.lpu.dev.codes.helpdesk.dto.StudentInfoRequest;
 import org.lpu.dev.codes.helpdesk.dto.UserProfileResponse;
 import org.lpu.dev.codes.helpdesk.security.AuthenticatedUser;
 import org.lpu.dev.codes.helpdesk.service.ProfileService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -22,5 +26,13 @@ public class ProfileController {
     @GetMapping("/profile")
     public ResponseEntity<UserProfileResponse> profile(@AuthenticationPrincipal AuthenticatedUser user) {
         return ResponseEntity.ok(profileService.getProfile(user));
+    }
+
+    @PostMapping("/student-info")
+    public ResponseEntity<UserProfileResponse> saveStudentInfo(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @Valid @RequestBody StudentInfoRequest request
+    ) {
+        return ResponseEntity.ok(profileService.saveStudentInfo(user, request));
     }
 }

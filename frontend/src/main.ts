@@ -79,6 +79,9 @@ async function completeMicrosoftRedirectBeforeBootstrap(): Promise<void> {
       email: string;
       name: string;
       role: string;
+      needsStudentInfo?: boolean;
+      declaredStudentName?: string | null;
+      declaredStudentNo?: string | null;
     };
 
     sessionStorage.removeItem(MSAL_ERROR_KEY);
@@ -92,6 +95,9 @@ async function completeMicrosoftRedirectBeforeBootstrap(): Promise<void> {
         email: data.email,
         name: data.name,
         role: data.role,
+        needsStudentInfo: data.needsStudentInfo ?? false,
+        declaredStudentName: data.declaredStudentName ?? null,
+        declaredStudentNo: data.declaredStudentNo ?? null,
       }),
     );
 

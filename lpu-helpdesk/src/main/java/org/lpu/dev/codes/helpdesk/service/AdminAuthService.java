@@ -62,7 +62,10 @@ public class AdminAuthService {
                 user.getEmail(),
                 user.getName(),
                 user.getRole().name(),
-                jwtService.getExpirationMs(rememberMe)
+                jwtService.getExpirationMs(rememberMe),
+                false,
+                null,
+                null
         );
     }
 }

@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { About } from './pages/about/about';
 import { Login } from './pages/login/login';
 import { Dashboard } from './pages/dashboard/dashboard';
 import { AdminLogin } from './pages/admin-login/admin-login';
@@ -28,6 +29,7 @@ import {
 export const routes: Routes = [
   { path: '', component: Login, canActivate: [guestGuard], pathMatch: 'full' },
   { path: 'login', redirectTo: '' },
+  { path: 'about', component: About },
   { path: 'dashboard', component: Dashboard, canActivate: [authGuard] },
 
   { path: 'kiosk', component: Kiosk },

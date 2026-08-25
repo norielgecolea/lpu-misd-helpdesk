@@ -2,13 +2,17 @@ package org.lpu.dev.codes.helpdesk.service;
 
 import java.util.Arrays;
 import java.util.List;
+import org.lpu.dev.codes.helpdesk.config.AuthProperties;
+import org.lpu.dev.codes.helpdesk.dto.DirectoryProfileResponse;
 import org.lpu.dev.codes.helpdesk.dto.TicketCreateRequest;
 import org.lpu.dev.codes.helpdesk.model.Role;
 import org.lpu.dev.codes.helpdesk.model.Ticket;
 import org.lpu.dev.codes.helpdesk.model.TicketCategoryDefinition;
 import org.lpu.dev.codes.helpdesk.model.TicketChannel;
 import org.lpu.dev.codes.helpdesk.model.TicketStatus;
+import org.lpu.dev.codes.helpdesk.model.User;
 import org.lpu.dev.codes.helpdesk.repository.TicketRepository;
+import org.lpu.dev.codes.helpdesk.repository.UserRepository;
 import org.lpu.dev.codes.helpdesk.security.AuthenticatedUser;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
@@ -22,29 +26,35 @@ import org.springframework.web.server.ResponseStatusException;
 public class TicketService {
 
     private final TicketRepository ticketRepository;
+    private final UserRepository userRepository;
     private final IdPhotoStorageService idPhotoStorageService;
     private final DirectoryLookupService directoryLookupService;
     private final TicketCategoryService ticketCategoryService;
     private final TicketCsmService ticketCsmService;
     private final TicketThreadEmailService ticketThreadEmailService;
     private final TicketConversationService ticketConversationService;
+    private final AuthProperties authProperties;
 
     public TicketService(
             TicketRepository ticketRepository,
+            UserRepository userRepository,
             IdPhotoStorageService idPhotoStorageService,
             DirectoryLookupService directoryLookupService,
             TicketCategoryService ticketCategoryService,
             TicketCsmService ticketCsmService,
             TicketThreadEmailService ticketThreadEmailService,
-            TicketConversationService ticketConversationService
+            TicketConversationService ticketConversationService,
+            AuthProperties authProperties
     ) {
         this.ticketRepository = ticketRepository;
+        this.userRepository = userRepository;
         this.idPhotoStorageService = idPhotoStorageService;
         this.directoryLookupService = directoryLookupService;
         this.ticketCategoryService = ticketCategoryService;
         this.ticketCsmService = ticketCsmService;
         this.ticketThreadEmailService = ticketThreadEmailService;
         this.ticketConversationService = ticketConversationService;
+        this.authProperties = authProperties;
     }
 
     @Transactional
@@ -61,12 +71,46 @@ public class TicketService {
         ticketCsmService.requireNoPendingForUser(requester);
 
         TicketCategoryDefinition category = ticketCategoryService.requireActiveForOnline(request.category());
-        var profile = directoryLookupService.resolveProfile(requester.getEmail(), null, null);
-        String requesterName = profile.found() && profile.name() != null && !profile.name().isBlank()
-                ? profile.name().trim()
-                : (requester.getName() != null && !requester.getName().isBlank()
-                        ? requester.getName()
-                        : requester.getEmail());
+
+        String requesterName;
+        String personType = null;
+        String personNo = null;
+
+        if (authProperties.isAllowedEmail(requester.getEmail())) {
+            DirectoryProfileResponse profile = directoryLookupService.resolveProfile(requester.getEmail(), null, null);
+            requesterName = profile.found() && profile.name() != null && !profile.name().isBlank()
+                    ? profile.name().trim()
+                    : (requester.getName() != null && !requester.getName().isBlank()
+                            ? requester.getName()
+                            : requester.getEmail());
+            if (profile.found()) {
+                personType = profile.personType();
+                personNo = profile.personNo();
+            }
+        } else {
+            User user = userRepository.findById(requester.getId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+            String declaredName = user.getDeclaredStudentName();
+            String declaredNo = user.getDeclaredStudentNo();
+            if (declaredName == null || declaredName.isBlank() || declaredNo == null || declaredNo.isBlank()) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Please enter your student name and ID number before creating a ticket"
+                );
+            }
+            DirectoryProfileResponse profile = directoryLookupService.resolveProfile(null, "STUDENT", declaredNo.trim());
+            if (profile.found()) {
+                requesterName = profile.name() != null && !profile.name().isBlank()
+                        ? profile.name().trim()
+                        : declaredName.trim();
+                personType = profile.personType() != null ? profile.personType() : "STUDENT";
+                personNo = profile.personNo() != null ? profile.personNo() : declaredNo.trim();
+            } else {
+                requesterName = declaredName.trim();
+                personType = "STUDENT";
+                personNo = declaredNo.trim();
+            }
+        }
 
         String description = request.description().trim();
 
@@ -74,9 +118,9 @@ public class TicketService {
         ticket.setRequesterUserId(requester.getId());
         ticket.setRequesterEmail(requester.getEmail());
         ticket.setRequesterName(requesterName);
-        if (profile.found()) {
-            ticket.setRequesterPersonType(profile.personType());
-            ticket.setRequesterPersonNo(profile.personNo());
+        if (personType != null && personNo != null) {
+            ticket.setRequesterPersonType(personType);
+            ticket.setRequesterPersonNo(personNo);
         }
         ticket.setCategory(category.getCode());
         ticket.setSubject(request.subject().trim());

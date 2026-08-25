@@ -1,5 +1,5 @@
 <div
-  class="relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-[#f6f7fb] p-4 sm:p-6"
+  class="relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-[#f6f7fb] p-4 pb-16 sm:p-6 sm:pb-16"
 >
   <div
     class="absolute inset-0 scale-105 bg-slate-200 bg-cover bg-center"
@@ -70,7 +70,7 @@
           LPU - Laguna<br />MISD Helpdesk System
         </h1>
         <p class="text-sm font-medium text-gray-600">
-          Sign in with your LPU Laguna account to continue.
+          Campus emails can use Microsoft or a login code. Other emails can use a login code.
         </p>
       </header>
 
@@ -150,8 +150,10 @@
           </form>
 
           <p class="text-center text-xs font-medium text-gray-500">
-            Only <span class="text-gray-700">&#64;lpulaguna.edu.ph</span> or
-            <span class="text-gray-700">&#64;lpusc.edu.ph</span> accounts are allowed to sign in.
+            Campus accounts:
+            <span class="text-gray-700">&#64;lpulaguna.edu.ph</span> /
+            <span class="text-gray-700">&#64;lpusc.edu.ph</span>.
+            Outside emails can sign in with a code — you’ll be asked for your student name and ID after.
           </p>
         } @else {
           <form (ngSubmit)="onVerifyOtp()" class="animate-rise flex flex-col gap-3" novalidate>
@@ -227,5 +229,14 @@
     class="absolute bottom-3 left-0 right-0 z-10 px-4 text-center text-[11px] leading-relaxed text-gray-600/90 sm:bottom-4 sm:text-xs"
   >
     © 2026 LPU - Laguna. Developed by MIS Department. All Rights Reserved.
+    <span class="mt-0.5 block">
+      {{ appName }} {{ appVersion }}.
+      <a
+        routerLink="/about"
+        class="text-primary font-semibold underline-offset-2 hover:underline"
+      >
+        About this system
+      </a>
+    </span>
   </p>
 </div>

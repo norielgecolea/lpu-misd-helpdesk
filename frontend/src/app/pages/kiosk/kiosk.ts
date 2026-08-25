@@ -16,6 +16,7 @@ import { playSuccessCue, unlockAudio } from '../../core/audio/cue-sounds';
 import { KioskPerson } from '../../core/kiosk/kiosk.models';
 import { KioskService } from '../../core/kiosk/kiosk.service';
 import { CsmRating, LINK_LPU_EMAIL_CATEGORY, PendingCsm, Ticket, TicketCategoryOption } from '../../core/tickets/ticket.models';
+import { CSM_LABEL } from '../../core/csm/csm-labels';
 
 type KioskStep = 'idle' | 'csm' | 'form' | 'success';
 
@@ -166,6 +167,7 @@ export class Kiosk implements OnInit, AfterViewInit, OnDestroy {
   protected readonly csmRating = signal<CsmRating | null>(null);
   protected readonly csmComment = signal('');
   protected readonly submittingCsm = signal(false);
+  protected readonly csmLabels = CSM_LABEL;
   protected readonly clock = signal(new Date());
   protected readonly clockLabel = computed(() =>
     this.clock().toLocaleString('en-PH', {

@@ -26,6 +26,7 @@ import {
   TicketStatus,
 } from '../../core/tickets/ticket.models';
 import { TicketService } from '../../core/tickets/ticket.service';
+import { CSM_LABEL } from '../../core/csm/csm-labels';
 
 const MAX_ID_BYTES = 5 * 1024 * 1024;
 const MAX_ATTACHMENTS = 5;
@@ -95,6 +96,13 @@ export class Dashboard implements OnInit, OnDestroy {
   protected readonly csmComment = signal('');
   protected readonly submittingCsm = signal(false);
   protected readonly csmError = signal<string | null>(null);
+  protected readonly csmLabels = CSM_LABEL;
+
+  protected readonly needsStudentInfo = signal(false);
+  protected readonly studentName = signal('');
+  protected readonly studentNo = signal('');
+  protected readonly savingStudentInfo = signal(false);
+  protected readonly studentInfoError = signal<string | null>(null);
 
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private listPollTimer: ReturnType<typeof setInterval> | null = null;
@@ -136,6 +144,7 @@ export class Dashboard implements OnInit, OnDestroy {
 
   async ngOnInit(): Promise<void> {
     this.displayName.set(this.auth.user()?.name ?? '');
+    this.needsStudentInfo.set(!!this.auth.user()?.needsStudentInfo);
     await Promise.all([this.loadCategories(), this.loadTickets(true), this.loadDirectoryName()]);
     await this.refreshPendingCsm(true);
     this.listPollTimer = setInterval(() => void this.loadTickets(false), LIST_POLL_MS);
@@ -223,6 +232,9 @@ export class Dashboard implements OnInit, OnDestroy {
   }
 
   protected async openForm(): Promise<void> {
+    if (this.needsStudentInfo()) {
+      return;
+    }
     if (await this.refreshPendingCsm(true)) {
       return;
     }
@@ -234,6 +246,39 @@ export class Dashboard implements OnInit, OnDestroy {
     this.idPhotoName.set('');
     this.createAttachments.set([]);
     this.showForm.set(true);
+  }
+
+  protected async submitStudentInfo(): Promise<void> {
+    if (this.savingStudentInfo()) {
+      return;
+    }
+    const name = this.studentName().trim();
+    const no = this.studentNo().trim();
+    if (!name || !no) {
+      this.studentInfoError.set('Please enter your student name and ID number.');
+      return;
+    }
+    this.studentInfoError.set(null);
+    this.savingStudentInfo.set(true);
+    try {
+      const profile = await firstValueFrom(
+        this.profileService.saveStudentInfo({ studentName: name, studentNo: no }),
+      );
+      this.needsStudentInfo.set(!!profile.needsStudentInfo);
+      this.displayName.set(profile.name);
+      this.auth.updateProfile({
+        name: profile.name,
+        needsStudentInfo: profile.needsStudentInfo,
+        declaredStudentName: profile.declaredStudentName,
+        declaredStudentNo: profile.declaredStudentNo,
+      });
+      this.studentName.set('');
+      this.studentNo.set('');
+    } catch (err: unknown) {
+      this.studentInfoError.set(this.describeError(err));
+    } finally {
+      this.savingStudentInfo.set(false);
+    }
   }
 
   protected selectCsmRating(rating: CsmRating): void {
@@ -627,10 +672,16 @@ export class Dashboard implements OnInit, OnDestroy {
   private async loadDirectoryName(): Promise<void> {
     try {
       const profile = await firstValueFrom(this.profileService.getProfile());
+      this.needsStudentInfo.set(!!profile.needsStudentInfo);
       if (profile.name) {
         this.displayName.set(profile.name);
         this.auth.updateDisplayName(profile.name);
       }
+      this.auth.updateProfile({
+        needsStudentInfo: profile.needsStudentInfo,
+        declaredStudentName: profile.declaredStudentName,
+        declaredStudentNo: profile.declaredStudentNo,
+      });
     } catch {
       // keep session name
     }

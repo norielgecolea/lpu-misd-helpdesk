@@ -1,5 +1,5 @@
 <div
-  class="relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-[#f6f7fb] p-4 sm:p-6"
+  class="relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-[#f6f7fb] p-4 pb-16 sm:p-6 sm:pb-16"
 >
   <div
     class="absolute inset-0 scale-105 bg-slate-200 bg-cover bg-center"
@@ -102,4 +102,19 @@
       Not MISD staff? <a href="/" class="text-primary font-semibold hover:underline">Go to helpdesk sign-in</a>
     </p>
   </div>
+
+  <p
+    class="absolute bottom-3 left-0 right-0 z-10 px-4 text-center text-[11px] leading-relaxed text-gray-600/90 sm:bottom-4 sm:text-xs"
+  >
+    © 2026 LPU - Laguna. Developed by MIS Department. All Rights Reserved.
+    <span class="mt-0.5 block">
+      {{ appName }} {{ appVersion }}.
+      <a
+        routerLink="/about"
+        class="text-primary font-semibold underline-offset-2 hover:underline"
+      >
+        About this system
+      </a>
+    </span>
+  </p>
 </div>

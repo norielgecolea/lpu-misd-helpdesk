@@ -107,9 +107,8 @@ export class AuthService {
   }
 
   /**
-   * Sends a one-time login code to the given LPU Laguna email via the
-   * backend (`POST /api/auth/otp/request`). Rejects non-LPU-Laguna emails
-   * before ever calling the backend.
+   * Sends a one-time login code via the backend (`POST /api/auth/otp/request`).
+   * Accepts any valid email address (campus or outside).
    */
   async requestOtp(email: string): Promise<OtpRequestResponse> {
     const normalized = this.normalizeEmail(email);
@@ -185,19 +184,13 @@ export class AuthService {
     return response.message;
   }
 
-  /** Throws {@link InvalidEmailDomainError} for emails outside the allowed LPU domains. */
+  /** Throws {@link InvalidEmailDomainError} when the value is not a valid email address. */
   private normalizeEmail(email: string): string {
     const normalized = email.trim().toLowerCase();
-    if (!EMAIL_PATTERN.test(normalized) || !this.isAllowedEmail(normalized)) {
-      throw new InvalidEmailDomainError(
-        `Please use a valid ${allowedUserEmailLabel()} email address.`,
-      );
+    if (!EMAIL_PATTERN.test(normalized)) {
+      throw new InvalidEmailDomainError('Please enter a valid email address.');
     }
     return normalized;
-  }
-
-  private isAllowedEmail(email: string): boolean {
-    return isAllowedUserEmail(email);
   }
 
   async logout(redirectTo = '/'): Promise<void> {
@@ -265,6 +258,9 @@ export class AuthService {
       email: response.email,
       name: response.name,
       role: response.role as AppRole,
+      needsStudentInfo: response.needsStudentInfo ?? false,
+      declaredStudentName: response.declaredStudentName ?? null,
+      declaredStudentNo: response.declaredStudentNo ?? null,
     };
     this.tokenSignal.set(response.token);
     this.userSignal.set(user);
@@ -278,6 +274,22 @@ export class AuthService {
     other.removeItem(USER_KEY);
     store.setItem(TOKEN_KEY, response.token);
     store.setItem(USER_KEY, JSON.stringify(user));
+  }
+
+  /** Merges profile fields (e.g. after saving student info) into the cached session user. */
+  updateProfile(partial: Partial<AuthUser>): void {
+    const current = this.userSignal();
+    if (!current) {
+      return;
+    }
+    const updated = { ...current, ...partial };
+    this.userSignal.set(updated);
+    if (!isPlatformBrowser(this.platformId)) {
+      return;
+    }
+    const rawLocal = localStorage.getItem(USER_KEY);
+    const store = rawLocal ? localStorage : sessionStorage;
+    store.setItem(USER_KEY, JSON.stringify(updated));
   }
 
   private clearSession(): void {

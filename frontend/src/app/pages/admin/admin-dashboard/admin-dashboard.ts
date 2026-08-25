@@ -37,6 +37,7 @@ import {
   AnalyticsTicketListItem,
 } from '../../../core/admin/admin.models';
 import { adminTicketsPathForChannel } from '../../../core/tickets/ticket.models';
+import { CSM_CHART_LABELS, CSM_LABEL } from '../../../core/csm/csm-labels';
 import { AnalyticsTicketListDialog } from '../../../shared/analytics-ticket-list-dialog/analytics-ticket-list-dialog';
 
 Chart.register(
@@ -87,6 +88,7 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
   protected readonly ticketListLoading = signal(false);
   protected readonly ticketListError = signal<string | null>(null);
   protected readonly ticketList = signal<AnalyticsTicketList | null>(null);
+  protected readonly csmLabels = CSM_LABEL;
 
   private charts: Chart[] = [];
   private viewReady = false;
@@ -269,7 +271,7 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
         new Chart(this.csmCanvas.nativeElement, {
           type: 'bar',
           data: {
-            labels: ['Sad', 'Neh', 'Happy'],
+            labels: [...CSM_CHART_LABELS],
             datasets: [
               {
                 label: 'CSM ratings',
@@ -279,7 +281,7 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
             ],
           },
           options: {
-            ...this.baseOptions('CSM faces'),
+            ...this.baseOptions('CSM ratings'),
             onClick: (_event, elements) => {
               if (!elements.length) {
                 return;
@@ -297,7 +299,7 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
               }
             },
             plugins: {
-              ...this.baseOptions('CSM faces').plugins,
+              ...this.baseOptions('CSM ratings').plugins,
               legend: { display: false },
             },
           },

@@ -30,6 +30,9 @@ export interface LoginResponse {
   name: string;
   role: string;
   expiresInMs: number;
+  needsStudentInfo?: boolean;
+  declaredStudentName?: string | null;
+  declaredStudentNo?: string | null;
 }
 
 export type AppRole = 'USER' | 'ADMIN' | 'SUPER_ADMIN' | 'MONITORING';
@@ -39,4 +42,7 @@ export interface AuthUser {
   email: string;
   name: string;
   role: AppRole;
+  needsStudentInfo?: boolean;
+  declaredStudentName?: string | null;
+  declaredStudentNo?: string | null;
 }

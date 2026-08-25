@@ -50,6 +50,14 @@ public class User {
     @Column(name = "id_uploaded_at")
     private Instant idUploadedAt;
 
+    /** Declared by outside-email users (non-campus) after first login. */
+    @Column(name = "declared_student_name", length = 150)
+    private String declaredStudentName;
+
+    /** Declared student ID number for outside-email users. */
+    @Column(name = "declared_student_no", length = 50)
+    private String declaredStudentNo;
+
     @Column(name = "last_login_at")
     private Instant lastLoginAt;
 
@@ -137,6 +145,22 @@ public class User {
 
     public void setIdUploadedAt(Instant idUploadedAt) {
         this.idUploadedAt = idUploadedAt;
+    }
+
+    public String getDeclaredStudentName() {
+        return declaredStudentName;
+    }
+
+    public void setDeclaredStudentName(String declaredStudentName) {
+        this.declaredStudentName = declaredStudentName;
+    }
+
+    public String getDeclaredStudentNo() {
+        return declaredStudentNo;
+    }
+
+    public void setDeclaredStudentNo(String declaredStudentNo) {
+        this.declaredStudentNo = declaredStudentNo;
     }
 
     public Instant getLastLoginAt() {

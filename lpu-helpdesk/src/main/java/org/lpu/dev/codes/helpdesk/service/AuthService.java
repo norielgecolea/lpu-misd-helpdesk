@@ -5,6 +5,7 @@ import org.apache.logging.log4j.Logger;
 import org.lpu.dev.codes.helpdesk.config.AuthProperties;
 import org.lpu.dev.codes.helpdesk.dto.LoginResponse;
 import org.lpu.dev.codes.helpdesk.dto.OtpRequestResponse;
+import org.lpu.dev.codes.helpdesk.model.Role;
 import org.lpu.dev.codes.helpdesk.model.User;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -48,7 +49,7 @@ public class AuthService {
 
     @Transactional
     public OtpRequestResponse requestOtp(String email) {
-        requireAllowedDomain(email);
+        // OTP accepts any valid email (including outside campus). Microsoft stays campus-only.
         long expiresInMs = otpService.requestOtp(email);
         log.info("OTP requested for email={}", email.trim().toLowerCase());
         return new OtpRequestResponse(expiresInMs);
@@ -56,7 +57,7 @@ public class AuthService {
 
     @Transactional
     public LoginResponse verifyOtp(String email, String code) {
-        requireAllowedDomain(email);
+        // OTP accepts any valid email (including outside campus). Microsoft stays campus-only.
         boolean valid = otpService.verifyOtp(email, code);
         if (!valid) {
             log.warn("OTP verification failed for email={}", email.trim().toLowerCase());
@@ -70,6 +71,7 @@ public class AuthService {
 
     private LoginResponse issueLoginResponse(User user) {
         String token = jwtService.generateToken(user);
+        boolean needsStudentInfo = needsStudentInfo(user);
         return new LoginResponse(
                 user.getId(),
                 token,
@@ -77,15 +79,30 @@ public class AuthService {
                 user.getEmail(),
                 user.getName(),
                 user.getRole().name(),
-                jwtService.getExpirationMs()
+                jwtService.getExpirationMs(),
+                needsStudentInfo,
+                user.getDeclaredStudentName(),
+                user.getDeclaredStudentNo()
         );
+    }
+
+    private boolean needsStudentInfo(User user) {
+        if (user.getRole() != Role.USER) {
+            return false;
+        }
+        if (authProperties.isAllowedEmail(user.getEmail())) {
+            return false;
+        }
+        String name = user.getDeclaredStudentName();
+        String no = user.getDeclaredStudentNo();
+        return name == null || name.isBlank() || no == null || no.isBlank();
     }
 
     private void requireAllowedDomain(String email) {
         if (!authProperties.isAllowedEmail(email)) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
-                    "Only " + authProperties.allowedDomainsDisplay() + " accounts may sign in"
+                    "Only " + authProperties.allowedDomainsDisplay() + " accounts may sign in with Microsoft"
             );
         }
     }

@@ -1,6 +1,7 @@
 import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
+import { APP_NAME, APP_VERSION } from '../../core/app-info';
 import { AuthService, InvalidEmailDomainError } from '../../core/auth/auth.service';
 
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -10,7 +11,7 @@ type Step = 'email' | 'otp';
 
 @Component({
   selector: 'app-login',
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   templateUrl: './login.html',
   styles: `
     @keyframes login-rise {
@@ -55,6 +56,8 @@ export class Login implements OnInit, OnDestroy {
 
   protected readonly error = signal<string | null>(null);
   protected readonly loading = signal(false);
+  protected readonly appName = APP_NAME;
+  protected readonly appVersion = APP_VERSION;
 
   protected readonly heroImages = [
     { src: '/lpu-building.webp', alt: 'LPU Laguna campus' },

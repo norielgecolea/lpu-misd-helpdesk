@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { APP_NAME, APP_VERSION } from '../../core/app-info';
 import { AuthService } from '../../core/auth/auth.service';
 
 @Component({
@@ -14,6 +15,8 @@ export class AdminLogin {
   protected readonly rememberMe = signal(false);
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
+  protected readonly appName = APP_NAME;
+  protected readonly appVersion = APP_VERSION;
 
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);

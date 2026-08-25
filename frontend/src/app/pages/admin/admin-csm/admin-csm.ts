@@ -30,6 +30,7 @@ import {
   AnalyticsTicketListItem,
 } from '../../../core/admin/admin.models';
 import { adminTicketsPathForChannel } from '../../../core/tickets/ticket.models';
+import { CSM_LABEL } from '../../../core/csm/csm-labels';
 
 Chart.register(CategoryScale, LinearScale, BarElement, BarController, Tooltip, Legend);
 
@@ -62,6 +63,7 @@ export class AdminCsm implements OnInit, AfterViewInit, OnDestroy {
   protected readonly sadTickets = signal<AnalyticsTicketListItem[]>([]);
   protected readonly detailLoading = signal(false);
   protected readonly detailError = signal<string | null>(null);
+  protected readonly csmLabels = CSM_LABEL;
 
   protected readonly selectedAdmin = computed(() => {
     const id = this.selectedAdminId();
@@ -243,19 +245,19 @@ export class AdminCsm implements OnInit, AfterViewInit, OnDestroy {
         labels: rows.map((r) => r.name),
         datasets: [
           {
-            label: 'Sad',
+            label: CSM_LABEL.SAD,
             data: rows.map((r) => r.sad),
             backgroundColor: RED,
             stack: 'csm',
           },
           {
-            label: 'Neh',
+            label: CSM_LABEL.NEUTRAL,
             data: rows.map((r) => r.neutral),
             backgroundColor: AMBER,
             stack: 'csm',
           },
           {
-            label: 'Happy',
+            label: CSM_LABEL.HAPPY,
             data: rows.map((r) => r.happy),
             backgroundColor: EMERALD,
             stack: 'csm',
@@ -295,7 +297,7 @@ export class AdminCsm implements OnInit, AfterViewInit, OnDestroy {
                   return '';
                 }
                 const happyPct = Math.round((row.happy * 1000) / row.total) / 10;
-                return `Happy ratio: ${happyPct}%`;
+                return `Very satisfied ratio: ${happyPct}%`;
               },
             },
           },

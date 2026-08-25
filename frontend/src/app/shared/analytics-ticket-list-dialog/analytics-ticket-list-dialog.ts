@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, input, output } from '@angular/core';
 import { AnalyticsTicketList, AnalyticsTicketListItem } from '../../core/admin/admin.models';
+import { csmLabel as formatCsmLabel } from '../../core/csm/csm-labels';
 
 @Component({
   selector: 'app-analytics-ticket-list-dialog',
@@ -42,15 +43,6 @@ export class AnalyticsTicketListDialog {
   }
 
   protected csmLabel(rating: string | null): string {
-    switch (rating) {
-      case 'HAPPY':
-        return 'Happy';
-      case 'NEUTRAL':
-        return 'Neutral';
-      case 'SAD':
-        return 'Sad';
-      default:
-        return '';
-    }
+    return formatCsmLabel(rating);
   }
 }

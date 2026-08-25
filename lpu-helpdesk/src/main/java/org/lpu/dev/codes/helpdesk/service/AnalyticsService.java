@@ -279,9 +279,9 @@ public class AnalyticsService {
                 .toList();
 
         String face = switch (rating) {
-            case HAPPY -> "Happy";
-            case NEUTRAL -> "Neutral";
-            case SAD -> "Sad";
+            case HAPPY -> "Very Satisfied";
+            case NEUTRAL -> "Satisfied";
+            case SAD -> "Not Satisfied";
         };
         String title = "CSM — " + face;
         if (assignedAdminId != null) {
