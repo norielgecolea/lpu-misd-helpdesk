@@ -1,7 +1,9 @@
 package org.lpu.dev.codes.helpdesk.service;
 
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import org.lpu.dev.codes.helpdesk.config.AuthProperties;
 import org.lpu.dev.codes.helpdesk.dto.DirectoryProfileResponse;
 import org.lpu.dev.codes.helpdesk.dto.TicketCreateRequest;
@@ -24,6 +26,12 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class TicketService {
+
+    private static final Set<TicketStatus> REQUESTER_CLOSEABLE = Set.of(
+            TicketStatus.OPEN,
+            TicketStatus.IN_PROGRESS,
+            TicketStatus.RESOLVED
+    );
 
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
@@ -127,6 +135,7 @@ public class TicketService {
 
         Ticket ticket = new Ticket();
         ticket.setRequesterUserId(requester.getId());
+        // Always the login address (outside email stays sender; never declared LPU email).
         ticket.setRequesterEmail(requester.getEmail());
         ticket.setRequesterName(requesterName);
         if (personType != null && personNo != null) {
@@ -165,6 +174,59 @@ public class TicketService {
         );
     }
 
+    /**
+     * Requester-only status changes: close an active ticket, or reopen a closed one.
+     */
+    @Transactional
+    public Ticket updateMyTicketStatus(AuthenticatedUser requester, Long ticketId, String rawStatus) {
+        TicketStatus newStatus;
+        try {
+            newStatus = TicketStatus.valueOf(rawStatus.trim().toUpperCase());
+        } catch (IllegalArgumentException | NullPointerException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status");
+        }
+        if (newStatus != TicketStatus.CLOSED && newStatus != TicketStatus.OPEN) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "You can only close or reopen tickets"
+            );
+        }
+
+        Ticket ticket = requireOwnedTicket(requester, ticketId);
+        TicketStatus previous = ticket.getStatus();
+
+        if (newStatus == TicketStatus.CLOSED) {
+            if (!REQUESTER_CLOSEABLE.contains(previous)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "This ticket is already closed");
+            }
+            ticket.setStatus(TicketStatus.CLOSED);
+            ticket.setResolvedAt(Instant.now());
+        } else {
+            if (previous != TicketStatus.CLOSED) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only closed tickets can be reopened");
+            }
+            ticket.setStatus(TicketStatus.OPEN);
+            ticket.setResolvedAt(null);
+        }
+        ticket.setUpdatedAt(Instant.now());
+        Ticket saved = ticketRepository.save(ticket);
+
+        if (previous != saved.getStatus() && saved.getStatus() == TicketStatus.CLOSED) {
+            ensureThreadRoot(saved);
+            String messageId = ticketThreadEmailService.newMessageId(
+                    saved.getId(),
+                    "status-" + saved.getStatus().name().toLowerCase()
+            );
+            ticketThreadEmailService.sendStatusChangeAsync(
+                    saved,
+                    saved.getStatus(),
+                    saved.getEmailThreadRootId(),
+                    messageId
+            );
+        }
+        return saved;
+    }
+
     @Transactional(readOnly = true)
     public Resource loadIdPhoto(AuthenticatedUser user, Long ticketId) {
         Ticket ticket = requireAccessibleTicket(user, ticketId);
@@ -175,6 +237,28 @@ public class TicketService {
     public MediaType idPhotoMediaType(AuthenticatedUser user, Long ticketId) {
         Ticket ticket = requireAccessibleTicket(user, ticketId);
         return idPhotoStorageService.mediaTypeFor(ticket.getIdPhotoFilename());
+    }
+
+    private void ensureThreadRoot(Ticket ticket) {
+        if (ticket.getEmailThreadRootId() != null && !ticket.getEmailThreadRootId().isBlank()) {
+            return;
+        }
+        String rootId = ticketThreadEmailService.newMessageId(ticket.getId(), "root");
+        ticket.setEmailThreadRootId(rootId);
+        ticket.setUpdatedAt(Instant.now());
+        ticketRepository.save(ticket);
+    }
+
+    private Ticket requireOwnedTicket(AuthenticatedUser user, Long ticketId) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
+        boolean ownsByUserId = user.getId().equals(ticket.getRequesterUserId());
+        boolean ownsByEmail = user.getEmail() != null
+                && user.getEmail().equalsIgnoreCase(ticket.getRequesterEmail());
+        if (!ownsByUserId && !ownsByEmail) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You cannot update this ticket");
+        }
+        return ticket;
     }
 
     private Ticket requireAccessibleTicket(AuthenticatedUser user, Long ticketId) {

@@ -93,11 +93,13 @@ public class DirectoryEmailService {
         List<Ticket> tickets = ticketRepository.findByPerson(personType, personNo);
         for (Ticket ticket : tickets) {
             boolean changed = false;
-            if (!normalized.equalsIgnoreCase(ticket.getRequesterEmail())) {
+            // Keep real requester emails (e.g. outside-login tickets); only fill pending/blank.
+            boolean pendingRequester = PendingRequesterEmail.isPending(ticket.getRequesterEmail());
+            if (pendingRequester && !normalized.equalsIgnoreCase(ticket.getRequesterEmail())) {
                 ticket.setRequesterEmail(normalized);
                 changed = true;
             }
-            if (userId != null && !userId.equals(ticket.getRequesterUserId())) {
+            if (pendingRequester && userId != null && !userId.equals(ticket.getRequesterUserId())) {
                 ticket.setRequesterUserId(userId);
                 changed = true;
             }
@@ -234,7 +236,9 @@ public class DirectoryEmailService {
             changed = true;
         }
         String normalized = email == null ? null : email.trim().toLowerCase();
+        // Never overwrite a real sender email (outside login stays the ticket sender).
         if (normalized != null && !normalized.isBlank() && !PendingRequesterEmail.isPending(normalized)
+                && PendingRequesterEmail.isPending(ticket.getRequesterEmail())
                 && !normalized.equalsIgnoreCase(ticket.getRequesterEmail())) {
             ticket.setRequesterEmail(normalized);
             changed = true;

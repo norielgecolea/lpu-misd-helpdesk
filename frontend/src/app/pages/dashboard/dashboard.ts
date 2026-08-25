@@ -70,6 +70,7 @@ export class Dashboard implements OnInit, OnDestroy {
   protected readonly messageError = signal<string | null>(null);
   protected readonly draft = signal('');
   protected readonly sendingMessage = signal(false);
+  protected readonly statusUpdating = signal(false);
   protected readonly live = signal(false);
 
   protected readonly showForm = signal(false);
@@ -505,6 +506,24 @@ export class Dashboard implements OnInit, OnDestroy {
 
   protected canMessage(ticket: Ticket | null = this.selectedTicket()): boolean {
     return ticket != null && ticket.status !== 'CLOSED';
+  }
+
+  protected async updateTicketStatus(ticket: Ticket, status: 'OPEN' | 'CLOSED'): Promise<void> {
+    if (this.statusUpdating()) {
+      return;
+    }
+    this.statusUpdating.set(true);
+    this.messageError.set(null);
+    try {
+      const updated = await firstValueFrom(this.ticketService.updateStatus(ticket.id, status));
+      this.tickets.update((current) =>
+        current.map((t) => (t.id === updated.id ? { ...t, ...updated } : t)),
+      );
+    } catch (err: unknown) {
+      this.messageError.set(this.describeError(err));
+    } finally {
+      this.statusUpdating.set(false);
+    }
   }
 
   protected isMine(message: TicketMessage): boolean {

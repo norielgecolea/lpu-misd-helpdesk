@@ -76,4 +76,8 @@ export class TicketService {
       responseType: 'blob',
     });
   }
+
+  updateStatus(ticketId: number, status: 'OPEN' | 'CLOSED'): Observable<Ticket> {
+    return this.http.patch<Ticket>(`${this.base}/${ticketId}/status`, { status });
+  }
 }
