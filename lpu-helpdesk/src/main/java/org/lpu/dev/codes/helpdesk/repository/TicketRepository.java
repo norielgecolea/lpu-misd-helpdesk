@@ -38,8 +38,8 @@ public class TicketRepository {
     }
 
     /**
-     * Student dashboard: tickets owned by this user id, plus any onsite/walk-in
-     * tickets that were filed under the same email (requester_user_id may be null).
+     * Student dashboard: tickets owned by this user id, sender email, or linked LPU email
+     * (outside-email tickets also appear under the declared campus account).
      */
     @Transactional(readOnly = true)
     public List<Ticket> findMineByUserIdOrEmailOrderByCreatedAtDesc(Long requesterUserId, String email) {
@@ -47,6 +47,7 @@ public class TicketRepository {
                 .createQuery(
                         "FROM Ticket t WHERE t.requesterUserId = :userId "
                                 + "OR lower(t.requesterEmail) = lower(:email) "
+                                + "OR (t.requesterLpuEmail IS NOT NULL AND lower(t.requesterLpuEmail) = lower(:email)) "
                                 + "ORDER BY t.createdAt DESC",
                         Ticket.class
                 )
@@ -70,7 +71,8 @@ public class TicketRepository {
                 .createQuery(
                         "FROM Ticket t WHERE t.status = :status "
                                 + "AND t.category <> :emailLinkCategory "
-                                + "AND (t.requesterUserId = :userId OR lower(t.requesterEmail) = lower(:email)) "
+                                + "AND (t.requesterUserId = :userId OR lower(t.requesterEmail) = lower(:email) "
+                                + "OR (t.requesterLpuEmail IS NOT NULL AND lower(t.requesterLpuEmail) = lower(:email))) "
                                 + "AND t.id NOT IN (SELECT c.ticketId FROM TicketCsm c) "
                                 + "ORDER BY t.createdAt ASC, t.id ASC",
                         Ticket.class
@@ -103,7 +105,8 @@ public class TicketRepository {
             return Optional.empty();
         }
         if (hasEmail) {
-            hql.append("lower(t.requesterEmail) = lower(:email)");
+            hql.append("(lower(t.requesterEmail) = lower(:email) "
+                    + "OR (t.requesterLpuEmail IS NOT NULL AND lower(t.requesterLpuEmail) = lower(:email)))");
         }
         if (hasEmail && hasPerson) {
             hql.append(" OR ");
@@ -133,7 +136,8 @@ public class TicketRepository {
                 .createQuery(
                         "SELECT count(t.id) FROM Ticket t WHERE t.status = :status "
                                 + "AND t.category <> :emailLinkCategory "
-                                + "AND (t.requesterUserId = :userId OR lower(t.requesterEmail) = lower(:email)) "
+                                + "AND (t.requesterUserId = :userId OR lower(t.requesterEmail) = lower(:email) "
+                                + "OR (t.requesterLpuEmail IS NOT NULL AND lower(t.requesterLpuEmail) = lower(:email))) "
                                 + "AND t.id NOT IN (SELECT c.ticketId FROM TicketCsm c)",
                         Long.class
                 )
@@ -165,7 +169,8 @@ public class TicketRepository {
 
         StringBuilder hql = new StringBuilder("FROM Ticket t WHERE (");
         if (hasEmail) {
-            hql.append("lower(t.requesterEmail) = lower(:email)");
+            hql.append("(lower(t.requesterEmail) = lower(:email) "
+                    + "OR (t.requesterLpuEmail IS NOT NULL AND lower(t.requesterLpuEmail) = lower(:email)))");
         }
         if (hasEmail && hasPerson) {
             hql.append(" OR ");
@@ -184,6 +189,23 @@ public class TicketRepository {
             query.setParameter("personNo", personNo.trim());
         }
         return query.getResultList();
+    }
+
+    /** Stamp declared LPU email onto all tickets owned by this outside-email user. */
+    @Transactional
+    public int stampRequesterLpuEmailForUser(Long userId, String lpuEmail) {
+        if (userId == null || lpuEmail == null || lpuEmail.isBlank()) {
+            return 0;
+        }
+        return currentSession()
+                .createMutationQuery(
+                        "UPDATE Ticket t SET t.requesterLpuEmail = :lpu, t.updatedAt = :now "
+                                + "WHERE t.requesterUserId = :userId"
+                )
+                .setParameter("lpu", lpuEmail.trim().toLowerCase())
+                .setParameter("now", Instant.now())
+                .setParameter("userId", userId)
+                .executeUpdate();
     }
 
     /** Admin ticket table: all channels (online + onsite), optionally filtered by status. */

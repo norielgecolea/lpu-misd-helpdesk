@@ -236,10 +236,7 @@ public class TicketConversationService {
         if (isStaff(user)) {
             return;
         }
-        boolean ownsByUserId = user.getId().equals(ticket.getRequesterUserId());
-        boolean ownsByEmail = user.getEmail() != null
-                && user.getEmail().equalsIgnoreCase(ticket.getRequesterEmail());
-        if (!ownsByUserId && !ownsByEmail) {
+        if (!ticket.matchesRequester(user.getId(), user.getEmail())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You cannot access this ticket");
         }
     }

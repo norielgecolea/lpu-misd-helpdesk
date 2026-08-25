@@ -94,6 +94,13 @@ public class Ticket {
     @Column(name = "requester_reopen_count", nullable = false)
     private int requesterReopenCount = 0;
 
+    /**
+     * Campus LPU email linked to this ticket (e.g. declared by an outside-email requester).
+     * Tickets appear under both the sender email and this LPU email account.
+     */
+    @Column(name = "requester_lpu_email", length = 255)
+    private String requesterLpuEmail;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
@@ -237,6 +244,28 @@ public class Ticket {
 
     public void setRequesterReopenCount(int requesterReopenCount) {
         this.requesterReopenCount = requesterReopenCount;
+    }
+
+    public String getRequesterLpuEmail() {
+        return requesterLpuEmail;
+    }
+
+    public void setRequesterLpuEmail(String requesterLpuEmail) {
+        this.requesterLpuEmail = requesterLpuEmail;
+    }
+
+    /** True when this user owns the ticket by account id, sender email, or linked LPU email. */
+    public boolean matchesRequester(Long userId, String email) {
+        if (userId != null && userId.equals(requesterUserId)) {
+            return true;
+        }
+        if (email == null || email.isBlank()) {
+            return false;
+        }
+        if (requesterEmail != null && email.equalsIgnoreCase(requesterEmail)) {
+            return true;
+        }
+        return requesterLpuEmail != null && email.equalsIgnoreCase(requesterLpuEmail);
     }
 
     public Instant getCreatedAt() {

@@ -18,6 +18,8 @@ export interface Ticket {
   requesterName: string;
   requesterPersonType: string | null;
   requesterPersonNo: string | null;
+  /** Declared campus email for outside-sender tickets (visible under both accounts). */
+  requesterLpuEmail?: string | null;
   category: string;
   categoryLabel: string;
   subject: string;

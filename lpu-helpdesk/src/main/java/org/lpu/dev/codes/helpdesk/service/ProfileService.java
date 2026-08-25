@@ -7,6 +7,7 @@ import org.lpu.dev.codes.helpdesk.dto.StudentInfoRequest;
 import org.lpu.dev.codes.helpdesk.dto.UserProfileResponse;
 import org.lpu.dev.codes.helpdesk.model.Role;
 import org.lpu.dev.codes.helpdesk.model.User;
+import org.lpu.dev.codes.helpdesk.repository.TicketRepository;
 import org.lpu.dev.codes.helpdesk.repository.UserRepository;
 import org.lpu.dev.codes.helpdesk.security.AuthenticatedUser;
 import org.springframework.http.HttpStatus;
@@ -18,15 +19,18 @@ import org.springframework.web.server.ResponseStatusException;
 public class ProfileService {
 
     private final UserRepository userRepository;
+    private final TicketRepository ticketRepository;
     private final DirectoryLookupService directoryLookupService;
     private final AuthProperties authProperties;
 
     public ProfileService(
             UserRepository userRepository,
+            TicketRepository ticketRepository,
             DirectoryLookupService directoryLookupService,
             AuthProperties authProperties
     ) {
         this.userRepository = userRepository;
+        this.ticketRepository = ticketRepository;
         this.directoryLookupService = directoryLookupService;
         this.authProperties = authProperties;
     }
@@ -102,6 +106,7 @@ public class ProfileService {
         user.setName(displayName);
         user.setUpdatedAt(Instant.now());
         userRepository.save(user);
+        ticketRepository.stampRequesterLpuEmailForUser(user.getId(), lpuEmail);
 
         return UserProfileResponse.from(user, needsStudentInfo(user));
     }

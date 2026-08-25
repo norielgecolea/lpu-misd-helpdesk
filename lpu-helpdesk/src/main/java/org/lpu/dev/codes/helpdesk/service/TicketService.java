@@ -86,6 +86,7 @@ public class TicketService {
         String requesterName;
         String personType = null;
         String personNo = null;
+        String linkedLpuEmail = null;
 
         if (authProperties.isAllowedEmail(requester.getEmail())) {
             DirectoryProfileResponse profile = directoryLookupService.resolveProfile(requester.getEmail(), null, null);
@@ -132,6 +133,7 @@ public class TicketService {
                 personType = type;
                 personNo = declaredNo.trim();
             }
+            linkedLpuEmail = declaredLpuEmail.trim().toLowerCase();
         }
 
         String description = request.description().trim();
@@ -141,6 +143,9 @@ public class TicketService {
         // Always the login address (outside email stays sender; never declared LPU email).
         ticket.setRequesterEmail(requester.getEmail());
         ticket.setRequesterName(requesterName);
+        if (linkedLpuEmail != null) {
+            ticket.setRequesterLpuEmail(linkedLpuEmail);
+        }
         if (personType != null && personNo != null) {
             ticket.setRequesterPersonType(personType);
             ticket.setRequesterPersonNo(personNo);
@@ -264,10 +269,7 @@ public class TicketService {
     private Ticket requireOwnedTicket(AuthenticatedUser user, Long ticketId) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
-        boolean ownsByUserId = user.getId().equals(ticket.getRequesterUserId());
-        boolean ownsByEmail = user.getEmail() != null
-                && user.getEmail().equalsIgnoreCase(ticket.getRequesterEmail());
-        if (!ownsByUserId && !ownsByEmail) {
+        if (!ticket.matchesRequester(user.getId(), user.getEmail())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You cannot update this ticket");
         }
         return ticket;
@@ -278,10 +280,7 @@ public class TicketService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
 
         boolean isStaff = user.getRole() == Role.ADMIN || user.getRole() == Role.SUPER_ADMIN;
-        boolean ownsByUserId = user.getId().equals(ticket.getRequesterUserId());
-        boolean ownsByEmail = user.getEmail() != null
-                && user.getEmail().equalsIgnoreCase(ticket.getRequesterEmail());
-        if (!isStaff && !ownsByUserId && !ownsByEmail) {
+        if (!isStaff && !ticket.matchesRequester(user.getId(), user.getEmail())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You cannot view this ticket's ID photo");
         }
         if (ticket.getIdPhotoFilename() == null || ticket.getIdPhotoFilename().isBlank()) {

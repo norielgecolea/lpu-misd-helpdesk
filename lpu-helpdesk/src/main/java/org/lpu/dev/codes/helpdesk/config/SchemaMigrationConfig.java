@@ -120,6 +120,18 @@ public class SchemaMigrationConfig {
         jdbc.execute("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS requester_person_type VARCHAR(20)");
         jdbc.execute("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS requester_person_no VARCHAR(50)");
         jdbc.execute("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS requester_reopen_count INT NOT NULL DEFAULT 0");
+        jdbc.execute("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS requester_lpu_email VARCHAR(255)");
+        // Outside-email tickets: copy declared LPU email so campus accounts can see/rate them.
+        jdbc.execute("""
+                UPDATE tickets t
+                   SET requester_lpu_email = lower(trim(u.declared_lpu_email))
+                  FROM users u
+                 WHERE t.requester_user_id = u.id
+                   AND u.declared_lpu_email IS NOT NULL
+                   AND trim(u.declared_lpu_email) <> ''
+                   AND (t.requester_lpu_email IS NULL OR trim(t.requester_lpu_email) = '')
+                   AND lower(trim(t.requester_email)) <> lower(trim(u.declared_lpu_email))
+                """);
         jdbc.execute("""
                 CREATE INDEX IF NOT EXISTS idx_tickets_assigned_admin
                     ON tickets (assigned_admin_id, status)

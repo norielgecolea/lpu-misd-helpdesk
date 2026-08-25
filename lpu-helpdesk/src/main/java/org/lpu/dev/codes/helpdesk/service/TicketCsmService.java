@@ -119,17 +119,17 @@ public class TicketCsmService {
     }
 
     private static boolean ownsTicket(AuthenticatedUser user, Ticket ticket) {
-        boolean byUserId = user.getId() != null && user.getId().equals(ticket.getRequesterUserId());
-        boolean byEmail = user.getEmail() != null
-                && user.getEmail().equalsIgnoreCase(ticket.getRequesterEmail());
-        return byUserId || byEmail;
+        return ticket.matchesRequester(user.getId(), user.getEmail());
     }
 
     private static boolean belongsToPerson(Ticket ticket, String email, String personType, String personNo) {
-        if (email != null && !email.isBlank()
-                && ticket.getRequesterEmail() != null
-                && email.equalsIgnoreCase(ticket.getRequesterEmail())) {
-            return true;
+        if (email != null && !email.isBlank()) {
+            if (ticket.getRequesterEmail() != null && email.equalsIgnoreCase(ticket.getRequesterEmail())) {
+                return true;
+            }
+            if (ticket.getRequesterLpuEmail() != null && email.equalsIgnoreCase(ticket.getRequesterLpuEmail())) {
+                return true;
+            }
         }
         if (personType != null && personNo != null
                 && personType.equalsIgnoreCase(nullToEmpty(ticket.getRequesterPersonType()))
