@@ -228,14 +228,21 @@
             </div>
             <div class="flex shrink-0 flex-wrap items-center gap-1.5">
               @if (ticket.status === 'CLOSED') {
-                <button
-                  type="button"
-                  (click)="updateTicketStatus(ticket, 'OPEN')"
-                  [disabled]="statusUpdating()"
-                  class="inline-flex h-7 cursor-pointer items-center rounded-md border border-emerald-300 bg-emerald-50 px-2.5 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Reopen
-                </button>
+                @if (ticket.canReopen !== false) {
+                  <button
+                    type="button"
+                    (click)="updateTicketStatus(ticket, 'OPEN')"
+                    [disabled]="statusUpdating()"
+                    class="inline-flex h-7 cursor-pointer items-center rounded-md border border-emerald-300 bg-emerald-50 px-2.5 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    [title]="reopenHint(ticket)"
+                  >
+                    Reopen
+                  </button>
+                } @else {
+                  <span class="text-[11px] font-medium text-zinc-500" title="Reopened the maximum of 2 times">
+                    Permanently closed
+                  </span>
+                }
               } @else {
                 <button
                   type="button"

@@ -3,7 +3,9 @@ package org.lpu.dev.codes.helpdesk.dto;
 import java.time.Instant;
 import org.lpu.dev.codes.helpdesk.model.PendingRequesterEmail;
 import org.lpu.dev.codes.helpdesk.model.Ticket;
+import org.lpu.dev.codes.helpdesk.model.TicketStatus;
 import org.lpu.dev.codes.helpdesk.service.CategoryLabelCache;
+import org.lpu.dev.codes.helpdesk.service.TicketService;
 
 public record TicketResponse(
         Long id,
@@ -25,6 +27,8 @@ public record TicketResponse(
         int unreadCount,
         boolean pendingEmail,
         boolean directoryUnlinked,
+        int requesterReopenCount,
+        boolean canReopen,
         Instant createdAt,
         Instant updatedAt,
         Instant resolvedAt
@@ -40,6 +44,9 @@ public record TicketResponse(
     public static TicketResponse from(Ticket ticket, String assignedAdminName, int unreadCount) {
         boolean hasId = ticket.getIdPhotoFilename() != null && !ticket.getIdPhotoFilename().isBlank();
         boolean pendingEmail = PendingRequesterEmail.isPending(ticket.getRequesterEmail());
+        int reopenCount = Math.max(0, ticket.getRequesterReopenCount());
+        boolean canReopen = ticket.getStatus() == TicketStatus.CLOSED
+                && reopenCount < TicketService.MAX_REQUESTER_REOPENS;
         return new TicketResponse(
                 ticket.getId(),
                 ticket.getTicketNumber(),
@@ -60,6 +67,8 @@ public record TicketResponse(
                 Math.max(0, unreadCount),
                 pendingEmail,
                 isDirectoryUnlinked(ticket, pendingEmail),
+                reopenCount,
+                canReopen,
                 ticket.getCreatedAt(),
                 ticket.getUpdatedAt(),
                 ticket.getResolvedAt()

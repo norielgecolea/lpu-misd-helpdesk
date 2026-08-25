@@ -119,6 +119,7 @@ public class SchemaMigrationConfig {
         jdbc.execute("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS email_thread_root_id VARCHAR(255)");
         jdbc.execute("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS requester_person_type VARCHAR(20)");
         jdbc.execute("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS requester_person_no VARCHAR(50)");
+        jdbc.execute("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS requester_reopen_count INT NOT NULL DEFAULT 0");
         jdbc.execute("""
                 CREATE INDEX IF NOT EXISTS idx_tickets_assigned_admin
                     ON tickets (assigned_admin_id, status)

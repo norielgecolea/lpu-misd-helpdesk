@@ -90,6 +90,10 @@ public class Ticket {
     @Column(name = "requester_person_no", length = 50)
     private String requesterPersonNo;
 
+    /** How many times the requester has reopened this ticket (max 2). */
+    @Column(name = "requester_reopen_count", nullable = false)
+    private int requesterReopenCount = 0;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
@@ -225,6 +229,14 @@ public class Ticket {
 
     public void setRequesterPersonNo(String requesterPersonNo) {
         this.requesterPersonNo = requesterPersonNo;
+    }
+
+    public int getRequesterReopenCount() {
+        return requesterReopenCount;
+    }
+
+    public void setRequesterReopenCount(int requesterReopenCount) {
+        this.requesterReopenCount = requesterReopenCount;
     }
 
     public Instant getCreatedAt() {

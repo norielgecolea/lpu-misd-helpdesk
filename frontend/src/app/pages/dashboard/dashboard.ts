@@ -512,6 +512,10 @@ export class Dashboard implements OnInit, OnDestroy {
     if (this.statusUpdating()) {
       return;
     }
+    if (status === 'OPEN' && ticket.canReopen === false) {
+      this.messageError.set('This ticket was reopened twice and is now permanently closed');
+      return;
+    }
     this.statusUpdating.set(true);
     this.messageError.set(null);
     try {
@@ -524,6 +528,12 @@ export class Dashboard implements OnInit, OnDestroy {
     } finally {
       this.statusUpdating.set(false);
     }
+  }
+
+  protected reopenHint(ticket: Ticket): string {
+    const used = ticket.requesterReopenCount ?? 0;
+    const left = Math.max(0, 2 - used);
+    return left === 1 ? '1 reopen left' : `${left} reopens left`;
   }
 
   protected isMine(message: TicketMessage): boolean {

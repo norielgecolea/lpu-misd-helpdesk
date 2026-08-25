@@ -35,6 +35,10 @@ export interface Ticket {
   pendingEmail?: boolean;
   /** True when the ticket has a real LPU email that is not on a student/employee record. */
   directoryUnlinked?: boolean;
+  /** Times the requester has reopened this ticket (max 2). */
+  requesterReopenCount?: number;
+  /** False when closed permanently after 2 reopens. */
+  canReopen?: boolean;
 }
 
 export const LINK_LPU_EMAIL_CATEGORY = 'LINK_LPU_EMAIL';

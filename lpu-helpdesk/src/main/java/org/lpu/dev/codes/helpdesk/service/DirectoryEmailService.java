@@ -7,6 +7,7 @@ import org.apache.logging.log4j.Logger;
 import org.lpu.dev.codes.helpdesk.config.AuthProperties;
 import org.lpu.dev.codes.helpdesk.dto.EncodeLpuEmailRequest;
 import org.lpu.dev.codes.helpdesk.dto.EncodeLpuEmailResponse;
+import org.lpu.dev.codes.helpdesk.dto.LinkTicketPersonRequest;
 import org.lpu.dev.codes.helpdesk.model.Employee;
 import org.lpu.dev.codes.helpdesk.model.PendingRequesterEmail;
 import org.lpu.dev.codes.helpdesk.model.Student;
@@ -75,6 +76,92 @@ public class DirectoryEmailService {
                 linked
         );
         return new EncodeLpuEmailResponse(email, person.type(), person.number(), person.name(), linked);
+    }
+
+    /**
+     * Look up a student/employee by ID number and stamp that directory record onto the ticket.
+     * Does not change a real requester email (outside-login senders stay as-is).
+     * When the ticket already has an LPU email and the directory person has none, encodes it.
+     */
+    @Transactional
+    public EncodeLpuEmailResponse linkTicketPerson(LinkTicketPersonRequest request) {
+        Ticket ticket = ticketRepository.findById(request.ticketId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
+
+        PersonRef person = resolvePersonByTypeAndNumber(request.personType(), request.personNo());
+
+        String ticketEmail = ticket.getRequesterEmail();
+        boolean pending = PendingRequesterEmail.isPending(ticketEmail);
+        String stampEmail = ticketEmail;
+        if (pending) {
+            String directoryEmail = blankToNull(person.existingEmail());
+            if (directoryEmail != null) {
+                stampEmail = directoryEmail;
+            }
+        }
+
+        applyPerson(ticket, person, stampEmail);
+        if (person.name() != null && !person.name().isBlank()) {
+            syncRequesterDisplayName(ticket, person.name().trim(), stampEmail);
+        }
+
+        String resultEmail = stampEmail != null ? stampEmail.trim().toLowerCase() : "";
+        if (!pending && authProperties.isAllowedEmail(ticketEmail)) {
+            String normalized = ticketEmail.trim().toLowerCase();
+            try {
+                ensureEmailNotTakenBySomeoneElse(normalized, person);
+                ensurePersonEmailCompatible(person, normalized);
+                if (blankToNull(person.existingEmail()) == null) {
+                    writeDirectoryEmail(person, normalized);
+                }
+                linkTicketsForPerson(person.type(), person.number(), normalized);
+                attachPersonToTicketsForEmail(normalized, person);
+                resultEmail = normalized;
+            } catch (ResponseStatusException ex) {
+                // Identity is already on the ticket; skip directory email write on conflict.
+                if (ex.getStatusCode() != HttpStatus.CONFLICT) {
+                    throw ex;
+                }
+                log.warn(
+                        "Linked {} {} to ticket {} without encoding email: {}",
+                        person.type(),
+                        person.number(),
+                        ticket.getTicketNumber(),
+                        ex.getReason()
+                );
+            }
+        }
+
+        log.info(
+                "Linked directory person {} {} to ticket {}",
+                person.type(),
+                person.number(),
+                ticket.getTicketNumber()
+        );
+        return new EncodeLpuEmailResponse(resultEmail, person.type(), person.number(), person.name(), 1);
+    }
+
+    private PersonRef resolvePersonByTypeAndNumber(String personType, String personNo) {
+        String number = blankToNull(personNo);
+        if (number == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Provide a student or employee number");
+        }
+        String type = blankToNull(personType);
+        if (type == null) {
+            return resolvePersonByNumber(number);
+        }
+        type = type.toUpperCase();
+        if ("STUDENT".equals(type)) {
+            Student student = studentRepository.findByRfidOrStudentNo(number)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student record not found"));
+            return fromStudent(student);
+        }
+        if ("EMPLOYEE".equals(type)) {
+            Employee employee = employeeRepository.findByRfidOrEmployeeNo(number)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee record not found"));
+            return fromEmployee(employee);
+        }
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "personType must be STUDENT or EMPLOYEE");
     }
 
     /** Attach tickets for this person once their directory email is known. */

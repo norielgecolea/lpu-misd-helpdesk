@@ -127,4 +127,17 @@ export class DirectoryService {
       personNo: request.personNo ?? undefined,
     });
   }
+
+  /** Look up local directory by ID and stamp that person onto the ticket. */
+  linkTicketPerson(request: {
+    ticketId: number;
+    personType?: string | null;
+    personNo: string;
+  }): Observable<EncodeLpuEmailResponse> {
+    return this.http.post<EncodeLpuEmailResponse>(`${environment.apiBaseUrl}/admin/directory/link-ticket-person`, {
+      ticketId: request.ticketId,
+      personType: request.personType ?? undefined,
+      personNo: request.personNo,
+    });
+  }
 }

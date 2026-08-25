@@ -74,6 +74,11 @@ export class TicketSummaryDialog implements OnDestroy {
       }
       this.loadedLookupKey = key;
       void this.load(ticket);
+      // Prefill ID fields from the ticket so admins can correct a wrong number.
+      if (!this.linkPersonNo().trim()) {
+        this.linkPersonType.set((ticket.requesterPersonType ?? '').toUpperCase());
+        this.linkPersonNo.set(ticket.requesterPersonNo ?? '');
+      }
     });
   }
 
@@ -121,6 +126,38 @@ export class TicketSummaryDialog implements OnDestroy {
           ? ((err as { error?: { message?: string } }).error?.message ?? null)
           : null;
       this.linkError.set(message ?? 'Could not link this email to the local record.');
+    } finally {
+      this.linking.set(false);
+    }
+  }
+
+  protected async onLinkPersonById(ticket: Ticket): Promise<void> {
+    this.linkError.set(null);
+    const personNo = this.linkPersonNo().trim();
+    if (!personNo) {
+      this.linkError.set('Enter a student or employee number.');
+      return;
+    }
+
+    this.linking.set(true);
+    try {
+      const personType = this.linkPersonType().trim().toUpperCase();
+      await firstValueFrom(
+        this.directoryService.linkTicketPerson({
+          ticketId: ticket.id,
+          personType: personType || null,
+          personNo,
+        }),
+      );
+      this.resetLinkForm();
+      this.directoryLinked.emit(ticket);
+      this.close();
+    } catch (err) {
+      const message =
+        err && typeof err === 'object' && 'error' in err
+          ? ((err as { error?: { message?: string } }).error?.message ?? null)
+          : null;
+      this.linkError.set(message ?? 'No matching student or employee record for that number.');
     } finally {
       this.linking.set(false);
     }

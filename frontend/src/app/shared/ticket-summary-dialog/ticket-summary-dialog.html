@@ -122,9 +122,49 @@
                 </button>
               </form>
             } @else {
-              <p class="mb-3 rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-                Not found in the student/employee directory. Showing ticket details.
+              <p class="mb-3 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                Not found in the student/employee directory. Enter the correct ID number to load their local record.
               </p>
+              <form class="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3" (ngSubmit)="onLinkPersonById(current)">
+                <p class="text-[11px] font-bold tracking-wide text-amber-900 uppercase">Encode ID number</p>
+                <p class="mt-1 text-[11px] leading-snug text-amber-800">
+                  Look up the student or employee in the local directory and attach that record to this ticket.
+                </p>
+                <div class="mt-2 grid grid-cols-[7.5rem_minmax(0,1fr)] gap-2">
+                  <select
+                    class="rounded-md border border-amber-200 bg-white px-2 py-1.5 text-xs text-zinc-900 focus:border-[#8d2546] focus:outline-none"
+                    [ngModel]="linkPersonType()"
+                    (ngModelChange)="linkPersonType.set($event)"
+                    [ngModelOptions]="{ standalone: true }"
+                    [disabled]="linking()"
+                    aria-label="Record type"
+                  >
+                    <option value="">Auto-detect</option>
+                    <option value="STUDENT">Student</option>
+                    <option value="EMPLOYEE">Employee</option>
+                  </select>
+                  <input
+                    type="text"
+                    autocomplete="off"
+                    class="rounded-md border border-amber-200 bg-white px-2 py-1.5 text-xs text-zinc-900 focus:border-[#8d2546] focus:outline-none"
+                    placeholder="Student / employee no."
+                    [ngModel]="linkPersonNo()"
+                    (ngModelChange)="linkPersonNo.set($event)"
+                    [ngModelOptions]="{ standalone: true }"
+                    [disabled]="linking()"
+                  />
+                </div>
+                @if (linkError()) {
+                  <p class="mt-1.5 text-[11px] font-medium text-red-700">{{ linkError() }}</p>
+                }
+                <button
+                  type="submit"
+                  [disabled]="linking() || !linkPersonNo().trim()"
+                  class="mt-2 w-full cursor-pointer rounded-lg bg-amber-700 px-3 py-2 text-xs font-bold text-white hover:bg-amber-800 disabled:opacity-50"
+                >
+                  {{ linking() ? 'Looking up…' : 'Load directory record' }}
+                </button>
+              </form>
             }
           }
         }

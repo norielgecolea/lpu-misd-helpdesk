@@ -33,6 +33,9 @@ public class TicketService {
             TicketStatus.RESOLVED
     );
 
+    /** Student may reopen a closed ticket at most this many times; then it stays closed. */
+    public static final int MAX_REQUESTER_REOPENS = 2;
+
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
     private final IdPhotoStorageService idPhotoStorageService;
@@ -205,6 +208,15 @@ public class TicketService {
             if (previous != TicketStatus.CLOSED) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only closed tickets can be reopened");
             }
+            if (ticket.getRequesterReopenCount() >= MAX_REQUESTER_REOPENS) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "This ticket was reopened the maximum of "
+                                + MAX_REQUESTER_REOPENS
+                                + " times and is now permanently closed"
+                );
+            }
+            ticket.setRequesterReopenCount(ticket.getRequesterReopenCount() + 1);
             ticket.setStatus(TicketStatus.OPEN);
             ticket.setResolvedAt(null);
         }
