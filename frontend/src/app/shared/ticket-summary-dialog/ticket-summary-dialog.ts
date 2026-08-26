@@ -2,7 +2,7 @@ import { Component, input, output, signal, effect, inject, OnDestroy, untracked 
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { DirectoryProfile, DirectoryService } from '../../core/directory/directory.service';
-import { Ticket, displayRequesterEmail, isPendingRequesterEmail, needsDirectoryLink, ticketCategoryPath } from '../../core/tickets/ticket.models';
+import { Ticket, displayRequesterEmail, formatResolveDuration, isPendingRequesterEmail, needsDirectoryLink, ticketCategoryPath, ticketResolveHours } from '../../core/tickets/ticket.models';
 import { TicketService } from '../../core/tickets/ticket.service';
 import { isAllowedUserEmail, allowedUserEmailLabel } from '../../core/auth/auth.service';
 
@@ -281,7 +281,10 @@ export class TicketSummaryDialog implements OnDestroy {
       { label: 'Last updated', value: this.formatWhen(ticket.updatedAt) },
     );
     if (ticket.resolvedAt) {
-      rows.push({ label: 'Resolved', value: this.formatWhen(ticket.resolvedAt) });
+      rows.push(
+        { label: 'Resolved', value: this.formatWhen(ticket.resolvedAt) },
+        { label: 'Resolve time', value: formatResolveDuration(ticketResolveHours(ticket)) },
+      );
     }
     return rows;
   }

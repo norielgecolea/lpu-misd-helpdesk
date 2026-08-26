@@ -79,6 +79,16 @@ export class AdminService {
     );
   }
 
+  getResolvedTickets(from: string, to: string, limit?: number): Observable<AnalyticsTicketList> {
+    const params = new URLSearchParams({ from, to });
+    if (limit != null) {
+      params.set('limit', String(limit));
+    }
+    return this.http.get<AnalyticsTicketList>(
+      `${environment.apiBaseUrl}/admin/analytics/resolved-tickets?${params.toString()}`,
+    );
+  }
+
   // --- Ticket / kiosk categories ---
 
   listCategories(): Observable<AdminCategory[]> {

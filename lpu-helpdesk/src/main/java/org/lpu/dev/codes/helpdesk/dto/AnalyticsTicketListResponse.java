@@ -23,6 +23,7 @@ public record AnalyticsTicketListResponse(
             String assignedAdminName,
             Instant createdAt,
             Instant resolvedAt,
+            Double resolveHours,
             String csmRating,
             String csmComment,
             Instant csmSubmittedAt

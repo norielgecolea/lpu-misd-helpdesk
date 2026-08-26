@@ -88,6 +88,9 @@
                       @if (item.assignedAdminName) {
                         <span>{{ item.assignedAdminName }}</span>
                       }
+                      @if (resolveDuration(item) !== '—') {
+                        <span>Resolved in {{ resolveDuration(item) }}</span>
+                      }
                       @if (item.csmSubmittedAt) {
                         <span>{{ item.csmSubmittedAt | date: 'MMM d, y · h:mm a' }}</span>
                       } @else {

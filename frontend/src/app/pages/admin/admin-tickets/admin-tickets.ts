@@ -18,7 +18,7 @@ import { playMessageCue, unlockAudio } from '../../../core/audio/cue-sounds';
 import { AdminService } from '../../../core/admin/admin.service';
 import { AdminCategory, AdminSummary } from '../../../core/admin/admin.models';
 import { AuthService, isAllowedUserEmail, allowedUserEmailLabel } from '../../../core/auth/auth.service';
-import { Ticket, TicketChannel, TicketMessage, TicketStatus, adminTicketsPathForChannel, canEncodeLpuEmail, displayRequesterEmail, messageAuthorLabel as formatMessageAuthor, needsDirectoryLink, ticketCategoryPath } from '../../../core/tickets/ticket.models';
+import { Ticket, TicketChannel, TicketMessage, TicketStatus, adminTicketsPathForChannel, canEncodeLpuEmail, displayRequesterEmail, formatResolveDuration, messageAuthorLabel as formatMessageAuthor, needsDirectoryLink, ticketCategoryPath, ticketResolveHours } from '../../../core/tickets/ticket.models';
 import { TicketService } from '../../../core/tickets/ticket.service';
 import { DirectoryService } from '../../../core/directory/directory.service';
 import { TicketSummaryDialog } from '../../../shared/ticket-summary-dialog/ticket-summary-dialog';
@@ -50,7 +50,8 @@ type SortKey =
   | 'assignedAdminName'
   | 'status'
   | 'channel'
-  | 'updatedAt';
+  | 'updatedAt'
+  | 'resolveHours';
 type SortDir = 'asc' | 'desc';
 
 @Component({
@@ -620,6 +621,8 @@ export class AdminTickets implements OnInit, OnDestroy {
     switch (key) {
       case 'updatedAt':
         return new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
+      case 'resolveHours':
+        return (ticketResolveHours(a) ?? -1) - (ticketResolveHours(b) ?? -1);
       case 'status':
         return STATUS_RANK[a.status] - STATUS_RANK[b.status];
       case 'assignedAdminName': {
@@ -697,6 +700,10 @@ export class AdminTickets implements OnInit, OnDestroy {
       case 'CLOSED':
         return 'Closed';
     }
+  }
+
+  protected resolveDuration(ticket: Ticket): string {
+    return formatResolveDuration(ticketResolveHours(ticket));
   }
 
   protected channelLabel(channel: Ticket['channel']): string {

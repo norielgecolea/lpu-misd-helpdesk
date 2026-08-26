@@ -1,5 +1,6 @@
 package org.lpu.dev.codes.helpdesk.service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.EnumSet;
 import java.util.List;
@@ -103,7 +104,9 @@ public class AdminTicketService {
         ticket.setStatus(newStatus);
         ticket.setUpdatedAt(Instant.now());
         if (newStatus == TicketStatus.RESOLVED || newStatus == TicketStatus.CLOSED) {
-            ticket.setResolvedAt(Instant.now());
+            if (ticket.getResolvedAt() == null) {
+                ticket.setResolvedAt(Instant.now());
+            }
         } else {
             ticket.setResolvedAt(null);
         }
@@ -126,6 +129,33 @@ public class AdminTicketService {
         }
 
         return saved;
+    }
+
+    /**
+     * Closes tickets that have stayed {@link TicketStatus#RESOLVED} for at least two days.
+     * Keeps the original {@code resolvedAt} so resolve time is unchanged.
+     */
+    @Transactional
+    public int autoCloseExpiredResolved() {
+        Instant cutoff = Instant.now().minus(Duration.ofDays(2));
+        List<Ticket> stale = ticketRepository.findResolvedBefore(cutoff, 100);
+        int closed = 0;
+        for (Ticket ticket : stale) {
+            ticket.setStatus(TicketStatus.CLOSED);
+            ticket.setUpdatedAt(Instant.now());
+            Ticket saved = ticketRepository.save(ticket);
+            ensureThreadRoot(saved);
+            String messageId = ticketThreadEmailService.newMessageId(saved.getId(), "status-closed");
+            ticketThreadEmailService.sendStatusChangeAsync(
+                    saved,
+                    TicketStatus.CLOSED,
+                    saved.getEmailThreadRootId(),
+                    messageId
+            );
+            closed++;
+            log.info("Ticket {} auto-closed after 2 days resolved", saved.getTicketNumber());
+        }
+        return closed;
     }
 
     private void ensureThreadRoot(Ticket ticket) {

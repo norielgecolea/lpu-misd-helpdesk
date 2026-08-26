@@ -38,7 +38,7 @@ import {
   AnalyticsTicketList,
   AnalyticsTicketListItem,
 } from '../../../core/admin/admin.models';
-import { adminTicketsPathForChannel } from '../../../core/tickets/ticket.models';
+import { adminTicketsPathForChannel, formatResolveDuration, ticketResolveHours } from '../../../core/tickets/ticket.models';
 import { CSM_CHART_LABELS, CSM_LABEL } from '../../../core/csm/csm-labels';
 import { AnalyticsTicketListDialog } from '../../../shared/analytics-ticket-list-dialog/analytics-ticket-list-dialog';
 
@@ -84,6 +84,7 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
   protected readonly summary = signal<AnalyticsSummary | null>(null);
+  protected readonly resolvedTickets = signal<AnalyticsTicketListItem[]>([]);
   protected readonly period = signal<DashboardPeriod>('30d');
   protected readonly periods: { id: DashboardPeriod; label: string }[] = [
     { id: 'today', label: 'Today' },
@@ -198,6 +199,10 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
     return `${row.categoryKey}:${row.concernKey}`;
   }
 
+  protected resolveDuration(item: AnalyticsTicketListItem): string {
+    return formatResolveDuration(ticketResolveHours(item));
+  }
+
   protected async openAssigneeTickets(row: AnalyticsAssigneeLoad): Promise<void> {
     const { from, to } = this.periodBounds();
     this.ticketListOpen.set(true);
@@ -243,13 +248,22 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  protected openResolvedTicket(item: AnalyticsTicketListItem): void {
+    void this.router.navigate([adminTicketsPathForChannel(item.channel)], {
+      queryParams: { ticket: item.id },
+    });
+  }
+
   private async load(): Promise<void> {
     const seq = ++this.loadSeq;
     this.loading.set(true);
     this.error.set(null);
     try {
       const { from, to } = this.periodBounds();
-      const data = await firstValueFrom(this.adminService.getAnalyticsSummary(from, to));
+      const [data, resolved] = await Promise.all([
+        firstValueFrom(this.adminService.getAnalyticsSummary(from, to)),
+        firstValueFrom(this.adminService.getResolvedTickets(from, to)),
+      ]);
       if (seq !== this.loadSeq) {
         return;
       }
@@ -257,12 +271,14 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
         ...data,
         byConcern: data.byConcern ?? [],
       });
+      this.resolvedTickets.set(resolved.items ?? []);
       this.scheduleRenderCharts();
     } catch (err) {
       if (seq !== this.loadSeq) {
         return;
       }
       this.summary.set(null);
+      this.resolvedTickets.set([]);
       this.error.set(this.describeError(err));
       this.destroyCharts();
     } finally {

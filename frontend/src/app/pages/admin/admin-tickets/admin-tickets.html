@@ -124,7 +124,7 @@
       </div>
     } @else {
       <div class="min-h-0 flex-1 overflow-auto overscroll-contain">
-        <table class="w-full min-w-[84rem] table-fixed border-collapse text-left text-xs">
+        <table class="w-full min-w-[92rem] table-fixed border-collapse text-left text-xs">
           <thead class="sticky top-0 z-10 border-b border-zinc-200 bg-zinc-50 text-[10px] font-semibold tracking-wide text-zinc-500 uppercase">
             <tr>
               <th class="w-[7.5rem] px-2.5 py-2">
@@ -169,6 +169,11 @@
                   </button>
                 </th>
               }
+              <th class="w-[7.5rem] px-2.5 py-2">
+                <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('resolveHours')">
+                  Resolve time <span class="opacity-70">{{ sortIcon('resolveHours') }}</span>
+                </button>
+              </th>
               <th class="w-[8.5rem] px-2.5 py-2">
                 <button type="button" class="inline-flex cursor-pointer items-center gap-1 hover:text-zinc-800" (click)="toggleSort('updatedAt')">
                   Updated <span class="opacity-70">{{ sortIcon('updatedAt') }}</span>
@@ -239,6 +244,9 @@
                     {{ channelLabel(ticket.channel) }}
                   </td>
                 }
+                <td class="overflow-hidden px-2.5 py-1.5 align-middle tabular-nums opacity-80">
+                  {{ resolveDuration(ticket) }}
+                </td>
                 <td class="overflow-hidden px-2.5 py-1.5 align-middle opacity-80">
                   {{ ticket.updatedAt | date: 'MMM d, h:mm a' }}
                 </td>
@@ -366,6 +374,9 @@
                   }
                   · {{ requesterEmailLabel(ticket) }}
                   · {{ ticket.createdAt | date: 'MMM d, h:mm a' }}
+                  @if (ticket.resolvedAt) {
+                    · Resolved in {{ resolveDuration(ticket) }}
+                  }
                 </p>
               </div>
             </div>
@@ -456,6 +467,9 @@
                 <option value="RESOLVED">Resolved</option>
                 <option value="CLOSED">Closed</option>
               </select>
+              @if (ticket.status === 'RESOLVED') {
+                <span class="text-[10px] text-zinc-500">Auto-closes after 2 days</span>
+              }
             </div>
           </div>
         </div>

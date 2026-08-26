@@ -185,6 +185,7 @@ export interface AnalyticsTicketListItem {
   assignedAdminName: string | null;
   createdAt: string;
   resolvedAt: string | null;
+  resolveHours?: number | null;
   csmRating: AnalyticsCsmRating | null;
   csmComment: string | null;
   csmSubmittedAt: string | null;

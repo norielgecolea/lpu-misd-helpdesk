@@ -150,6 +150,38 @@ export function messageAuthorLabel(
   return message.authorName;
 }
 
+export function ticketResolveHours(ticket: {
+  createdAt?: string | null;
+  resolvedAt?: string | null;
+  resolveHours?: number | null;
+}): number | null {
+  if (ticket.resolveHours != null && Number.isFinite(ticket.resolveHours)) {
+    return ticket.resolveHours;
+  }
+  if (!ticket.createdAt || !ticket.resolvedAt) {
+    return null;
+  }
+  const start = Date.parse(ticket.createdAt);
+  const end = Date.parse(ticket.resolvedAt);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) {
+    return null;
+  }
+  return Math.round(((end - start) / 3_600_000) * 10) / 10;
+}
+
+export function formatResolveDuration(hours: number | null | undefined): string {
+  if (hours == null || !Number.isFinite(hours)) {
+    return '—';
+  }
+  if (hours < 1) {
+    return `${Math.max(1, Math.round(hours * 60))} min`;
+  }
+  if (hours < 24) {
+    return `${hours.toFixed(1)} h`;
+  }
+  return `${(Math.round((hours / 24) * 10) / 10).toFixed(1)} d`;
+}
+
 export type CsmRating = 'SAD' | 'NEUTRAL' | 'HAPPY';
 
 export interface PendingCsm {

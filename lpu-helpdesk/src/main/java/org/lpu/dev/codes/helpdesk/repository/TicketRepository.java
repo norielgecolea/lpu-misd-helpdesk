@@ -524,6 +524,41 @@ public class TicketRepository {
                 .getResultList();
     }
 
+    /** Tickets resolved (or closed) in range, newest first. */
+    @Transactional(readOnly = true)
+    public List<Ticket> findResolvedBetween(Instant from, Instant to, int limit) {
+        return currentSession()
+                .createQuery(
+                        "FROM Ticket t WHERE t.resolvedAt IS NOT NULL "
+                                + "AND t.resolvedAt >= :from AND t.resolvedAt < :to "
+                                + "AND t.status IN (:resolved, :closed) "
+                                + "ORDER BY t.resolvedAt DESC",
+                        Ticket.class
+                )
+                .setParameter("from", from)
+                .setParameter("to", to)
+                .setParameter("resolved", TicketStatus.RESOLVED)
+                .setParameter("closed", TicketStatus.CLOSED)
+                .setMaxResults(Math.max(1, limit))
+                .getResultList();
+    }
+
+    /** Resolved tickets whose resolvedAt is on or before the cutoff. */
+    @Transactional(readOnly = true)
+    public List<Ticket> findResolvedBefore(Instant cutoff, int limit) {
+        return currentSession()
+                .createQuery(
+                        "FROM Ticket t WHERE t.status = :status "
+                                + "AND t.resolvedAt IS NOT NULL AND t.resolvedAt <= :cutoff "
+                                + "ORDER BY t.resolvedAt ASC",
+                        Ticket.class
+                )
+                .setParameter("status", TicketStatus.RESOLVED)
+                .setParameter("cutoff", cutoff)
+                .setMaxResults(Math.max(1, limit))
+                .getResultList();
+    }
+
     @Transactional(readOnly = true)
     public List<Ticket> findByIds(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {

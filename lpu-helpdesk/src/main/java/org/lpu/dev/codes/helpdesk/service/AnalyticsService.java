@@ -369,10 +369,59 @@ public class AnalyticsService {
                 assignedAdminName,
                 ticket.getCreatedAt(),
                 ticket.getResolvedAt(),
+                resolveHours(ticket),
                 csm != null ? csm.getRating().name() : null,
                 csm != null ? csm.getComment() : null,
                 csm != null ? csm.getSubmittedAt() : null
         );
+    }
+
+    @Transactional(readOnly = true)
+    public AnalyticsTicketListResponse resolvedTickets(Instant from, Instant to, Integer limit) {
+        Instant rangeFrom = from != null ? from : Instant.now().minus(30, ChronoUnit.DAYS);
+        Instant rangeTo = to != null ? to : Instant.now().plus(1, ChronoUnit.DAYS);
+        int cap = limit != null && limit > 0 ? Math.min(limit, 5000) : LIST_LIMIT;
+
+        List<Ticket> tickets = ticketRepository.findResolvedBetween(rangeFrom, rangeTo, cap + 1);
+        boolean truncated = tickets.size() > cap;
+        if (truncated) {
+            tickets = tickets.subList(0, cap);
+        }
+
+        List<Long> adminIds = tickets.stream()
+                .map(Ticket::getAssignedAdminId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<Long, User> admins = userRepository.findByIdIn(adminIds);
+
+        List<Item> items = tickets.stream()
+                .map(ticket -> {
+                    String adminName = null;
+                    if (ticket.getAssignedAdminId() != null) {
+                        User admin = admins.get(ticket.getAssignedAdminId());
+                        adminName = admin != null ? admin.getName() : ("Admin #" + ticket.getAssignedAdminId());
+                    }
+                    return toItem(ticket, adminName, null);
+                })
+                .toList();
+
+        return new AnalyticsTicketListResponse(
+                "Resolve time per ticket",
+                truncated,
+                cap,
+                items
+        );
+    }
+
+    private static Double resolveHours(Ticket ticket) {
+        Instant created = ticket.getCreatedAt();
+        Instant resolved = ticket.getResolvedAt();
+        if (created == null || resolved == null || resolved.isBefore(created)) {
+            return null;
+        }
+        double hours = ChronoUnit.MILLIS.between(created, resolved) / 3_600_000.0;
+        return Math.round(hours * 10.0) / 10.0;
     }
 
     private static Map<String, Long> toDayMap(List<Object[]> rows) {

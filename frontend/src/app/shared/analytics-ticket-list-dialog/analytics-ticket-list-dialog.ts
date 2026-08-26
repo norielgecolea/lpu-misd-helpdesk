@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, input, output } from '@angular/core';
 import { AnalyticsTicketList, AnalyticsTicketListItem } from '../../core/admin/admin.models';
 import { csmLabel as formatCsmLabel } from '../../core/csm/csm-labels';
+import { formatResolveDuration, ticketResolveHours } from '../../core/tickets/ticket.models';
 
 @Component({
   selector: 'app-analytics-ticket-list-dialog',
@@ -44,5 +45,9 @@ export class AnalyticsTicketListDialog {
 
   protected csmLabel(rating: string | null): string {
     return formatCsmLabel(rating);
+  }
+
+  protected resolveDuration(item: AnalyticsTicketListItem): string {
+    return formatResolveDuration(ticketResolveHours(item));
   }
 }
