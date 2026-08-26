@@ -270,11 +270,10 @@
         >
           <div class="mb-5">
             <h3 class="text-xl font-extrabold tracking-tight text-[#14181f] sm:text-2xl">
-              What do you need help with?
+              {{ pickerHeading() }}
             </h3>
             <p class="mt-1 text-sm text-zinc-500 sm:text-base">
-              Choose one concern to get a queue number.
-             
+              {{ pickerHint() }}
             </p>
           </div>
 
@@ -288,57 +287,86 @@
           }
 
           <form (ngSubmit)="submitTicket()" class="flex flex-col gap-5" novalidate>
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              @for (option of categories(); track option.value) {
-                <button
-                  type="button"
-                  (click)="selectCategory(option.value)"
-                  [disabled]="submitting()"
-                  class="min-h-16 cursor-pointer rounded-2xl border px-5 py-4 text-left text-base font-semibold transition-all duration-200 disabled:opacity-50"
-                  [class.border-[#8d2546]]="category() === option.value"
-                  [class.bg-[#8d2546]]="category() === option.value"
-                  [class.text-white]="category() === option.value"
-                  [class.shadow-[0_12px_28px_-16px_rgba(141,37,70,0.85)]]="category() === option.value"
-                  [class.border-zinc-200]="category() !== option.value"
-                  [class.bg-zinc-50]="category() !== option.value"
-                  [class.text-zinc-800]="category() !== option.value"
-                  [class.hover:border-[#8d2546]/40]="category() !== option.value"
-                  [class.hover:bg-white]="category() !== option.value"
-                >
-                  {{ option.label }}
-                </button>
-              }
-            </div>
-
-            @if (requiresDetail) {
-              <div class="flex flex-col gap-2">
-                <label class="text-sm font-semibold text-zinc-800" for="concern">Describe your concern</label>
-                <textarea
-                  id="concern"
-                  name="concern"
-                  rows="3"
-                  placeholder="Type a short description…"
-                  class="w-full resize-none rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 text-base text-zinc-900 placeholder:text-zinc-400 focus:border-[#8d2546] focus:bg-white focus:outline-none"
-                  [ngModel]="concern()"
-                  (ngModelChange)="onConcernChange($event)"
-                  [ngModelOptions]="{ standalone: true }"
-                  [disabled]="submitting()"
-                ></textarea>
-              </div>
-            }
-
-            <button
-              type="submit"
-              [disabled]="submitting()"
-              class="inline-flex min-h-14 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-[#8d2546] px-6 text-base font-bold text-white transition-colors hover:bg-[#7a1f3c] disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-16 sm:text-lg"
-            >
-              @if (submitting()) {
-                <span class="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white"></span>
-                <span>Creating ticket…</span>
+            @if (pickerStep() === 'category') {
+              @if (categories().length === 0) {
+                <p class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+                  No concerns are available right now. Please see the counter.
+                </p>
               } @else {
-                <span>Get queue number</span>
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  @for (option of categories(); track option.value) {
+                    <button
+                      type="button"
+                      (click)="selectCategory(option.value)"
+                      [disabled]="submitting()"
+                      class="min-h-16 cursor-pointer rounded-2xl border border-zinc-200 bg-zinc-50 px-5 py-4 text-left text-base font-semibold text-zinc-800 transition-all duration-200 hover:border-[#8d2546]/40 hover:bg-white disabled:opacity-50"
+                    >
+                      {{ option.label }}
+                    </button>
+                  }
+                </div>
               }
-            </button>
+            } @else {
+              <button
+                type="button"
+                (click)="backToCategories()"
+                [disabled]="submitting()"
+                class="inline-flex w-fit cursor-pointer items-center text-sm font-semibold text-[#8d2546] hover:underline disabled:opacity-50"
+              >
+                ← Back to categories
+              </button>
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                @for (option of problems(); track option.value) {
+                  <button
+                    type="button"
+                    (click)="selectProblem(option.value)"
+                    [disabled]="submitting()"
+                    class="min-h-16 cursor-pointer rounded-2xl border px-5 py-4 text-left text-base font-semibold transition-all duration-200 disabled:opacity-50"
+                    [class.border-[#8d2546]]="subcategory() === option.value"
+                    [class.bg-[#8d2546]]="subcategory() === option.value"
+                    [class.text-white]="subcategory() === option.value"
+                    [class.shadow-[0_12px_28px_-16px_rgba(141,37,70,0.85)]]="subcategory() === option.value"
+                    [class.border-zinc-200]="subcategory() !== option.value"
+                    [class.bg-zinc-50]="subcategory() !== option.value"
+                    [class.text-zinc-800]="subcategory() !== option.value"
+                    [class.hover:border-[#8d2546]/40]="subcategory() !== option.value"
+                    [class.hover:bg-white]="subcategory() !== option.value"
+                  >
+                    {{ option.label }}
+                  </button>
+                }
+              </div>
+
+              @if (requiresDetail) {
+                <div class="flex flex-col gap-2">
+                  <label class="text-sm font-semibold text-zinc-800" for="concern">Describe your concern</label>
+                  <textarea
+                    id="concern"
+                    name="concern"
+                    rows="3"
+                    placeholder="Type a short description…"
+                    class="w-full resize-none rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 text-base text-zinc-900 placeholder:text-zinc-400 focus:border-[#8d2546] focus:bg-white focus:outline-none"
+                    [ngModel]="concern()"
+                    (ngModelChange)="onConcernChange($event)"
+                    [ngModelOptions]="{ standalone: true }"
+                    [disabled]="submitting()"
+                  ></textarea>
+                </div>
+              }
+
+              <button
+                type="submit"
+                [disabled]="submitting() || !subcategory()"
+                class="inline-flex min-h-14 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-[#8d2546] px-6 text-base font-bold text-white transition-colors hover:bg-[#7a1f3c] disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-16 sm:text-lg"
+              >
+                @if (submitting()) {
+                  <span class="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white"></span>
+                  <span>Creating ticket…</span>
+                } @else {
+                  <span>Get queue number</span>
+                }
+              </button>
+            }
           </form>
         </section>
       </div>
@@ -361,7 +389,7 @@
           <p class="mt-5 text-sm text-zinc-600">
             Ticket <span class="font-semibold text-zinc-900">{{ ticket.ticketNumber }}</span>
           </p>
-          <p class="mt-1 text-sm font-medium text-zinc-500">{{ ticket.categoryLabel }}</p>
+          <p class="mt-1 text-sm font-medium text-zinc-500">{{ ticket.categoryPath || ticket.categoryLabel }}</p>
           <p class="mt-6 text-base font-semibold text-zinc-900">Please wait to be called.</p>
 
           <button

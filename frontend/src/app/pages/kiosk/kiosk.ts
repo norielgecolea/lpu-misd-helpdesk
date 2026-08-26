@@ -161,6 +161,8 @@ export class Kiosk implements OnInit, AfterViewInit, OnDestroy {
   protected readonly person = signal<KioskPerson | null>(null);
   protected readonly categories = signal<TicketCategoryOption[]>([]);
   protected readonly category = signal('');
+  protected readonly subcategory = signal('');
+  protected readonly pickerStep = signal<'category' | 'problem'>('category');
   protected readonly concern = signal('');
   protected readonly createdTicket = signal<Ticket | null>(null);
   protected readonly pendingCsm = signal<PendingCsm | null>(null);
@@ -202,19 +204,8 @@ export class Kiosk implements OnInit, AfterViewInit, OnDestroy {
         (option) => option.value !== LINK_LPU_EMAIL_CATEGORY,
       );
       this.categories.set(options);
-      if (options.length > 0) {
-        this.category.set(options[0].value);
-      }
     } catch {
-      this.categories.set([
-        { value: 'NETWORK_INTERNET', label: 'Network / Internet' },
-        { value: 'HARDWARE_EQUIPMENT', label: 'Hardware / Equipment' },
-        { value: 'ACCOUNT_PASSWORD', label: 'Account & Password' },
-        { value: 'SOFTWARE_SYSTEM_ACCESS', label: 'Software / System Access' },
-        { value: 'EMAIL_OUTLOOK', label: 'Email / Outlook' },
-        { value: 'OTHERS', label: 'Others' },
-      ]);
-      this.category.set('NETWORK_INTERNET');
+      this.categories.set([]);
     }
   }
 
@@ -237,9 +228,27 @@ export class Kiosk implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  protected readonly selectedParent = computed(
+    () => this.categories().find((option) => option.value === this.category()) ?? null,
+  );
+
+  protected readonly problems = computed(() => this.selectedParent()?.children ?? []);
+
   protected get requiresDetail(): boolean {
-    const selected = this.categories().find((c) => c.value === this.category());
-    return selected?.requiresDetail === true || this.category() === 'OTHERS';
+    const selected = this.problems().find((option) => option.value === this.subcategory());
+    return selected?.requiresDetail === true;
+  }
+
+  protected pickerHeading(): string {
+    return this.pickerStep() === 'problem' ? "What's the problem?" : 'What do you need help with?';
+  }
+
+  protected pickerHint(): string {
+    const parent = this.selectedParent();
+    if (this.pickerStep() === 'problem' && parent) {
+      return parent.label;
+    }
+    return 'Choose a category, then the specific problem.';
   }
 
   protected personTypeLabel(type: string | null | undefined): string {
@@ -317,6 +326,23 @@ export class Kiosk implements OnInit, AfterViewInit, OnDestroy {
 
   protected selectCategory(value: string): void {
     this.category.set(value);
+    this.subcategory.set('');
+    this.concern.set('');
+    this.pickerStep.set('problem');
+    this.error.set(null);
+    this.bumpFormIdleTimer();
+  }
+
+  protected backToCategories(): void {
+    this.pickerStep.set('category');
+    this.subcategory.set('');
+    this.concern.set('');
+    this.error.set(null);
+    this.bumpFormIdleTimer();
+  }
+
+  protected selectProblem(value: string): void {
+    this.subcategory.set(value);
     this.error.set(null);
     this.bumpFormIdleTimer();
   }
@@ -348,12 +374,11 @@ export class Kiosk implements OnInit, AfterViewInit, OnDestroy {
       this.scannedIdentifier = identifier;
       this.person.set(person);
       this.concern.set('');
+      this.category.set('');
+      this.subcategory.set('');
+      this.pickerStep.set('category');
       this.csmRating.set(null);
       this.csmComment.set('');
-      const cats = this.categories();
-      if (cats.length > 0) {
-        this.category.set(cats[0].value);
-      }
       const pending = await firstValueFrom(this.kioskService.getPendingCsm(identifier));
       if (pending) {
         this.pendingCsm.set(pending);
@@ -382,8 +407,13 @@ export class Kiosk implements OnInit, AfterViewInit, OnDestroy {
 
     this.error.set(null);
     const category = this.category();
+    const subcategory = this.subcategory();
     if (!category) {
       this.error.set('Please select a concern type.');
+      return;
+    }
+    if (!subcategory) {
+      this.error.set('Please select the problem.');
       return;
     }
     if (this.requiresDetail && !this.concern().trim()) {
@@ -399,8 +429,9 @@ export class Kiosk implements OnInit, AfterViewInit, OnDestroy {
         this.kioskService.createTicket({
           identifier,
           category,
+          subcategory,
           concern: this.requiresDetail ? this.concern().trim() : undefined,
-        }),
+        } as Parameters<KioskService['createTicket']>[0]),
       );
       this.createdTicket.set(created.ticket);
       this.step.set('success');
@@ -439,6 +470,9 @@ export class Kiosk implements OnInit, AfterViewInit, OnDestroy {
     this.csmRating.set(null);
     this.csmComment.set('');
     this.concern.set('');
+    this.category.set('');
+    this.subcategory.set('');
+    this.pickerStep.set('category');
     this.error.set(null);
     this.step.set('idle');
     this.focusScanner();
@@ -462,6 +496,9 @@ export class Kiosk implements OnInit, AfterViewInit, OnDestroy {
     this.csmComment.set('');
     this.createdTicket.set(null);
     this.concern.set('');
+    this.category.set('');
+    this.subcategory.set('');
+    this.pickerStep.set('category');
     this.error.set(null);
     this.scanBuffer.set('');
     this.scannedIdentifier = '';

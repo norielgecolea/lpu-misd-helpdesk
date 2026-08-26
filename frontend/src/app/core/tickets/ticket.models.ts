@@ -9,6 +9,22 @@ export interface TicketCategoryOption {
   value: string;
   label: string;
   requiresDetail?: boolean;
+  children?: TicketCategoryOption[];
+}
+
+export function ticketCategoryPath(ticket: {
+  categoryPath?: string | null;
+  categoryLabel?: string | null;
+  subcategoryLabel?: string | null;
+  category?: string | null;
+}): string {
+  if (ticket.categoryPath) {
+    return ticket.categoryPath;
+  }
+  if (ticket.subcategoryLabel && ticket.categoryLabel) {
+    return `${ticket.categoryLabel} / ${ticket.subcategoryLabel}`;
+  }
+  return ticket.categoryLabel || ticket.category || '';
 }
 
 export interface Ticket {
@@ -22,6 +38,9 @@ export interface Ticket {
   requesterLpuEmail?: string | null;
   category: string;
   categoryLabel: string;
+  subcategory?: string | null;
+  subcategoryLabel?: string | null;
+  categoryPath?: string | null;
   subject: string;
   description: string;
   status: TicketStatus;
@@ -92,6 +111,7 @@ export function needsDirectoryLink(
 
 export interface CreateTicketRequest {
   category: string;
+  subcategory: string;
   subject: string;
   description: string;
   idPhoto: File;

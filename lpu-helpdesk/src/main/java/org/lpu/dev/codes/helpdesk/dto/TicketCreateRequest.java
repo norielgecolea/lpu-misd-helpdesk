@@ -7,6 +7,9 @@ public record TicketCreateRequest(
         @NotBlank(message = "Category is required")
         String category,
 
+        @NotBlank(message = "Problem is required")
+        String subcategory,
+
         @NotBlank(message = "Subject is required")
         @Size(max = 200, message = "Subject must be at most 200 characters")
         String subject,

@@ -70,12 +70,13 @@ public class TicketController {
     public ResponseEntity<TicketResponse> create(
             @AuthenticationPrincipal AuthenticatedUser user,
             @RequestPart("category") @NotBlank String category,
+            @RequestPart("subcategory") @NotBlank String subcategory,
             @RequestPart("subject") @NotBlank @Size(max = 200) String subject,
             @RequestPart("description") @NotBlank @Size(max = 5000) String description,
             @RequestPart("idPhoto") MultipartFile idPhoto,
             @RequestPart(value = "attachments", required = false) MultipartFile[] attachments
     ) {
-        TicketCreateRequest request = new TicketCreateRequest(category, subject, description);
+        TicketCreateRequest request = new TicketCreateRequest(category, subcategory, subject, description);
         Ticket ticket = ticketService.createOnlineTicket(user, request, idPhoto, attachments);
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(user, ticket));
     }

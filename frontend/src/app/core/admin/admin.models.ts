@@ -41,6 +41,7 @@ export interface WalkInTicketRequest {
   name: string;
   email: string;
   category: string;
+  subcategory: string;
   subject: string;
   description?: string;
 }
@@ -75,6 +76,7 @@ export interface QueueSnapshot {
 
 export interface AdminCategory {
   id: number;
+  parentId: number | null;
   code: string;
   label: string;
   sortOrder: number;
@@ -84,11 +86,12 @@ export interface AdminCategory {
   requiresDetail: boolean;
   createdAt: string;
   updatedAt: string;
+  children?: AdminCategory[];
 }
 
 export interface CreateCategoryRequest {
-  code: string;
   label: string;
+  parentId?: number | null;
   sortOrder?: number;
   showOnKiosk?: boolean;
   showOnline?: boolean;
@@ -165,6 +168,7 @@ export interface AnalyticsTicketListItem {
   status: string;
   category: string;
   categoryLabel: string;
+  categoryPath?: string | null;
   requesterName: string;
   requesterEmail: string;
   channel: string;

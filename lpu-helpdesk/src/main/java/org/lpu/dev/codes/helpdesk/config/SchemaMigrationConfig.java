@@ -121,6 +121,7 @@ public class SchemaMigrationConfig {
         jdbc.execute("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS requester_person_no VARCHAR(50)");
         jdbc.execute("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS requester_reopen_count INT NOT NULL DEFAULT 0");
         jdbc.execute("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS requester_lpu_email VARCHAR(255)");
+        jdbc.execute("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS subcategory VARCHAR(40)");
         // Outside-email tickets: copy declared LPU email so campus accounts can see/rate them.
         jdbc.execute("""
                 UPDATE tickets t
@@ -208,6 +209,7 @@ public class SchemaMigrationConfig {
         jdbc.execute("""
                 CREATE TABLE IF NOT EXISTS ticket_categories (
                     id               BIGSERIAL PRIMARY KEY,
+                    parent_id        BIGINT REFERENCES ticket_categories(id),
                     code             VARCHAR(40)  NOT NULL UNIQUE,
                     label            VARCHAR(120) NOT NULL,
                     sort_order       INT          NOT NULL DEFAULT 0,
@@ -218,6 +220,11 @@ public class SchemaMigrationConfig {
                     created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
                     updated_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW()
                 )
+                """);
+        jdbc.execute("ALTER TABLE ticket_categories ADD COLUMN IF NOT EXISTS parent_id BIGINT REFERENCES ticket_categories(id)");
+        jdbc.execute("""
+                CREATE INDEX IF NOT EXISTS idx_ticket_categories_parent
+                    ON ticket_categories (parent_id, sort_order, id)
                 """);
         jdbc.execute("""
                 CREATE INDEX IF NOT EXISTS idx_tickets_requester_person

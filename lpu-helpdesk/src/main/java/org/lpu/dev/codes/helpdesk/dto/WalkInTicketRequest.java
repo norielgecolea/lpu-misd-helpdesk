@@ -14,6 +14,9 @@ public record WalkInTicketRequest(
         @NotBlank(message = "Category is required")
         String category,
 
+        @NotBlank(message = "Problem is required")
+        String subcategory,
+
         @NotBlank(message = "Subject is required")
         String subject,
 

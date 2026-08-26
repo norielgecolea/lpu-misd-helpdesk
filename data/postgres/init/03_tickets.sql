@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS tickets (
     assigned_admin_id  BIGINT REFERENCES users(id),
     queue_number       INT,
     category           VARCHAR(40)  NOT NULL,
+    subcategory        VARCHAR(40),
     subject            VARCHAR(200) NOT NULL,
     description        TEXT         NOT NULL,
     status             VARCHAR(20)  NOT NULL DEFAULT 'OPEN',

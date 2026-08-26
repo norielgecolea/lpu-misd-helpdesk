@@ -341,7 +341,7 @@ public class AnalyticsService {
                 ticket.getSubject(),
                 ticket.getStatus().name(),
                 ticket.getCategory(),
-                CategoryLabelCache.labelFor(ticket.getCategory()),
+                CategoryLabelCache.pathFor(ticket),
                 ticket.getRequesterName(),
                 ticket.getRequesterEmail(),
                 ticket.getChannel().name(),

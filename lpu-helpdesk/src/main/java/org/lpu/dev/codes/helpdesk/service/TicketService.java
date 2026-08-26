@@ -9,7 +9,6 @@ import org.lpu.dev.codes.helpdesk.dto.DirectoryProfileResponse;
 import org.lpu.dev.codes.helpdesk.dto.TicketCreateRequest;
 import org.lpu.dev.codes.helpdesk.model.Role;
 import org.lpu.dev.codes.helpdesk.model.Ticket;
-import org.lpu.dev.codes.helpdesk.model.TicketCategoryDefinition;
 import org.lpu.dev.codes.helpdesk.model.TicketChannel;
 import org.lpu.dev.codes.helpdesk.model.TicketStatus;
 import org.lpu.dev.codes.helpdesk.model.User;
@@ -81,7 +80,8 @@ public class TicketService {
 
         ticketCsmService.requireNoPendingForUser(requester);
 
-        TicketCategoryDefinition category = ticketCategoryService.requireActiveForOnline(request.category());
+        TicketCategoryService.CategorySelection selection =
+                ticketCategoryService.requireLeafForOnline(request.category(), request.subcategory());
 
         String requesterName;
         String personType = null;
@@ -150,7 +150,8 @@ public class TicketService {
             ticket.setRequesterPersonType(personType);
             ticket.setRequesterPersonNo(personNo);
         }
-        ticket.setCategory(category.getCode());
+        ticket.setCategory(selection.parent().getCode());
+        ticket.setSubcategory(selection.child().getCode());
         ticket.setSubject(request.subject().trim());
         ticket.setDescription(description);
         ticket.setStatus(TicketStatus.OPEN);

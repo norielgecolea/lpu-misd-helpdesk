@@ -48,6 +48,7 @@ export class AdminQueue implements OnInit, OnDestroy {
   protected readonly walkInName = signal('');
   protected readonly walkInEmail = signal('');
   protected readonly walkInCategory = signal('');
+  protected readonly walkInSubcategory = signal('');
   protected readonly walkInSubject = signal('');
   protected readonly summaryTicket = signal<Ticket | null>(null);
   protected readonly historyTicket = signal<Ticket | null>(null);
@@ -58,6 +59,17 @@ export class AdminQueue implements OnInit, OnDestroy {
   protected readonly myServing = computed(() =>
     this.nowServing().find((entry) => entry.adminId === this.auth.userId()),
   );
+
+  protected readonly walkInProblems = computed(
+    () => this.categories().find((option) => option.value === this.walkInCategory())?.children ?? [],
+  );
+
+  protected onWalkInCategoryChange(value: string): void {
+    this.walkInCategory.set(value);
+    this.walkInSubcategory.set(
+      this.categories().find((option) => option.value === value)?.children?.[0]?.value ?? '',
+    );
+  }
 
   protected readonly incomingTransfers = computed(() => {
     const myId = this.auth.userId();
@@ -243,7 +255,9 @@ export class AdminQueue implements OnInit, OnDestroy {
     this.walkInError.set(null);
     this.walkInName.set('');
     this.walkInEmail.set('');
-    this.walkInCategory.set(this.categories()[0]?.value ?? '');
+    const first = this.categories()[0];
+    this.walkInCategory.set(first?.value ?? '');
+    this.walkInSubcategory.set(first?.children?.[0]?.value ?? '');
     this.walkInSubject.set('');
     this.showWalkInForm.set(true);
   }
@@ -257,16 +271,17 @@ export class AdminQueue implements OnInit, OnDestroy {
     const name = this.walkInName().trim();
     const email = this.walkInEmail().trim();
     const category = this.walkInCategory();
+    const subcategory = this.walkInSubcategory();
     const subject = this.walkInSubject().trim();
 
-    if (!name || !email || !category || !subject) {
+    if (!name || !email || !category || !subcategory || !subject) {
       this.walkInError.set('Please fill in all fields.');
       return;
     }
 
     this.submittingWalkIn.set(true);
     try {
-      await firstValueFrom(this.adminService.createWalkIn({ name, email, category, subject }));
+      await firstValueFrom(this.adminService.createWalkIn({ name, email, category, subcategory, subject }));
       this.showWalkInForm.set(false);
       await this.loadSnapshot();
     } catch (err) {

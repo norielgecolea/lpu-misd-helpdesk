@@ -19,7 +19,7 @@ public record PendingCsmResponse(
                 ticket.getId(),
                 ticket.getTicketNumber(),
                 ticket.getSubject(),
-                CategoryLabelCache.labelFor(ticket.getCategory()),
+                CategoryLabelCache.pathFor(ticket),
                 ticket.getChannel().name(),
                 closedAt,
                 ticket.getCreatedAt()

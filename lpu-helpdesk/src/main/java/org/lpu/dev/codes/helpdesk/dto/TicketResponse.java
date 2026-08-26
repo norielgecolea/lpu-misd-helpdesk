@@ -17,6 +17,9 @@ public record TicketResponse(
         String requesterLpuEmail,
         String category,
         String categoryLabel,
+        String subcategory,
+        String subcategoryLabel,
+        String categoryPath,
         String subject,
         String description,
         String status,
@@ -48,6 +51,7 @@ public record TicketResponse(
         int reopenCount = Math.max(0, ticket.getRequesterReopenCount());
         boolean canReopen = ticket.getStatus() == TicketStatus.CLOSED
                 && reopenCount < TicketService.MAX_REQUESTER_REOPENS;
+        String subcategory = ticket.getSubcategory();
         return new TicketResponse(
                 ticket.getId(),
                 ticket.getTicketNumber(),
@@ -58,6 +62,9 @@ public record TicketResponse(
                 ticket.getRequesterLpuEmail(),
                 ticket.getCategory(),
                 CategoryLabelCache.labelFor(ticket.getCategory()),
+                subcategory,
+                subcategory != null && !subcategory.isBlank() ? CategoryLabelCache.labelFor(subcategory) : null,
+                CategoryLabelCache.pathFor(ticket),
                 ticket.getSubject(),
                 ticket.getDescription(),
                 ticket.getStatus().name(),

@@ -84,7 +84,7 @@
                     <p class="truncate text-sm text-zinc-700">{{ item.subject }}</p>
                     <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-zinc-500">
                       <span>{{ item.requesterName }}</span>
-                      <span>{{ item.categoryLabel }}</span>
+                      <span>{{ item.categoryPath || item.categoryLabel }}</span>
                       @if (item.assignedAdminName) {
                         <span>{{ item.assignedAdminName }}</span>
                       }

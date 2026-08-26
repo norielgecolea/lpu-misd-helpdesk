@@ -41,6 +41,7 @@ export class TicketService {
   createTicket(request: CreateTicketRequest): Observable<Ticket> {
     const form = new FormData();
     form.append('category', request.category);
+    form.append('subcategory', request.subcategory);
     form.append('subject', request.subject);
     form.append('description', request.description);
     form.append('idPhoto', request.idPhoto, request.idPhoto.name);

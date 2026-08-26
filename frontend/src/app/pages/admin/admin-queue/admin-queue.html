@@ -131,11 +131,31 @@
               name="walkInCategory"
               class="focus:border-primary/55 focus:ring-primary/35 w-full rounded-lg border border-zinc-950/15 bg-white px-3 py-2.5 text-sm text-gray-900 transition-colors focus:outline-none focus:ring-2"
               [ngModel]="walkInCategory()"
-              (ngModelChange)="walkInCategory.set($event)"
+              (ngModelChange)="onWalkInCategoryChange($event)"
               [ngModelOptions]="{ standalone: true }"
               [disabled]="submittingWalkIn()"
             >
               @for (option of categories(); track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label class="text-sm font-semibold text-gray-800" for="walkInSubcategory">Problem</label>
+            <select
+              id="walkInSubcategory"
+              name="walkInSubcategory"
+              class="focus:border-primary/55 focus:ring-primary/35 w-full rounded-lg border border-zinc-950/15 bg-white px-3 py-2.5 text-sm text-gray-900 transition-colors focus:outline-none focus:ring-2 disabled:bg-zinc-50"
+              [ngModel]="walkInSubcategory()"
+              (ngModelChange)="walkInSubcategory.set($event)"
+              [ngModelOptions]="{ standalone: true }"
+              [disabled]="submittingWalkIn() || walkInProblems().length === 0"
+            >
+              @if (walkInProblems().length === 0) {
+                <option value="">Select a category first</option>
+              }
+              @for (option of walkInProblems(); track option.value) {
                 <option [value]="option.value">{{ option.label }}</option>
               }
             </select>
@@ -272,7 +292,7 @@
                 <p class="truncate text-sm text-zinc-500">{{ requesterEmailLabel(entry.ticket) }}</p>
                 <div class="mt-3 rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2.5">
                   <p class="text-sm font-semibold text-zinc-900">{{ entry.ticket.subject }}</p>
-                  <p class="mt-0.5 text-xs text-zinc-500">{{ entry.ticket.categoryLabel }}</p>
+                  <p class="mt-0.5 text-xs text-zinc-500">{{ entry.ticket.categoryPath || entry.ticket.categoryLabel }}</p>
                 </div>
               </div>
 
@@ -436,7 +456,7 @@
                       <p class="truncate font-mono text-[11px] font-semibold text-zinc-500">{{ idNo }}</p>
                     }
                     <p class="truncate text-sm font-bold text-zinc-900">{{ ticket.requesterName }}</p>
-                    <p class="truncate text-xs text-zinc-500">{{ ticket.subject }}</p>
+                    <p class="truncate text-xs text-zinc-500">{{ ticket.categoryPath || ticket.categoryLabel }}</p>
                   </div>
                   <div class="flex shrink-0 flex-col items-stretch gap-1.5 sm:flex-row sm:items-center">
                     <button

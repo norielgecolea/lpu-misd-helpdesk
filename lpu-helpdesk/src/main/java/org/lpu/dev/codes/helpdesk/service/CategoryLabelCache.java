@@ -4,6 +4,7 @@ import jakarta.annotation.PostConstruct;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import org.lpu.dev.codes.helpdesk.model.Ticket;
 import org.lpu.dev.codes.helpdesk.model.TicketCategoryDefinition;
 import org.lpu.dev.codes.helpdesk.repository.TicketCategoryRepository;
 import org.springframework.stereotype.Component;
@@ -53,6 +54,18 @@ public class CategoryLabelCache {
         return humanize(code);
     }
 
+    public String pathOf(String category, String subcategory) {
+        String main = labelOf(category);
+        String problem = labelOf(subcategory);
+        if (problem.isBlank()) {
+            return main;
+        }
+        if (main.isBlank()) {
+            return problem;
+        }
+        return main + " / " + problem;
+    }
+
     public boolean requiresDetail(String code) {
         if (code == null || code.isBlank()) {
             return false;
@@ -66,6 +79,29 @@ public class CategoryLabelCache {
             return humanize(code);
         }
         return cache.labelOf(code);
+    }
+
+    public static String pathFor(String category, String subcategory) {
+        CategoryLabelCache cache = instance;
+        if (cache == null) {
+            String main = humanize(category);
+            String problem = humanize(subcategory);
+            if (problem.isBlank()) {
+                return main;
+            }
+            if (main.isBlank()) {
+                return problem;
+            }
+            return main + " / " + problem;
+        }
+        return cache.pathOf(category, subcategory);
+    }
+
+    public static String pathFor(Ticket ticket) {
+        if (ticket == null) {
+            return "";
+        }
+        return pathFor(ticket.getCategory(), ticket.getSubcategory());
     }
 
     public static boolean requiresDetailFor(String code) {

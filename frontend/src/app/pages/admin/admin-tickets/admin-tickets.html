@@ -47,6 +47,29 @@
             <option [value]="option.value">{{ option.label }}</option>
           }
         </select>
+        <select
+          class="max-w-36 rounded-md border border-zinc-300 bg-white px-2 py-1 text-[11px] text-zinc-800 focus:border-[#8d2546] focus:outline-none"
+          [ngModel]="categoryFilter()"
+          (ngModelChange)="onCategoryFilterChange($event)"
+          aria-label="Filter by category"
+        >
+          <option value="">All categories</option>
+          @for (option of categoryFilterOptions(); track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+        <select
+          class="max-w-40 rounded-md border border-zinc-300 bg-white px-2 py-1 text-[11px] text-zinc-800 focus:border-[#8d2546] focus:outline-none disabled:bg-zinc-50 disabled:text-zinc-400"
+          [ngModel]="subcategoryFilter()"
+          (ngModelChange)="onSubcategoryFilterChange($event)"
+          [disabled]="!categoryFilter()"
+          aria-label="Filter by problem"
+        >
+          <option value="">All problems</option>
+          @for (option of subcategoryFilterOptions(); track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
         @if (layoutMode() === 'split') {
           <button
             type="button"
@@ -187,8 +210,8 @@
                 <td class="max-w-0 overflow-hidden px-2.5 py-1.5 align-middle font-medium" [title]="ticket.subject">
                   <span class="block truncate">{{ ticket.subject }}</span>
                 </td>
-                <td class="max-w-0 overflow-hidden px-2.5 py-1.5 align-middle" [title]="ticket.categoryLabel">
-                  <span class="block truncate">{{ ticket.categoryLabel }}</span>
+                <td class="max-w-0 overflow-hidden px-2.5 py-1.5 align-middle" [title]="categoryPath(ticket)">
+                  <span class="block truncate">{{ categoryPath(ticket) }}</span>
                 </td>
                 <td class="max-w-0 overflow-hidden px-2.5 py-1.5 align-middle" [title]="ticket.requesterName">
                   <span class="block truncate">{{ ticket.requesterName }}</span>
@@ -320,7 +343,7 @@
                     {{ statusLabel(ticket.status) }}
                   </span>
                   <span class="max-w-full truncate rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600">
-                    {{ ticket.categoryLabel }}
+                    {{ categoryPath(ticket) }}
                   </span>
                   <span class="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600">
                     {{ channelLabel(ticket.channel) }}

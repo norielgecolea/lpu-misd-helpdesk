@@ -16,9 +16,9 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { playMessageCue, unlockAudio } from '../../../core/audio/cue-sounds';
 import { AdminService } from '../../../core/admin/admin.service';
-import { AdminSummary } from '../../../core/admin/admin.models';
+import { AdminCategory, AdminSummary } from '../../../core/admin/admin.models';
 import { AuthService, isAllowedUserEmail, allowedUserEmailLabel } from '../../../core/auth/auth.service';
-import { Ticket, TicketChannel, TicketMessage, TicketStatus, adminTicketsPathForChannel, canEncodeLpuEmail, displayRequesterEmail, messageAuthorLabel as formatMessageAuthor, needsDirectoryLink } from '../../../core/tickets/ticket.models';
+import { Ticket, TicketChannel, TicketMessage, TicketStatus, adminTicketsPathForChannel, canEncodeLpuEmail, displayRequesterEmail, messageAuthorLabel as formatMessageAuthor, needsDirectoryLink, ticketCategoryPath } from '../../../core/tickets/ticket.models';
 import { TicketService } from '../../../core/tickets/ticket.service';
 import { DirectoryService } from '../../../core/directory/directory.service';
 import { TicketSummaryDialog } from '../../../shared/ticket-summary-dialog/ticket-summary-dialog';
@@ -83,6 +83,9 @@ export class AdminTickets implements OnInit, OnDestroy {
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
   protected readonly statusFilter = signal<StatusFilter>('');
+  protected readonly categoryFilter = signal('');
+  protected readonly subcategoryFilter = signal('');
+  protected readonly categories = signal<AdminCategory[]>([]);
   protected readonly scopeFilter = signal<ScopeFilter>('all');
   /** When true, scope is fixed to Mine (My tickets route). */
   protected readonly scopeLocked = signal(false);
@@ -135,8 +138,16 @@ export class AdminTickets implements OnInit, OnDestroy {
     const scope = this.scopeFilter();
     const myId = this.auth.userId();
     const statusFilter = this.statusFilter();
+    const categoryFilter = this.categoryFilter();
+    const subcategoryFilter = this.subcategoryFilter();
     return this.tickets().filter((ticket) => {
       if (statusFilter && ticket.status !== statusFilter) {
+        return false;
+      }
+      if (categoryFilter && ticket.category !== categoryFilter) {
+        return false;
+      }
+      if (subcategoryFilter && (ticket.subcategory ?? '') !== subcategoryFilter) {
         return false;
       }
       const channelLock = this.channelLocked();
@@ -220,6 +231,44 @@ export class AdminTickets implements OnInit, OnDestroy {
     return options;
   });
 
+  protected readonly categoryFilterOptions = computed(() => {
+    const fromTree = this.categories().map((option) => ({ value: option.code, label: option.label }));
+    const known = new Set(fromTree.map((option) => option.value));
+    const extra: { value: string; label: string }[] = [];
+    for (const ticket of this.tickets()) {
+      if (ticket.category && !known.has(ticket.category)) {
+        known.add(ticket.category);
+        extra.push({ value: ticket.category, label: ticket.categoryLabel || ticket.category });
+      }
+    }
+    return fromTree.concat(extra);
+  });
+
+  protected readonly subcategoryFilterOptions = computed(() => {
+    const category = this.categoryFilter();
+    if (!category) {
+      return [];
+    }
+    const fromTree =
+      this.categories().find((option) => option.code === category)?.children ?? [];
+    const options = fromTree.map((option) => ({ value: option.code, label: option.label }));
+    const known = new Set(options.map((option) => option.value));
+    for (const ticket of this.tickets()) {
+      if (ticket.category === category && ticket.subcategory && !known.has(ticket.subcategory)) {
+        known.add(ticket.subcategory);
+        options.push({
+          value: ticket.subcategory,
+          label: ticket.subcategoryLabel || ticket.subcategory,
+        });
+      }
+    }
+    return options;
+  });
+
+  protected categoryPath(ticket: Ticket): string {
+    return ticketCategoryPath(ticket);
+  }
+
   constructor() {
     this.route.data.pipe(takeUntilDestroyed()).subscribe((data) => {
       const mine = data['scope'] === 'mine';
@@ -227,6 +276,8 @@ export class AdminTickets implements OnInit, OnDestroy {
       this.scopeFilter.set(mine ? 'mine' : 'all');
       this.channelLocked.set(mine ? null : data['channel'] === 'ONSITE_RFID' ? 'ONSITE_RFID' : 'ONLINE');
       this.statusFilter.set('');
+      this.categoryFilter.set('');
+      this.subcategoryFilter.set('');
       this.listPage.set(1);
       this.ensureSelectionVisible();
     });
@@ -244,7 +295,7 @@ export class AdminTickets implements OnInit, OnDestroy {
       typeof history !== 'undefined' ? (history.state as { focusTicket?: Ticket } | null) : null;
     this.pendingFocusTicket = navState?.focusTicket ?? null;
 
-    await Promise.all([this.loadTickets(true), this.loadAssignees()]);
+    await Promise.all([this.loadTickets(true), this.loadAssignees(), this.loadCategories()]);
     this.ticketsReady = true;
     await this.applyPendingTicketFocus();
     this.listPollTimer = setInterval(() => void this.loadTickets(false), LIST_POLL_MS);
@@ -278,6 +329,19 @@ export class AdminTickets implements OnInit, OnDestroy {
   }
 
   protected onScopeChange(): void {
+    this.listPage.set(1);
+    this.ensureSelectionVisible();
+  }
+
+  protected onCategoryFilterChange(value: string): void {
+    this.categoryFilter.set(value);
+    this.subcategoryFilter.set('');
+    this.listPage.set(1);
+    this.ensureSelectionVisible();
+  }
+
+  protected onSubcategoryFilterChange(value: string): void {
+    this.subcategoryFilter.set(value);
     this.listPage.set(1);
     this.ensureSelectionVisible();
   }
@@ -567,6 +631,8 @@ export class AdminTickets implements OnInit, OnDestroy {
       }
       case 'channel':
         return a.channel.localeCompare(b.channel);
+      case 'categoryLabel':
+        return ticketCategoryPath(a).toLowerCase().localeCompare(ticketCategoryPath(b).toLowerCase());
       default: {
         const av = (a[key] ?? '').toString().toLowerCase();
         const bv = (b[key] ?? '').toString().toLowerCase();
@@ -1016,6 +1082,14 @@ export class AdminTickets implements OnInit, OnDestroy {
   private async loadAssignees(): Promise<void> {
     try {
       this.assignees.set(await firstValueFrom(this.adminService.listAssignees()));
+    } catch {
+      // Non-fatal
+    }
+  }
+
+  private async loadCategories(): Promise<void> {
+    try {
+      this.categories.set(await firstValueFrom(this.adminService.listCategories()));
     } catch {
       // Non-fatal
     }

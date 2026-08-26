@@ -14,7 +14,6 @@ import org.lpu.dev.codes.helpdesk.model.Employee;
 import org.lpu.dev.codes.helpdesk.model.PendingRequesterEmail;
 import org.lpu.dev.codes.helpdesk.model.Student;
 import org.lpu.dev.codes.helpdesk.model.Ticket;
-import org.lpu.dev.codes.helpdesk.model.TicketCategoryDefinition;
 import org.lpu.dev.codes.helpdesk.repository.EmployeeRepository;
 import org.lpu.dev.codes.helpdesk.repository.StudentRepository;
 import org.springframework.http.HttpStatus;
@@ -94,11 +93,13 @@ public class KioskService {
 
         ticketCsmService.requireNoPendingForPerson(person.email(), person.personType(), person.personNo());
 
-        TicketCategoryDefinition category = ticketCategoryService.requireActiveForKiosk(request.category());
+        TicketCategoryService.CategorySelection selection =
+                ticketCategoryService.requireLeafForKiosk(request.category(), request.subcategory());
+        String path = CategoryLabelCache.pathFor(selection.parent().getCode(), selection.child().getCode());
         String subject;
         String description;
 
-        if (category.isRequiresDetail()) {
+        if (selection.child().isRequiresDetail()) {
             String concern = request.concern() != null ? request.concern().trim() : "";
             if (concern.isBlank()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Please describe your concern");
@@ -106,8 +107,8 @@ public class KioskService {
             subject = concern.length() > 200 ? concern.substring(0, 200) : concern;
             description = concern;
         } else {
-            subject = category.getLabel();
-            description = "Onsite RFID kiosk request: " + category.getLabel();
+            subject = selection.child().getLabel();
+            description = "Onsite RFID kiosk request: " + path;
         }
 
         String requesterEmail = person.email() != null && !person.email().isBlank()
@@ -117,7 +118,8 @@ public class KioskService {
         Ticket ticket = queueService.createWalkInTicket(new WalkInTicketRequest(
                 person.name(),
                 requesterEmail,
-                category.getCode(),
+                selection.parent().getCode(),
+                selection.child().getCode(),
                 subject,
                 description,
                 person.personType(),

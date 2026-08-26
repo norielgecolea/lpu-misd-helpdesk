@@ -16,6 +16,10 @@ public class TicketCategoryDefinition {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** Null for a main category; set to the parent id for a problem (leaf). */
+    @Column(name = "parent_id")
+    private Long parentId;
+
     /** Stable code stored on tickets, e.g. NETWORK_INTERNET. */
     @Column(nullable = false, unique = true, length = 40)
     private String code;
@@ -51,6 +55,18 @@ public class TicketCategoryDefinition {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Long getParentId() {
+        return parentId;
+    }
+
+    public void setParentId(Long parentId) {
+        this.parentId = parentId;
+    }
+
+    public boolean isRoot() {
+        return parentId == null;
     }
 
     public String getCode() {

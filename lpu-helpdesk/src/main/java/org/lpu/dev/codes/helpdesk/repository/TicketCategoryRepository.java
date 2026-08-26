@@ -70,6 +70,18 @@ public class TicketCategoryRepository {
     }
 
     @Transactional(readOnly = true)
+    public long countByParentId(Long parentId) {
+        Long count = currentSession()
+                .createQuery(
+                        "SELECT COUNT(c) FROM TicketCategoryDefinition c WHERE c.parentId = :parentId",
+                        Long.class
+                )
+                .setParameter("parentId", parentId)
+                .uniqueResult();
+        return count != null ? count : 0L;
+    }
+
+    @Transactional(readOnly = true)
     public boolean existsByCode(String code) {
         Long count = currentSession()
                 .createQuery("SELECT COUNT(c) FROM TicketCategoryDefinition c WHERE c.code = :code", Long.class)

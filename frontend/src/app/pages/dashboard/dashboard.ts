@@ -77,6 +77,7 @@ export class Dashboard implements OnInit, OnDestroy {
   protected readonly submitting = signal(false);
   protected readonly formError = signal<string | null>(null);
   protected readonly category = signal('');
+  protected readonly subcategory = signal('');
   protected readonly subject = signal('');
   protected readonly description = signal('');
   protected readonly idPhoto = signal<File | null>(null);
@@ -90,6 +91,17 @@ export class Dashboard implements OnInit, OnDestroy {
   protected readonly collapsedGroups = signal<Set<TicketStatus>>(
     new Set<TicketStatus>(['RESOLVED', 'CLOSED']),
   );
+
+  protected readonly problems = computed(
+    () => this.categories().find((option) => option.value === this.category())?.children ?? [],
+  );
+
+  protected onCategoryChange(value: string): void {
+    this.category.set(value);
+    this.subcategory.set(
+      this.categories().find((option) => option.value === value)?.children?.[0]?.value ?? '',
+    );
+  }
 
   protected readonly showCsm = signal(false);
   protected readonly pendingCsm = signal<PendingCsm | null>(null);
@@ -242,7 +254,9 @@ export class Dashboard implements OnInit, OnDestroy {
       return;
     }
     this.formError.set(null);
-    this.category.set(this.categories()[0]?.value ?? '');
+    const first = this.categories()[0];
+    this.category.set(first?.value ?? '');
+    this.subcategory.set(first?.children?.[0]?.value ?? '');
     this.subject.set('');
     this.description.set('');
     this.idPhoto.set(null);
@@ -435,13 +449,14 @@ export class Dashboard implements OnInit, OnDestroy {
   protected async submitTicket(): Promise<void> {
     this.formError.set(null);
     const category = this.category();
+    const subcategory = this.subcategory();
     const subject = this.subject().trim();
     const description = this.description().trim();
     const idPhoto = this.idPhoto();
     const attachments = this.createAttachments();
 
-    if (!category || !subject || !description) {
-      this.formError.set('Please fill in category, subject, and description.');
+    if (!category || !subcategory || !subject || !description) {
+      this.formError.set('Please fill in category, problem, subject, and description.');
       return;
     }
     if (!idPhoto) {
@@ -449,7 +464,7 @@ export class Dashboard implements OnInit, OnDestroy {
       return;
     }
 
-    const request: CreateTicketRequest = { category, subject, description, idPhoto, attachments };
+    const request: CreateTicketRequest = { category, subcategory, subject, description, idPhoto, attachments };
     this.submitting.set(true);
     try {
       const created = await firstValueFrom(this.ticketService.createTicket(request));

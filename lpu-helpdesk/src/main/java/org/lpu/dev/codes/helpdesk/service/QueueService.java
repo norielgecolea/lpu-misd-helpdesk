@@ -19,7 +19,6 @@ import org.lpu.dev.codes.helpdesk.model.QueueTransferRequest;
 import org.lpu.dev.codes.helpdesk.model.QueueTransferStatus;
 import org.lpu.dev.codes.helpdesk.model.Role;
 import org.lpu.dev.codes.helpdesk.model.Ticket;
-import org.lpu.dev.codes.helpdesk.model.TicketCategoryDefinition;
 import org.lpu.dev.codes.helpdesk.model.TicketChannel;
 import org.lpu.dev.codes.helpdesk.model.TicketStatus;
 import org.lpu.dev.codes.helpdesk.model.User;
@@ -72,7 +71,8 @@ public class QueueService {
 
     @Transactional
     public Ticket createWalkInTicket(WalkInTicketRequest request) {
-        TicketCategoryDefinition category = ticketCategoryService.requireActive(request.category());
+        TicketCategoryService.CategorySelection selection =
+                ticketCategoryService.requireLeaf(request.category(), request.subcategory());
         int queueNumber = queueCounterRepository.nextNumberForToday();
         String personType = blankToNull(request.personType());
         String personNo = blankToNull(request.personNo());
@@ -88,7 +88,8 @@ public class QueueService {
         if (!PendingRequesterEmail.isPending(email)) {
             userRepository.findUserByEmail(email).ifPresent(user -> ticket.setRequesterUserId(user.getId()));
         }
-        ticket.setCategory(category.getCode());
+        ticket.setCategory(selection.parent().getCode());
+        ticket.setSubcategory(selection.child().getCode());
         ticket.setSubject(request.subject().trim());
         ticket.setDescription(
                 request.description() != null && !request.description().isBlank()
@@ -438,7 +439,7 @@ public class QueueService {
                 ticket != null ? ticket.getQueueNumber() : null,
                 ticket != null ? ticket.getRequesterName() : null,
                 ticket != null ? ticket.getRequesterPersonNo() : null,
-                ticket != null ? ticketCategoryService.labelOf(ticket.getCategory()) : null,
+                ticket != null ? CategoryLabelCache.pathFor(ticket) : null,
                 request.getFromAdminId(),
                 fromName,
                 request.getToAdminId(),

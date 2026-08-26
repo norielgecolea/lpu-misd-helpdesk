@@ -53,9 +53,13 @@ public class Ticket {
     @Column(name = "queue_number")
     private Integer queueNumber;
 
-    /** Stable category code from {@code ticket_categories.code}. */
+    /** Stable main-category code from {@code ticket_categories.code}. */
     @Column(nullable = false, length = 40)
     private String category;
+
+    /** Problem (leaf) code; null on tickets filed before nested categories. */
+    @Column(length = 40)
+    private String subcategory;
 
     @Column(nullable = false, length = 200)
     private String subject;
@@ -172,6 +176,14 @@ public class Ticket {
 
     public void setCategory(String category) {
         this.category = category;
+    }
+
+    public String getSubcategory() {
+        return subcategory;
+    }
+
+    public void setSubcategory(String subcategory) {
+        this.subcategory = subcategory;
     }
 
     public String getSubject() {

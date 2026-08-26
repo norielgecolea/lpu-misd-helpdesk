@@ -2,7 +2,7 @@ import { Component, input, output, signal, effect, inject, OnDestroy, untracked 
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { DirectoryProfile, DirectoryService } from '../../core/directory/directory.service';
-import { Ticket, displayRequesterEmail, isPendingRequesterEmail, needsDirectoryLink } from '../../core/tickets/ticket.models';
+import { Ticket, displayRequesterEmail, isPendingRequesterEmail, needsDirectoryLink, ticketCategoryPath } from '../../core/tickets/ticket.models';
 import { TicketService } from '../../core/tickets/ticket.service';
 import { isAllowedUserEmail, allowedUserEmailLabel } from '../../core/auth/auth.service';
 
@@ -268,7 +268,7 @@ export class TicketSummaryDialog implements OnDestroy {
       },
       { label: 'Title', value: ticket.subject?.trim() || '—', multiline: true },
       { label: 'Description', value: ticket.description?.trim() || '—', multiline: true },
-      { label: 'Category', value: ticket.categoryLabel || ticket.category || '—' },
+      { label: 'Category', value: ticketCategoryPath(ticket) || ticket.category || '—' },
       { label: 'Status', value: this.statusLabel(ticket.status) },
       { label: 'Channel', value: ticket.channel === 'ONSITE_RFID' ? 'Onsite' : 'Online' },
       { label: 'Assignee', value: ticket.assignedAdminName?.trim() || 'Unassigned' },
