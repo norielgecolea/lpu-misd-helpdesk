@@ -420,6 +420,23 @@ public class TicketRepository {
                 .getResultList();
     }
 
+    /** Tickets created in range grouped by category + concern (subcategory). */
+    @Transactional(readOnly = true)
+    @SuppressWarnings("unchecked")
+    public List<Object[]> countCreatedGroupByConcern(Instant from, Instant to) {
+        return currentSession()
+                .createQuery(
+                        "SELECT t.category, t.subcategory, count(t.id) FROM Ticket t "
+                                + "WHERE t.createdAt >= :from AND t.createdAt < :to "
+                                + "GROUP BY t.category, t.subcategory "
+                                + "ORDER BY count(t.id) DESC",
+                        Object[].class
+                )
+                .setParameter("from", from)
+                .setParameter("to", to)
+                .getResultList();
+    }
+
     @Transactional(readOnly = true)
     @SuppressWarnings("unchecked")
     public List<Object[]> countCreatedByDay(Instant from, Instant to) {

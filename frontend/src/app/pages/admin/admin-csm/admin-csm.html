@@ -1,8 +1,8 @@
 <div class="flex flex-col gap-5">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <div>
-      <p class="text-sm text-gray-600">
-        CSM ratings by assigned admin, with ticket lists for Very Satisfied, Satisfied, and Not Satisfied.
+      <p class="text-sm text-zinc-600">
+        Satisfaction for {{ monthLabel() }} — overall mix, admin ranking, and comments from people who were not satisfied.
       </p>
     </div>
     <div class="inline-flex items-center gap-1 rounded-xl border border-zinc-200 bg-white p-1 shadow-sm">
@@ -63,16 +63,112 @@
     </p>
   }
 
-  @if (loading() && byAssignee().length === 0) {
+  @if (loading() && !summary()) {
     <div class="flex items-center justify-center rounded-2xl border border-zinc-950/10 bg-white p-16">
       <span class="border-primary/30 border-t-primary h-6 w-6 animate-spin rounded-full border-2"></span>
     </div>
-  } @else {
-    <div class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-      <div class="mb-3 flex flex-wrap items-end justify-between gap-3">
+  } @else if (summary(); as data) {
+    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div class="rounded-2xl border border-zinc-200 bg-white px-4 py-4 shadow-sm">
+        <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">Ratings this month</p>
+        <p class="mt-1 text-3xl font-bold text-zinc-900">{{ data.totals.csmCount }}</p>
+        <p class="mt-1 text-xs text-zinc-500">{{ data.totals.closed }} tickets closed</p>
+      </div>
+      <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 shadow-sm">
+        <p class="text-[11px] font-semibold tracking-wide text-emerald-800 uppercase">{{ csmLabels.HAPPY }}</p>
+        <p class="mt-1 text-3xl font-bold text-emerald-800">{{ formatPercent(data.totals.csmHappyPercent) }}</p>
+        <p class="mt-1 text-xs text-emerald-800/80">{{ data.totals.csmByRating['HAPPY'] ?? 0 }} of {{ data.totals.csmCount }}</p>
+      </div>
+      <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-4 shadow-sm">
+        <p class="text-[11px] font-semibold tracking-wide text-red-700 uppercase">{{ csmLabels.SAD }}</p>
+        <p class="mt-1 text-3xl font-bold text-red-800">{{ data.totals.csmByRating['SAD'] ?? 0 }}</p>
+        <p class="mt-1 text-xs text-red-800/80">{{ ratingShare('SAD') }} of ratings</p>
+      </div>
+      <div class="rounded-2xl border border-zinc-200 bg-white px-4 py-4 shadow-sm">
+        <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">CSM coverage</p>
+        <p class="mt-1 text-3xl font-bold text-zinc-900">{{ formatPercent(coveragePercent()) }}</p>
+        <p class="mt-1 text-xs text-zinc-500">Ratings vs closed tickets</p>
+      </div>
+    </div>
+
+    <div class="grid gap-4 xl:grid-cols-3">
+      <div class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm xl:col-span-2">
+        <h3 class="mb-3 text-sm font-semibold text-zinc-900">Daily ratings</h3>
+        @if (data.totals.csmCount === 0) {
+          <p class="py-16 text-center text-sm text-zinc-500">No CSM ratings in this month.</p>
+        } @else {
+          <div class="relative h-64">
+            <canvas #trendCanvas></canvas>
+          </div>
+        }
+      </div>
+      <div class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <h3 class="mb-3 text-sm font-semibold text-zinc-900">Rating mix</h3>
+        @if (data.totals.csmCount === 0) {
+          <p class="py-16 text-center text-sm text-zinc-500">No ratings yet</p>
+        } @else {
+          <div class="relative h-64">
+            <canvas #mixCanvas></canvas>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+      <div class="border-b border-zinc-100 px-4 py-3">
+        <h3 class="text-sm font-semibold text-zinc-900">Admin ranking</h3>
+        <p class="text-[11px] text-zinc-500">Sorted by very satisfied rate. Click a row to inspect tickets and comments.</p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-left text-sm">
+          <thead class="bg-zinc-50/80 text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+            <tr>
+              <th class="px-4 py-2.5">Admin</th>
+              <th class="px-4 py-2.5">Mix</th>
+              <th class="px-4 py-2.5 text-right">{{ csmLabels.HAPPY }}</th>
+              <th class="px-4 py-2.5 text-right">Ratings</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-zinc-100">
+            @for (row of rankedAdmins(); track row.adminId) {
+              <tr
+                class="cursor-pointer transition-colors hover:bg-zinc-50"
+                [class.bg-primary/5]="selectedAdminId() === row.adminId"
+                (click)="selectAdmin(row.adminId)"
+              >
+                <td class="px-4 py-3 font-medium text-zinc-900">{{ row.name }}</td>
+                <td class="px-4 py-3">
+                  <div class="flex h-2 w-40 overflow-hidden rounded-full bg-zinc-100">
+                    <span class="h-full bg-red-500" [style.width]="stackWidth(row.sad, row.total)"></span>
+                    <span class="h-full bg-amber-400" [style.width]="stackWidth(row.neutral, row.total)"></span>
+                    <span class="h-full bg-emerald-500" [style.width]="stackWidth(row.happy, row.total)"></span>
+                  </div>
+                  <p class="mt-1 text-[11px] text-zinc-500">
+                    {{ row.sad }} / {{ row.neutral }} / {{ row.happy }}
+                  </p>
+                </td>
+                <td class="px-4 py-3 text-right tabular-nums font-semibold text-emerald-800">
+                  {{ formatPercent(happyPercent(row)) }}
+                </td>
+                <td class="px-4 py-3 text-right tabular-nums text-zinc-700">{{ row.total }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="4" class="px-4 py-8 text-center text-zinc-500">No CSM ratings assigned to an admin</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    @if (selectedAdmin(); as admin) {
+      <div class="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h3 class="text-sm font-semibold text-zinc-900">CSM ratio by admin</h3>
-          <p class="text-[11px] text-zinc-500">Stacked by rating — click a bar to inspect that admin</p>
+          <h3 class="text-sm font-semibold text-zinc-900">{{ admin.name }}</h3>
+          <p class="text-[11px] text-zinc-500">
+            {{ formatPercent(happyPercent(admin)) }} very satisfied · {{ admin.total }} ratings
+          </p>
         </div>
         <select
           class="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-800"
@@ -81,29 +177,13 @@
           [ngModelOptions]="{ standalone: true }"
           aria-label="Select admin"
         >
-          @if (byAssignee().length === 0) {
-            <option value="" disabled>No CSM data</option>
-          }
-          @for (admin of byAssignee(); track admin.adminId) {
-            <option [value]="admin.adminId">{{ admin.name }} ({{ admin.total }})</option>
+          @for (row of rankedAdmins(); track row.adminId) {
+            <option [value]="row.adminId">{{ row.name }} ({{ row.total }})</option>
           }
         </select>
       </div>
-      @if (byAssignee().length === 0) {
-        <p class="py-12 text-center text-sm text-zinc-500">No CSM ratings in this month.</p>
-      } @else {
-        <div class="relative h-72">
-          <canvas #ratioCanvas></canvas>
-        </div>
-      }
-    </div>
 
-    @if (selectedAdmin(); as admin) {
-      <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div class="rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-          <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">Admin</p>
-          <p class="mt-1 truncate text-lg font-bold text-zinc-900">{{ admin.name }}</p>
-        </div>
+      <div class="grid gap-3 sm:grid-cols-3">
         <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 shadow-sm">
           <p class="text-[11px] font-semibold tracking-wide text-emerald-700 uppercase">{{ csmLabels.HAPPY }}</p>
           <p class="mt-1 text-2xl font-bold text-emerald-800">{{ admin.happy }}</p>
@@ -129,13 +209,76 @@
           <span class="border-primary/30 border-t-primary h-6 w-6 animate-spin rounded-full border-2"></span>
         </div>
       } @else {
-        <div class="grid gap-4 xl:grid-cols-2">
-          <section class="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm xl:col-span-2">
-            <div class="border-b border-zinc-100 px-4 py-3">
-              <h3 class="text-sm font-semibold text-zinc-900">Assigned tickets</h3>
-              <p class="text-[11px] text-zinc-500">Open, in progress, and closed in this month · {{ assignedTickets().length }}</p>
+        @if (sadComments().length > 0 && detailTab() !== 'assigned') {
+          <section class="overflow-hidden rounded-2xl border border-red-200 bg-white shadow-sm">
+            <div class="border-b border-red-100 bg-red-50/60 px-4 py-3">
+              <h3 class="text-sm font-semibold text-red-900">Comments to review</h3>
+              <p class="text-[11px] text-red-800/80">{{ sadComments().length }} not-satisfied comments for this admin</p>
             </div>
-            <div class="max-h-80 overflow-auto">
+            <ul class="divide-y divide-zinc-100">
+              @for (item of sadComments(); track item.id) {
+                <li>
+                  <button
+                    type="button"
+                    class="flex w-full cursor-pointer flex-col gap-1 px-4 py-3 text-left hover:bg-red-50/40"
+                    (click)="openTicket(item)"
+                  >
+                    <span class="text-sm font-semibold text-zinc-900">{{ item.ticketNumber }} · {{ item.subject }}</span>
+                    <span class="text-sm text-zinc-700 italic">“{{ item.csmComment }}”</span>
+                    <span class="text-[11px] text-zinc-500">{{ item.csmSubmittedAt | date: 'MMM d, y · h:mm a' }}</span>
+                  </button>
+                </li>
+              }
+            </ul>
+          </section>
+        }
+
+        <div class="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+          <div class="flex flex-wrap gap-1 border-b border-zinc-100 px-3 py-2">
+            <button
+              type="button"
+              (click)="setDetailTab('sad')"
+              class="cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold"
+              [class.bg-red-100]="detailTab() === 'sad'"
+              [class.text-red-800]="detailTab() === 'sad'"
+              [class.text-zinc-600]="detailTab() !== 'sad'"
+            >
+              {{ csmLabels.SAD }} ({{ sadTickets().length }})
+            </button>
+            <button
+              type="button"
+              (click)="setDetailTab('neutral')"
+              class="cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold"
+              [class.bg-amber-100]="detailTab() === 'neutral'"
+              [class.text-amber-900]="detailTab() === 'neutral'"
+              [class.text-zinc-600]="detailTab() !== 'neutral'"
+            >
+              {{ csmLabels.NEUTRAL }} ({{ neutralTickets().length }})
+            </button>
+            <button
+              type="button"
+              (click)="setDetailTab('happy')"
+              class="cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold"
+              [class.bg-emerald-100]="detailTab() === 'happy'"
+              [class.text-emerald-800]="detailTab() === 'happy'"
+              [class.text-zinc-600]="detailTab() !== 'happy'"
+            >
+              {{ csmLabels.HAPPY }} ({{ happyTickets().length }})
+            </button>
+            <button
+              type="button"
+              (click)="setDetailTab('assigned')"
+              class="cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold"
+              [class.bg-zinc-200]="detailTab() === 'assigned'"
+              [class.text-zinc-900]="detailTab() === 'assigned'"
+              [class.text-zinc-600]="detailTab() !== 'assigned'"
+            >
+              Assigned ({{ assignedTickets().length }})
+            </button>
+          </div>
+
+          @if (detailTab() === 'assigned') {
+            <div class="max-h-96 overflow-auto">
               <table class="min-w-full text-left text-sm">
                 <thead class="sticky top-0 bg-zinc-50/95 text-xs font-semibold tracking-wide text-zinc-500 uppercase">
                   <tr>
@@ -147,10 +290,7 @@
                 </thead>
                 <tbody class="divide-y divide-zinc-100">
                   @for (item of assignedTickets(); track item.id) {
-                    <tr
-                      class="cursor-pointer transition-colors hover:bg-zinc-50"
-                      (click)="openTicket(item)"
-                    >
+                    <tr class="cursor-pointer transition-colors hover:bg-zinc-50" (click)="openTicket(item)">
                       <td class="px-4 py-2.5 font-semibold text-zinc-900">{{ item.ticketNumber }}</td>
                       <td class="max-w-[16rem] truncate px-4 py-2.5 text-zinc-700">{{ item.subject }}</td>
                       <td class="px-4 py-2.5 text-zinc-600">{{ statusLabel(item.status) }}</td>
@@ -164,76 +304,14 @@
                 </tbody>
               </table>
             </div>
-          </section>
-
-          <section class="overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-sm">
-            <div class="border-b border-emerald-100 bg-emerald-50/60 px-4 py-3">
-              <h3 class="text-sm font-semibold text-emerald-900">{{ csmLabels.HAPPY }} tickets</h3>
-              <p class="text-[11px] text-emerald-800/80">{{ happyTickets().length }} ratings</p>
-            </div>
-            <div class="max-h-72 overflow-auto">
+          } @else {
+            <div class="max-h-96 overflow-auto">
               <ul class="divide-y divide-zinc-100">
-                @for (item of happyTickets(); track item.id) {
+                @for (item of detailTickets(); track item.id) {
                   <li>
                     <button
                       type="button"
-                      class="flex w-full cursor-pointer flex-col gap-0.5 px-4 py-3 text-left hover:bg-emerald-50/50"
-                      (click)="openTicket(item)"
-                    >
-                      <span class="text-sm font-semibold text-zinc-900">{{ item.ticketNumber }}</span>
-                      <span class="truncate text-xs text-zinc-600">{{ item.subject }}</span>
-                      <span class="text-[11px] text-zinc-500">
-                        {{ item.csmSubmittedAt | date: 'MMM d, y · h:mm a' }}
-                      </span>
-                    </button>
-                  </li>
-                } @empty {
-                  <li class="px-4 py-8 text-center text-sm text-zinc-500">No very satisfied ratings</li>
-                }
-              </ul>
-            </div>
-          </section>
-
-          <section class="overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm">
-            <div class="border-b border-amber-100 bg-amber-50/60 px-4 py-3">
-              <h3 class="text-sm font-semibold text-amber-950">{{ csmLabels.NEUTRAL }} tickets</h3>
-              <p class="text-[11px] text-amber-900/80">{{ neutralTickets().length }} ratings</p>
-            </div>
-            <div class="max-h-72 overflow-auto">
-              <ul class="divide-y divide-zinc-100">
-                @for (item of neutralTickets(); track item.id) {
-                  <li>
-                    <button
-                      type="button"
-                      class="flex w-full cursor-pointer flex-col gap-0.5 px-4 py-3 text-left hover:bg-amber-50/50"
-                      (click)="openTicket(item)"
-                    >
-                      <span class="text-sm font-semibold text-zinc-900">{{ item.ticketNumber }}</span>
-                      <span class="truncate text-xs text-zinc-600">{{ item.subject }}</span>
-                      <span class="text-[11px] text-zinc-500">
-                        {{ item.csmSubmittedAt | date: 'MMM d, y · h:mm a' }}
-                      </span>
-                    </button>
-                  </li>
-                } @empty {
-                  <li class="px-4 py-8 text-center text-sm text-zinc-500">No satisfied ratings</li>
-                }
-              </ul>
-            </div>
-          </section>
-
-          <section class="overflow-hidden rounded-2xl border border-red-200 bg-white shadow-sm xl:col-span-2">
-            <div class="border-b border-red-100 bg-red-50/60 px-4 py-3">
-              <h3 class="text-sm font-semibold text-red-900">{{ csmLabels.SAD }} tickets</h3>
-              <p class="text-[11px] text-red-800/80">{{ sadTickets().length }} ratings</p>
-            </div>
-            <div class="max-h-80 overflow-auto">
-              <ul class="divide-y divide-zinc-100">
-                @for (item of sadTickets(); track item.id) {
-                  <li>
-                    <button
-                      type="button"
-                      class="flex w-full cursor-pointer flex-col gap-0.5 px-4 py-3 text-left hover:bg-red-50/40"
+                      class="flex w-full cursor-pointer flex-col gap-0.5 px-4 py-3 text-left hover:bg-zinc-50"
                       (click)="openTicket(item)"
                     >
                       <span class="text-sm font-semibold text-zinc-900">{{ item.ticketNumber }}</span>
@@ -241,17 +319,15 @@
                       @if (item.csmComment) {
                         <span class="line-clamp-2 text-xs text-zinc-600 italic">“{{ item.csmComment }}”</span>
                       }
-                      <span class="text-[11px] text-zinc-500">
-                        {{ item.csmSubmittedAt | date: 'MMM d, y · h:mm a' }}
-                      </span>
+                      <span class="text-[11px] text-zinc-500">{{ item.csmSubmittedAt | date: 'MMM d, y · h:mm a' }}</span>
                     </button>
                   </li>
                 } @empty {
-                  <li class="px-4 py-8 text-center text-sm text-zinc-500">No not satisfied ratings</li>
+                  <li class="px-4 py-8 text-center text-sm text-zinc-500">No ratings in this group</li>
                 }
               </ul>
             </div>
-          </section>
+          }
         </div>
       }
     }

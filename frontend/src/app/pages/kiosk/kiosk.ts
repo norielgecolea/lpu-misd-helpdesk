@@ -240,7 +240,7 @@ export class Kiosk implements OnInit, AfterViewInit, OnDestroy {
   }
 
   protected pickerHeading(): string {
-    return this.pickerStep() === 'problem' ? "What's the problem?" : 'What do you need help with?';
+    return this.pickerStep() === 'problem' ? "What's the concern?" : 'What do you need help with?';
   }
 
   protected pickerHint(): string {
@@ -248,7 +248,7 @@ export class Kiosk implements OnInit, AfterViewInit, OnDestroy {
     if (this.pickerStep() === 'problem' && parent) {
       return parent.label;
     }
-    return 'Choose a category, then the specific problem.';
+    return 'Choose a category, then the specific concern.';
   }
 
   protected personTypeLabel(type: string | null | undefined): string {
@@ -413,7 +413,7 @@ export class Kiosk implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     if (!subcategory) {
-      this.error.set('Please select the problem.');
+      this.error.set('Please select the concern.');
       return;
     }
     if (this.requiresDetail && !this.concern().trim()) {

@@ -57,7 +57,7 @@ public class Ticket {
     @Column(nullable = false, length = 40)
     private String category;
 
-    /** Problem (leaf) code; null on tickets filed before nested categories. */
+    /** Concern (leaf) code; null on tickets filed before nested categories. */
     @Column(length = 40)
     private String subcategory;
 

@@ -122,6 +122,25 @@ public class AnalyticsService {
                 })
                 .toList();
 
+        List<AnalyticsSummaryResponse.ConcernCount> byConcern = ticketRepository
+                .countCreatedGroupByConcern(rangeFrom, rangeTo)
+                .stream()
+                .map(row -> {
+                    String categoryCode = (String) row[0];
+                    String concernCode = (String) row[1];
+                    String concernLabel = concernCode == null || concernCode.isBlank()
+                            ? "Unspecified"
+                            : CategoryLabelCache.labelFor(concernCode);
+                    return new AnalyticsSummaryResponse.ConcernCount(
+                            categoryCode,
+                            CategoryLabelCache.labelFor(categoryCode),
+                            concernCode != null ? concernCode : "",
+                            concernLabel,
+                            ((Number) row[2]).longValue()
+                    );
+                })
+                .toList();
+
         Map<String, Long> createdByDay = toDayMap(ticketRepository.countCreatedByDay(rangeFrom, rangeTo));
         Map<String, Long> closedByDay = toDayMap(ticketRepository.countClosedByDay(rangeFrom, rangeTo));
         List<DayVolume> volumeByDay = fillDayRange(rangeFrom, rangeTo).stream()
@@ -193,6 +212,7 @@ public class AnalyticsService {
                 byStatus,
                 byChannel,
                 byCategory,
+                byConcern,
                 volumeByDay,
                 csmByDay,
                 byAssignee,

@@ -16,7 +16,7 @@ public class TicketCategoryDefinition {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** Null for a main category; set to the parent id for a problem (leaf). */
+    /** Null for a main category; set to the parent id for a concern (leaf). */
     @Column(name = "parent_id")
     private Long parentId;
 

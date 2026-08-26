@@ -113,6 +113,14 @@ export interface AnalyticsNamedCount {
   count: number;
 }
 
+export interface AnalyticsConcernCount {
+  categoryKey: string;
+  categoryLabel: string;
+  concernKey: string;
+  concernLabel: string;
+  count: number;
+}
+
 export interface AnalyticsDayVolume {
   date: string;
   created: number;
@@ -153,6 +161,7 @@ export interface AnalyticsSummary {
   byStatus: AnalyticsNamedCount[];
   byChannel: AnalyticsNamedCount[];
   byCategory: AnalyticsNamedCount[];
+  byConcern: AnalyticsConcernCount[];
   volumeByDay: AnalyticsDayVolume[];
   csmByDay: AnalyticsDayCsm[];
   byAssignee: AnalyticsAssigneeLoad[];

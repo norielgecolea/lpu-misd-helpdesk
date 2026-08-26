@@ -63,9 +63,9 @@
           [ngModel]="subcategoryFilter()"
           (ngModelChange)="onSubcategoryFilterChange($event)"
           [disabled]="!categoryFilter()"
-          aria-label="Filter by problem"
+          aria-label="Filter by concern"
         >
-          <option value="">All problems</option>
+          <option value="">All concerns</option>
           @for (option of subcategoryFilterOptions(); track option.value) {
             <option [value]="option.value">{{ option.label }}</option>
           }

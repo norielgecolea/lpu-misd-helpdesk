@@ -7,9 +7,11 @@ import {
   OnInit,
   ViewChild,
   afterNextRender,
+  computed,
   inject,
   signal,
 } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
 import {
   ArcElement,
   BarController,
@@ -26,10 +28,10 @@ import {
   Tooltip,
 } from 'chart.js';
 import { firstValueFrom } from 'rxjs';
-import { Router } from '@angular/router';
 import { AdminService } from '../../../core/admin/admin.service';
 import {
   AnalyticsAssigneeLoad,
+  AnalyticsConcernCount,
   AnalyticsCsmRating,
   AnalyticsDayVolume,
   AnalyticsSummary,
@@ -60,12 +62,13 @@ const SKY = '#0ea5e9';
 const AMBER = '#f59e0b';
 const EMERALD = '#10b981';
 const ZINC = '#71717a';
-
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+type DashboardPeriod = 'today' | '7d' | '30d' | 'year';
 
 @Component({
   selector: 'app-admin-dashboard',
-  imports: [AnalyticsTicketListDialog],
+  imports: [AnalyticsTicketListDialog, RouterLink],
   templateUrl: './admin-dashboard.html',
 })
 export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
@@ -77,12 +80,17 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('statusCanvas') private statusCanvas?: ElementRef<HTMLCanvasElement>;
   @ViewChild('channelCanvas') private channelCanvas?: ElementRef<HTMLCanvasElement>;
   @ViewChild('csmCanvas') private csmCanvas?: ElementRef<HTMLCanvasElement>;
-  @ViewChild('categoryCanvas') private categoryCanvas?: ElementRef<HTMLCanvasElement>;
 
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
   protected readonly summary = signal<AnalyticsSummary | null>(null);
-  protected readonly year = this.defaultYear();
+  protected readonly period = signal<DashboardPeriod>('30d');
+  protected readonly periods: { id: DashboardPeriod; label: string }[] = [
+    { id: 'today', label: 'Today' },
+    { id: '7d', label: '7 days' },
+    { id: '30d', label: '30 days' },
+    { id: 'year', label: 'This year' },
+  ];
 
   protected readonly ticketListOpen = signal(false);
   protected readonly ticketListLoading = signal(false);
@@ -90,8 +98,46 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
   protected readonly ticketList = signal<AnalyticsTicketList | null>(null);
   protected readonly csmLabels = CSM_LABEL;
 
+  protected readonly periodLabel = computed(() => {
+    switch (this.period()) {
+      case 'today':
+        return 'Today';
+      case '7d':
+        return 'Last 7 days';
+      case '30d':
+        return 'Last 30 days';
+      case 'year':
+        return `Year ${new Date().getFullYear()}`;
+    }
+  });
+
+  protected readonly volumeTitle = computed(() =>
+    this.period() === 'year' ? 'Monthly volume' : 'Daily volume',
+  );
+
+  protected readonly closeRate = computed(() => {
+    const data = this.summary();
+    if (!data || data.totals.created === 0) {
+      return null;
+    }
+    return Math.round((data.totals.closed * 1000) / data.totals.created) / 10;
+  });
+
+  protected readonly topConcerns = computed(() => (this.summary()?.byConcern ?? []).slice(0, 10));
+
+  protected readonly maxConcernCount = computed(() => {
+    const first = this.topConcerns()[0];
+    return first?.count || 1;
+  });
+
+  protected readonly maxAssigneeActive = computed(() => {
+    const rows = this.summary()?.byAssignee ?? [];
+    return Math.max(1, ...rows.map((row) => row.open + row.inProgress));
+  });
+
   private charts: Chart[] = [];
   private viewReady = false;
+  private loadSeq = 0;
 
   ngOnInit(): void {
     void this.load();
@@ -104,6 +150,14 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.destroyCharts();
+  }
+
+  protected setPeriod(period: DashboardPeriod): void {
+    if (period === this.period()) {
+      return;
+    }
+    this.period.set(period);
+    void this.load();
   }
 
   protected formatHours(value: number | null | undefined): string {
@@ -120,9 +174,32 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
     return `${value}%`;
   }
 
+  protected shareOfCreated(count: number): string {
+    const created = this.summary()?.totals.created ?? 0;
+    if (!created) {
+      return '—';
+    }
+    return `${Math.round((count * 1000) / created) / 10}%`;
+  }
+
+  protected assigneeActive(row: AnalyticsAssigneeLoad): number {
+    return row.open + row.inProgress;
+  }
+
+  protected concernBarWidth(row: AnalyticsConcernCount): string {
+    return `${Math.max(4, Math.round((row.count * 100) / this.maxConcernCount()))}%`;
+  }
+
+  protected assigneeBarWidth(row: AnalyticsAssigneeLoad): string {
+    return `${Math.max(4, Math.round((this.assigneeActive(row) * 100) / this.maxAssigneeActive()))}%`;
+  }
+
+  protected concernTrack(row: AnalyticsConcernCount): string {
+    return `${row.categoryKey}:${row.concernKey}`;
+  }
+
   protected async openAssigneeTickets(row: AnalyticsAssigneeLoad): Promise<void> {
-    const from = `${this.year}-01-01`;
-    const to = `${this.year}-12-31`;
+    const { from, to } = this.periodBounds();
     this.ticketListOpen.set(true);
     this.ticketListLoading.set(true);
     this.ticketListError.set(null);
@@ -138,8 +215,7 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
   }
 
   protected async openCsmTickets(rating: AnalyticsCsmRating): Promise<void> {
-    const from = `${this.year}-01-01`;
-    const to = `${this.year}-12-31`;
+    const { from, to } = this.periodBounds();
     this.ticketListOpen.set(true);
     this.ticketListLoading.set(true);
     this.ticketListError.set(null);
@@ -168,27 +244,36 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private async load(): Promise<void> {
+    const seq = ++this.loadSeq;
     this.loading.set(true);
     this.error.set(null);
     try {
-      const y = this.year;
-      const data = await firstValueFrom(
-        this.adminService.getAnalyticsSummary(`${y}-01-01`, `${y}-12-31`),
-      );
-      this.summary.set(data);
+      const { from, to } = this.periodBounds();
+      const data = await firstValueFrom(this.adminService.getAnalyticsSummary(from, to));
+      if (seq !== this.loadSeq) {
+        return;
+      }
+      this.summary.set({
+        ...data,
+        byConcern: data.byConcern ?? [],
+      });
       this.scheduleRenderCharts();
     } catch (err) {
+      if (seq !== this.loadSeq) {
+        return;
+      }
       this.summary.set(null);
       this.error.set(this.describeError(err));
       this.destroyCharts();
     } finally {
-      this.loading.set(false);
+      if (seq === this.loadSeq) {
+        this.loading.set(false);
+      }
     }
   }
 
   private scheduleRenderCharts(): void {
     afterNextRender(() => this.renderCharts(), { injector: this.injector });
-    // Fallback: ViewChild canvases may not exist until after the @if block paints.
     setTimeout(() => this.renderCharts());
   }
 
@@ -202,28 +287,34 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
     }
     this.destroyCharts();
 
-    const monthly = this.aggregateByMonth(data.volumeByDay);
-
     if (this.volumeCanvas) {
+      const yearly = this.period() === 'year';
+      const monthly = yearly ? this.aggregateByMonth(data.volumeByDay) : [];
       this.charts.push(
         new Chart(this.volumeCanvas.nativeElement, {
-          type: 'bar',
+          type: yearly ? 'bar' : 'line',
           data: {
-            labels: MONTH_LABELS,
+            labels: yearly ? MONTH_LABELS : data.volumeByDay.map((d) => d.date.slice(5)),
             datasets: [
               {
                 label: 'Created',
-                data: monthly.map((m) => m.created),
-                backgroundColor: MAROON,
+                data: yearly ? monthly.map((m) => m.created) : data.volumeByDay.map((d) => d.created),
+                borderColor: MAROON,
+                backgroundColor: yearly ? MAROON : 'rgba(141, 37, 70, 0.12)',
+                fill: !yearly,
+                tension: 0.3,
               },
               {
                 label: 'Closed',
-                data: monthly.map((m) => m.closed),
-                backgroundColor: EMERALD,
+                data: yearly ? monthly.map((m) => m.closed) : data.volumeByDay.map((d) => d.closed),
+                borderColor: EMERALD,
+                backgroundColor: yearly ? EMERALD : 'rgba(16, 185, 129, 0.08)',
+                fill: !yearly,
+                tension: 0.3,
               },
             ],
           },
-          options: this.baseOptions('Monthly volume'),
+          options: this.baseOptions(this.volumeTitle()),
         }),
       );
     }
@@ -259,7 +350,7 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
               },
             ],
           },
-          options: this.doughnutOptions('Channel mix (created)'),
+          options: this.doughnutOptions('Channel mix'),
         }),
       );
     }
@@ -286,8 +377,7 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
               if (!elements.length) {
                 return;
               }
-              const index = elements[0].index;
-              const rating = ratingKeys[index];
+              const rating = ratingKeys[elements[0].index];
               if (rating) {
                 void this.openCsmTickets(rating);
               }
@@ -300,33 +390,6 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
             },
             plugins: {
               ...this.baseOptions('CSM ratings').plugins,
-              legend: { display: false },
-            },
-          },
-        }),
-      );
-    }
-
-    if (this.categoryCanvas) {
-      const cats = [...data.byCategory].slice(0, 8).reverse();
-      this.charts.push(
-        new Chart(this.categoryCanvas.nativeElement, {
-          type: 'bar',
-          data: {
-            labels: cats.map((c) => c.label),
-            datasets: [
-              {
-                label: 'Tickets',
-                data: cats.map((c) => c.count),
-                backgroundColor: MAROON,
-              },
-            ],
-          },
-          options: {
-            indexAxis: 'y',
-            ...this.baseOptions('Top categories'),
-            plugins: {
-              ...this.baseOptions('Top categories').plugins,
               legend: { display: false },
             },
           },
@@ -375,6 +438,7 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
     return {
       responsive: true,
       maintainAspectRatio: false,
+      cutout: '62%',
       plugins: {
         legend: {
           position: 'bottom' as const,
@@ -392,8 +456,31 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
     this.charts = [];
   }
 
-  private defaultYear(): number {
-    return new Date().getUTCFullYear();
+  private periodBounds(): { from: string; to: string } {
+    const to = this.todayIso();
+    switch (this.period()) {
+      case 'today':
+        return { from: to, to };
+      case '7d':
+        return { from: this.addDays(to, -6), to };
+      case '30d':
+        return { from: this.addDays(to, -29), to };
+      case 'year': {
+        const year = new Date().getFullYear();
+        return { from: `${year}-01-01`, to: `${year}-12-31` };
+      }
+    }
+  }
+
+  private todayIso(): string {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  }
+
+  private addDays(iso: string, days: number): string {
+    const [year, month, day] = iso.split('-').map(Number);
+    const date = new Date(year, month - 1, day + days);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   }
 
   private describeError(err: unknown): string {

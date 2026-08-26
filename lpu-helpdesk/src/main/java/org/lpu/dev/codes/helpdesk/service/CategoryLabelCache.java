@@ -56,14 +56,14 @@ public class CategoryLabelCache {
 
     public String pathOf(String category, String subcategory) {
         String main = labelOf(category);
-        String problem = labelOf(subcategory);
-        if (problem.isBlank()) {
+        String concern = labelOf(subcategory);
+        if (concern.isBlank()) {
             return main;
         }
         if (main.isBlank()) {
-            return problem;
+            return concern;
         }
-        return main + " / " + problem;
+        return main + " / " + concern;
     }
 
     public boolean requiresDetail(String code) {
@@ -85,14 +85,14 @@ public class CategoryLabelCache {
         CategoryLabelCache cache = instance;
         if (cache == null) {
             String main = humanize(category);
-            String problem = humanize(subcategory);
-            if (problem.isBlank()) {
+            String concern = humanize(subcategory);
+            if (concern.isBlank()) {
                 return main;
             }
             if (main.isBlank()) {
-                return problem;
+                return concern;
             }
-            return main + " / " + problem;
+            return main + " / " + concern;
         }
         return cache.pathOf(category, subcategory);
     }

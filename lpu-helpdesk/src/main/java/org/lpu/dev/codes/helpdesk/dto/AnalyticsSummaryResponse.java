@@ -11,6 +11,7 @@ public record AnalyticsSummaryResponse(
         List<NamedCount> byStatus,
         List<NamedCount> byChannel,
         List<NamedCount> byCategory,
+        List<ConcernCount> byConcern,
         List<DayVolume> volumeByDay,
         List<DayCsm> csmByDay,
         List<AssigneeLoad> byAssignee,
@@ -30,6 +31,15 @@ public record AnalyticsSummaryResponse(
     }
 
     public record NamedCount(String key, String label, long count) {
+    }
+
+    public record ConcernCount(
+            String categoryKey,
+            String categoryLabel,
+            String concernKey,
+            String concernLabel,
+            long count
+    ) {
     }
 
     public record DayVolume(String date, long created, long closed) {

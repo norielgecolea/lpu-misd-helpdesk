@@ -456,7 +456,7 @@ export class Dashboard implements OnInit, OnDestroy {
     const attachments = this.createAttachments();
 
     if (!category || !subcategory || !subject || !description) {
-      this.formError.set('Please fill in category, problem, subject, and description.');
+      this.formError.set('Please fill in category, concern, subject, and description.');
       return;
     }
     if (!idPhoto) {

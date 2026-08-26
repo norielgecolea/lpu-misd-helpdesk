@@ -33,6 +33,7 @@ import { AdminService } from '../../../core/admin/admin.service';
 import {
   AnalyticsAssigneeCsm,
   AnalyticsAssigneeLoad,
+  AnalyticsConcernCount,
   AnalyticsCsmRating,
   AnalyticsSummary,
   AnalyticsTicketList,
@@ -159,6 +160,18 @@ export class AdminAnalytics implements OnInit, AfterViewInit, OnDestroy {
     return `${value}%`;
   }
 
+  protected shareOfCreated(count: number): string {
+    const created = this.summary()?.totals.created ?? 0;
+    if (!created) {
+      return '—';
+    }
+    return `${Math.round((count * 1000) / created) / 10}%`;
+  }
+
+  protected concernTrack(row: AnalyticsConcernCount): string {
+    return `${row.categoryKey}:${row.concernKey}`;
+  }
+
   protected async openAssigneeTickets(row: AnalyticsAssigneeLoad): Promise<void> {
     const { from, to } = this.monthBounds(this.month());
     this.ticketListOpen.set(true);
@@ -252,7 +265,12 @@ export class AdminAnalytics implements OnInit, AfterViewInit, OnDestroy {
         firstValueFrom(this.adminService.getAnalyticsSummary(from, to)),
         firstValueFrom(this.adminService.getCsmByAssignee(from, to)),
       ]);
-      const csv = this.buildAnalyticsCsv(summary, csmByAssignee.byAssignee ?? [], periodLabel, mode);
+      const csv = this.buildAnalyticsCsv(
+        { ...summary, byConcern: summary.byConcern ?? [] },
+        csmByAssignee.byAssignee ?? [],
+        periodLabel,
+        mode,
+      );
       this.downloadCsv(csv, this.reportFilename(mode, from, to));
       this.reportOpen.set(false);
     } catch (err) {
@@ -292,11 +310,22 @@ export class AdminAnalytics implements OnInit, AfterViewInit, OnDestroy {
     }
     blank();
 
-    push('SECTION', 'Commonly submitted tickets');
-    push('Rank', 'Category', 'Count');
+    push('SECTION', 'Commonly submitted tickets by category');
+    push('Rank', 'Category', 'Tickets', '% of tickets');
+    const created = summary.totals.created || 0;
     const categories = [...summary.byCategory].sort((a, b) => b.count - a.count);
     categories.forEach((row, index) => {
-      push(index + 1, row.label, row.count);
+      const share = created > 0 ? Math.round((row.count * 1000) / created) / 10 : '';
+      push(index + 1, row.label, row.count, share);
+    });
+    blank();
+
+    push('SECTION', 'Concerns per tickets');
+    push('Rank', 'Category', 'Concern', 'Tickets', '% of tickets');
+    const concerns = [...(summary.byConcern ?? [])].sort((a, b) => b.count - a.count);
+    concerns.forEach((row, index) => {
+      const share = created > 0 ? Math.round((row.count * 1000) / created) / 10 : '';
+      push(index + 1, row.categoryLabel, row.concernLabel, row.count, share);
     });
     blank();
 
@@ -365,7 +394,10 @@ export class AdminAnalytics implements OnInit, AfterViewInit, OnDestroy {
       if (seq !== this.loadSeq) {
         return;
       }
-      this.summary.set(data);
+      this.summary.set({
+        ...data,
+        byConcern: data.byConcern ?? [],
+      });
       this.scheduleRenderCharts();
     } catch (err) {
       if (seq !== this.loadSeq) {
@@ -507,26 +539,34 @@ export class AdminAnalytics implements OnInit, AfterViewInit, OnDestroy {
     }
 
     if (this.categoryCanvas) {
-      const cats = [...data.byCategory].slice(0, 8).reverse();
+      const concerns = [...(data.byConcern ?? [])].slice(0, 8).reverse();
       this.charts.push(
         new Chart(this.categoryCanvas.nativeElement, {
           type: 'bar',
           data: {
-            labels: cats.map((c) => c.label),
+            labels: concerns.map((c) => c.concernLabel),
             datasets: [
               {
                 label: 'Tickets',
-                data: cats.map((c) => c.count),
+                data: concerns.map((c) => c.count),
                 backgroundColor: MAROON,
               },
             ],
           },
           options: {
             indexAxis: 'y',
-            ...this.baseOptions('Top categories'),
+            ...this.baseOptions('Top concerns'),
             plugins: {
-              ...this.baseOptions('Top categories').plugins,
+              ...this.baseOptions('Top concerns').plugins,
               legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  afterLabel: (item) => {
+                    const row = concerns[item.dataIndex];
+                    return row ? row.categoryLabel : '';
+                  },
+                },
+              },
             },
           },
         }),

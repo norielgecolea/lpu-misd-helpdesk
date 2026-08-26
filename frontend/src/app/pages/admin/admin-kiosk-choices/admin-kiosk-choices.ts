@@ -4,7 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { AdminService } from '../../../core/admin/admin.service';
 import { AdminCategory } from '../../../core/admin/admin.models';
 
-type FormKind = 'main' | 'problem';
+type FormKind = 'main' | 'concern';
 
 @Component({
   selector: 'app-admin-kiosk-choices',
@@ -54,10 +54,10 @@ export class AdminKioskChoices implements OnInit {
     this.showForm.set(true);
   }
 
-  protected openCreateProblem(parent: AdminCategory): void {
+  protected openCreateConcern(parent: AdminCategory): void {
     this.editing.set(null);
     this.formParent.set(parent);
-    this.formKind.set('problem');
+    this.formKind.set('concern');
     this.formError.set(null);
     this.label.set('');
     this.requiresDetail.set(false);
@@ -68,7 +68,7 @@ export class AdminKioskChoices implements OnInit {
   protected openEdit(category: AdminCategory, parent: AdminCategory | null = null): void {
     this.editing.set(category);
     this.formParent.set(parent);
-    this.formKind.set(parent || category.parentId ? 'problem' : 'main');
+    this.formKind.set(parent || category.parentId ? 'concern' : 'main');
     this.formError.set(null);
     this.label.set(category.label);
     this.showOnKiosk.set(category.showOnKiosk);
@@ -86,9 +86,9 @@ export class AdminKioskChoices implements OnInit {
 
   protected formTitle(): string {
     const editing = this.editing();
-    if (this.formKind() === 'problem') {
+    if (this.formKind() === 'concern') {
       const parentLabel = this.formParent()?.label ?? 'category';
-      return editing ? `Edit problem · ${parentLabel}` : `Add problem · ${parentLabel}`;
+      return editing ? `Edit concern · ${parentLabel}` : `Add concern · ${parentLabel}`;
     }
     return editing ? 'Edit category' : 'New category';
   }
@@ -142,10 +142,10 @@ export class AdminKioskChoices implements OnInit {
             active: this.active(),
             showOnKiosk: this.formKind() === 'main' ? this.showOnKiosk() : editing.showOnKiosk,
             showOnline: this.formKind() === 'main' ? this.showOnline() : editing.showOnline,
-            requiresDetail: this.formKind() === 'problem' ? this.requiresDetail() : false,
+            requiresDetail: this.formKind() === 'concern' ? this.requiresDetail() : false,
           }),
         );
-      } else if (this.formKind() === 'problem') {
+      } else if (this.formKind() === 'concern') {
         const parent = this.formParent();
         if (!parent) {
           this.formError.set('Pick a category first.');

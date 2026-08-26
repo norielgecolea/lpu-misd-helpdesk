@@ -95,14 +95,14 @@ public class TicketCategoryService {
     @Transactional(readOnly = true)
     public CategorySelection requireLeaf(String parentCode, String childCode) {
         TicketCategoryDefinition parent = requireByCode(parentCode, "Category is required");
-        TicketCategoryDefinition child = requireByCode(childCode, "Problem is required");
+        TicketCategoryDefinition child = requireByCode(childCode, "Concern is required");
         if (!parent.isRoot()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Pick a main category first");
         }
         if (child.getParentId() == null || !child.getParentId().equals(parent.getId())) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "That problem does not belong to the chosen category"
+                    "That concern does not belong to the chosen category"
             );
         }
         if (!parent.isActive() || !child.isActive() || isEmailLinkCategory(parent.getCode())) {
@@ -128,7 +128,7 @@ public class TicketCategoryService {
             parent = ticketCategoryRepository.findById(request.parentId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Main category not found"));
             if (!parent.isRoot()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Problems can only be added under a main category");
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Concerns can only be added under a main category");
             }
             if (isEmailLinkCategory(parent.getCode())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "That choice is reserved");
@@ -219,7 +219,7 @@ public class TicketCategoryService {
         if (category.isRoot() && ticketCategoryRepository.countByParentId(category.getId()) > 0) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "Remove the problems under this category first"
+                    "Remove the concerns under this category first"
             );
         }
         ticketCategoryRepository.delete(category);

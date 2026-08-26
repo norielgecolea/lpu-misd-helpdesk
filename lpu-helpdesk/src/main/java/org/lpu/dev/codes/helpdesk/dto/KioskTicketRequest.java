@@ -9,10 +9,10 @@ public record KioskTicketRequest(
         @NotBlank(message = "Category is required")
         String category,
 
-        @NotBlank(message = "Problem is required")
+        @NotBlank(message = "Concern is required")
         String subcategory,
 
-        /** Required when the chosen problem has requiresDetail. */
+        /** Required when the chosen concern has requiresDetail. */
         String concern
 ) {
 }

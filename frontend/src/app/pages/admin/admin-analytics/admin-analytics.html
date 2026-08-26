@@ -197,7 +197,7 @@
         </div>
       </div>
       <div class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-        <h3 class="mb-3 text-sm font-semibold text-zinc-900">Top categories</h3>
+        <h3 class="mb-3 text-sm font-semibold text-zinc-900">Top concerns</h3>
         <div class="relative h-64">
           <canvas #categoryCanvas></canvas>
         </div>
@@ -207,25 +207,30 @@
     <div class="grid gap-4 xl:grid-cols-2">
       <div class="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
         <div class="border-b border-zinc-100 px-4 py-3">
-          <h3 class="text-sm font-semibold text-zinc-900">Categories</h3>
+          <h3 class="text-sm font-semibold text-zinc-900">Concerns per tickets</h3>
+          <p class="mt-0.5 text-[11px] text-zinc-500">How many tickets were filed for each concern</p>
         </div>
         <div class="overflow-x-auto">
           <table class="min-w-full text-left text-sm">
             <thead class="bg-zinc-50/80 text-xs font-semibold tracking-wide text-zinc-500 uppercase">
               <tr>
+                <th class="px-4 py-2.5">Concern</th>
                 <th class="px-4 py-2.5">Category</th>
-                <th class="px-4 py-2.5 text-right">Count</th>
+                <th class="px-4 py-2.5 text-right">Tickets</th>
+                <th class="px-4 py-2.5 text-right">Share</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-zinc-100">
-              @for (row of data.byCategory; track row.key) {
+              @for (row of data.byConcern; track concernTrack(row)) {
                 <tr>
-                  <td class="px-4 py-2.5 font-medium text-zinc-900">{{ row.label }}</td>
-                  <td class="px-4 py-2.5 text-right tabular-nums text-zinc-700">{{ row.count }}</td>
+                  <td class="px-4 py-2.5 font-medium text-zinc-900">{{ row.concernLabel }}</td>
+                  <td class="px-4 py-2.5 text-zinc-600">{{ row.categoryLabel }}</td>
+                  <td class="px-4 py-2.5 text-right tabular-nums font-semibold text-zinc-800">{{ row.count }}</td>
+                  <td class="px-4 py-2.5 text-right tabular-nums text-zinc-600">{{ shareOfCreated(row.count) }}</td>
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="2" class="px-4 py-6 text-center text-zinc-500">No tickets in range</td>
+                  <td colspan="4" class="px-4 py-6 text-center text-zinc-500">No tickets in range</td>
                 </tr>
               }
             </tbody>
@@ -306,7 +311,7 @@
             Generate report
           </h3>
           <p class="mt-1 text-sm text-zinc-500">
-            Tickets in range, commonly submitted categories, overall CSM ratings, and CSM per admin.
+            Tickets in range, concerns per tickets, overall CSM ratings, and CSM per admin.
           </p>
         </div>
         <button

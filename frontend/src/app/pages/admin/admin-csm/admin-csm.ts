@@ -15,28 +15,50 @@ import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { Router } from '@angular/router';
 import {
+  ArcElement,
   BarController,
   BarElement,
   CategoryScale,
   Chart,
+  DoughnutController,
+  Filler,
   Legend,
+  LineController,
+  LineElement,
   LinearScale,
+  PointElement,
   Tooltip,
 } from 'chart.js';
 import { firstValueFrom } from 'rxjs';
 import { AdminService } from '../../../core/admin/admin.service';
 import {
   AnalyticsAssigneeCsm,
+  AnalyticsSummary,
   AnalyticsTicketListItem,
 } from '../../../core/admin/admin.models';
 import { adminTicketsPathForChannel } from '../../../core/tickets/ticket.models';
 import { CSM_LABEL } from '../../../core/csm/csm-labels';
 
-Chart.register(CategoryScale, LinearScale, BarElement, BarController, Tooltip, Legend);
+Chart.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  LineController,
+  BarElement,
+  BarController,
+  ArcElement,
+  DoughnutController,
+  Tooltip,
+  Legend,
+  Filler,
+);
 
 const AMBER = '#f59e0b';
 const EMERALD = '#10b981';
 const RED = '#ef4444';
+
+type CsmDetailTab = 'assigned' | 'happy' | 'neutral' | 'sad';
 
 @Component({
   selector: 'app-admin-csm',
@@ -48,14 +70,17 @@ export class AdminCsm implements OnInit, AfterViewInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly injector = inject(Injector);
 
-  @ViewChild('ratioCanvas') private ratioCanvas?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('trendCanvas') private trendCanvas?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('mixCanvas') private mixCanvas?: ElementRef<HTMLCanvasElement>;
 
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
+  protected readonly summary = signal<AnalyticsSummary | null>(null);
   protected readonly byAssignee = signal<AnalyticsAssigneeCsm[]>([]);
   protected readonly month = signal(this.defaultMonth());
   protected readonly monthLabel = computed(() => this.formatMonthLabel(this.month()));
   protected readonly selectedAdminId = signal<number | null>(null);
+  protected readonly detailTab = signal<CsmDetailTab>('sad');
 
   protected readonly assignedTickets = signal<AnalyticsTicketListItem[]>([]);
   protected readonly happyTickets = signal<AnalyticsTicketListItem[]>([]);
@@ -65,6 +90,16 @@ export class AdminCsm implements OnInit, AfterViewInit, OnDestroy {
   protected readonly detailError = signal<string | null>(null);
   protected readonly csmLabels = CSM_LABEL;
 
+  protected readonly rankedAdmins = computed(() =>
+    [...this.byAssignee()].sort((a, b) => {
+      const pct = this.happyPercent(b) - this.happyPercent(a);
+      if (pct !== 0) {
+        return pct;
+      }
+      return b.total - a.total;
+    }),
+  );
+
   protected readonly selectedAdmin = computed(() => {
     const id = this.selectedAdminId();
     if (id == null) {
@@ -73,7 +108,32 @@ export class AdminCsm implements OnInit, AfterViewInit, OnDestroy {
     return this.byAssignee().find((a) => a.adminId === id) ?? null;
   });
 
-  private chart: Chart | null = null;
+  protected readonly sadComments = computed(() =>
+    this.sadTickets().filter((item) => !!item.csmComment?.trim()),
+  );
+
+  protected readonly detailTickets = computed(() => {
+    switch (this.detailTab()) {
+      case 'sad':
+        return this.sadTickets();
+      case 'neutral':
+        return this.neutralTickets();
+      case 'happy':
+        return this.happyTickets();
+      default:
+        return this.assignedTickets();
+    }
+  });
+
+  protected readonly coveragePercent = computed(() => {
+    const data = this.summary();
+    if (!data || data.totals.closed === 0) {
+      return null;
+    }
+    return Math.round((data.totals.csmCount * 1000) / data.totals.closed) / 10;
+  });
+
+  private charts: Chart[] = [];
   private viewReady = false;
   private loadSeq = 0;
   private detailSeq = 0;
@@ -84,11 +144,11 @@ export class AdminCsm implements OnInit, AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     this.viewReady = true;
-    this.scheduleRenderChart();
+    this.scheduleRenderCharts();
   }
 
   ngOnDestroy(): void {
-    this.destroyChart();
+    this.destroyCharts();
   }
 
   protected onMonthChange(value: string): void {
@@ -119,12 +179,18 @@ export class AdminCsm implements OnInit, AfterViewInit, OnDestroy {
   protected onAdminChange(raw: string): void {
     const id = raw ? Number(raw) : null;
     this.selectedAdminId.set(Number.isFinite(id) ? id : null);
+    this.detailTab.set('sad');
     void this.loadAdminDetails();
   }
 
   protected selectAdmin(adminId: number): void {
     this.selectedAdminId.set(adminId);
+    this.detailTab.set('sad');
     void this.loadAdminDetails();
+  }
+
+  protected setDetailTab(tab: CsmDetailTab): void {
+    this.detailTab.set(tab);
   }
 
   protected openTicket(item: AnalyticsTicketListItem): void {
@@ -148,32 +214,68 @@ export class AdminCsm implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  protected happyPercent(row: AnalyticsAssigneeCsm): number {
+    if (row.total === 0) {
+      return 0;
+    }
+    return Math.round((row.happy * 1000) / row.total) / 10;
+  }
+
+  protected formatPercent(value: number | null | undefined): string {
+    if (value == null) {
+      return '—';
+    }
+    return `${value}%`;
+  }
+
+  protected ratingShare(key: 'SAD' | 'NEUTRAL' | 'HAPPY'): string {
+    const data = this.summary();
+    const total = data?.totals.csmCount ?? 0;
+    if (!total) {
+      return '0%';
+    }
+    const count = data?.totals.csmByRating[key] ?? 0;
+    return `${Math.round((count * 1000) / total) / 10}%`;
+  }
+
+  protected stackWidth(count: number, total: number): string {
+    if (!total) {
+      return '0%';
+    }
+    return `${Math.max(count > 0 ? 4 : 0, Math.round((count * 100) / total))}%`;
+  }
+
   private async load(month: string): Promise<void> {
     const seq = ++this.loadSeq;
     this.loading.set(true);
     this.error.set(null);
     try {
       const { from, to } = this.monthBounds(month);
-      const data = await firstValueFrom(this.adminService.getCsmByAssignee(from, to));
+      const [summary, csm] = await Promise.all([
+        firstValueFrom(this.adminService.getAnalyticsSummary(from, to)),
+        firstValueFrom(this.adminService.getCsmByAssignee(from, to)),
+      ]);
       if (seq !== this.loadSeq) {
         return;
       }
-      this.byAssignee.set(data.byAssignee ?? []);
+      this.summary.set(summary);
+      this.byAssignee.set(csm.byAssignee ?? []);
       const selected = this.selectedAdminId();
-      if (selected != null && !data.byAssignee.some((a) => a.adminId === selected)) {
-        this.selectedAdminId.set(data.byAssignee[0]?.adminId ?? null);
-      } else if (selected == null && data.byAssignee.length > 0) {
-        this.selectedAdminId.set(data.byAssignee[0].adminId);
+      if (selected != null && !csm.byAssignee.some((a) => a.adminId === selected)) {
+        this.selectedAdminId.set(csm.byAssignee[0]?.adminId ?? null);
+      } else if (selected == null && csm.byAssignee.length > 0) {
+        this.selectedAdminId.set(csm.byAssignee[0].adminId);
       }
-      this.scheduleRenderChart();
+      this.scheduleRenderCharts();
       await this.loadAdminDetails();
     } catch (err) {
       if (seq !== this.loadSeq) {
         return;
       }
+      this.summary.set(null);
       this.byAssignee.set([]);
       this.error.set(this.describeError(err));
-      this.destroyChart();
+      this.destroyCharts();
     } finally {
       if (seq === this.loadSeq) {
         this.loading.set(false);
@@ -224,104 +326,102 @@ export class AdminCsm implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  private scheduleRenderChart(): void {
-    afterNextRender(() => this.renderChart(), { injector: this.injector });
-    setTimeout(() => this.renderChart());
+  private scheduleRenderCharts(): void {
+    afterNextRender(() => this.renderCharts(), { injector: this.injector });
+    setTimeout(() => this.renderCharts());
   }
 
-  private renderChart(): void {
-    if (!this.viewReady || !this.ratioCanvas) {
+  private renderCharts(): void {
+    if (!this.viewReady) {
       return;
     }
-    const rows = this.byAssignee();
-    this.destroyChart();
-    if (rows.length === 0) {
-      return;
-    }
+    this.destroyCharts();
+    const summary = this.summary();
 
-    this.chart = new Chart(this.ratioCanvas.nativeElement, {
-      type: 'bar',
-      data: {
-        labels: rows.map((r) => r.name),
-        datasets: [
-          {
-            label: CSM_LABEL.SAD,
-            data: rows.map((r) => r.sad),
-            backgroundColor: RED,
-            stack: 'csm',
+    if (this.trendCanvas && summary) {
+      this.charts.push(
+        new Chart(this.trendCanvas.nativeElement, {
+          type: 'line',
+          data: {
+            labels: summary.csmByDay.map((d) => d.date.slice(5)),
+            datasets: [
+              {
+                label: CSM_LABEL.SAD,
+                data: summary.csmByDay.map((d) => d.sad),
+                borderColor: RED,
+                backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                fill: true,
+                tension: 0.3,
+              },
+              {
+                label: CSM_LABEL.NEUTRAL,
+                data: summary.csmByDay.map((d) => d.neutral),
+                borderColor: AMBER,
+                backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                fill: true,
+                tension: 0.3,
+              },
+              {
+                label: CSM_LABEL.HAPPY,
+                data: summary.csmByDay.map((d) => d.happy),
+                borderColor: EMERALD,
+                backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                fill: true,
+                tension: 0.3,
+              },
+            ],
           },
-          {
-            label: CSM_LABEL.NEUTRAL,
-            data: rows.map((r) => r.neutral),
-            backgroundColor: AMBER,
-            stack: 'csm',
-          },
-          {
-            label: CSM_LABEL.HAPPY,
-            data: rows.map((r) => r.happy),
-            backgroundColor: EMERALD,
-            stack: 'csm',
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        onClick: (_event, elements) => {
-          if (!elements.length) {
-            return;
-          }
-          const index = elements[0].index;
-          const row = rows[index];
-          if (row) {
-            this.selectAdmin(row.adminId);
-          }
-        },
-        onHover: (event, elements) => {
-          const target = event.native?.target as HTMLElement | undefined;
-          if (target) {
-            target.style.cursor = elements.length ? 'pointer' : 'default';
-          }
-        },
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: { boxWidth: 12, font: { size: 11 } },
-          },
-          tooltip: {
-            callbacks: {
-              afterBody: (items) => {
-                const index = items[0]?.dataIndex ?? 0;
-                const row = rows[index];
-                if (!row || row.total === 0) {
-                  return '';
-                }
-                const happyPct = Math.round((row.happy * 1000) / row.total) / 10;
-                return `Very satisfied ratio: ${happyPct}%`;
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+            },
+            scales: {
+              x: { ticks: { font: { size: 10 }, maxRotation: 0 }, grid: { display: false } },
+              y: {
+                beginAtZero: true,
+                ticks: { font: { size: 10 }, precision: 0 },
+                grid: { color: 'rgba(24, 24, 27, 0.06)' },
               },
             },
           },
-        },
-        scales: {
-          x: {
-            stacked: true,
-            ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 0 },
-            grid: { display: false },
+        }),
+      );
+    }
+
+    if (this.mixCanvas && summary) {
+      const ratings = summary.totals.csmByRating;
+      this.charts.push(
+        new Chart(this.mixCanvas.nativeElement, {
+          type: 'doughnut',
+          data: {
+            labels: [CSM_LABEL.SAD, CSM_LABEL.NEUTRAL, CSM_LABEL.HAPPY],
+            datasets: [
+              {
+                data: [ratings['SAD'] ?? 0, ratings['NEUTRAL'] ?? 0, ratings['HAPPY'] ?? 0],
+                backgroundColor: [RED, AMBER, EMERALD],
+              },
+            ],
           },
-          y: {
-            stacked: true,
-            beginAtZero: true,
-            ticks: { font: { size: 10 }, precision: 0 },
-            grid: { color: 'rgba(24, 24, 27, 0.06)' },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '64%',
+            plugins: {
+              legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } },
+            },
           },
-        },
-      },
-    });
+        }),
+      );
+    }
   }
 
-  private destroyChart(): void {
-    this.chart?.destroy();
-    this.chart = null;
+  private destroyCharts(): void {
+    for (const chart of this.charts) {
+      chart.destroy();
+    }
+    this.charts = [];
   }
 
   private defaultMonth(): string {
