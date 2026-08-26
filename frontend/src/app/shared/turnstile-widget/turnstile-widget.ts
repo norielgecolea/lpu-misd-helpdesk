@@ -31,6 +31,8 @@ declare global {
 })
 export class TurnstileWidget implements AfterViewInit, OnDestroy {
   @Input({ required: true }) action = '';
+  /** When set, ignores the app theme (e.g. always-light login pages). */
+  @Input() colorTheme?: 'light' | 'dark';
   @ViewChild('host', { static: true }) private readonly host?: ElementRef<HTMLElement>;
 
   readonly solved = signal(false);
@@ -74,7 +76,7 @@ export class TurnstileWidget implements AfterViewInit, OnDestroy {
     this.widgetId = window.turnstile.render(this.host.nativeElement, {
       sitekey: environment.turnstile.siteKey,
       action: this.action,
-      theme: this.theme.isDark() ? 'dark' : 'light',
+      theme: this.colorTheme ?? (this.theme.isDark() ? 'dark' : 'light'),
       size: 'flexible',
       callback: (value: string) => {
         this.token = value ?? '';

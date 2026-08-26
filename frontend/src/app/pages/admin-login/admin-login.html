@@ -52,12 +52,7 @@
       </div>
 
       <div class="flex flex-col gap-1.5">
-        <div class="flex items-center justify-between gap-2">
-          <label class="text-sm font-semibold text-gray-800" for="password">Password</label>
-          <a routerLink="/admin/forgot-password" class="text-primary text-xs font-semibold hover:underline">
-            Forgot password?
-          </a>
-        </div>
+        <label class="text-sm font-semibold text-gray-800" for="password">Password</label>
         <input
           id="password"
           name="password"
@@ -72,19 +67,24 @@
         />
       </div>
 
-      <label class="flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-700">
-        <input
-          type="checkbox"
-          class="text-primary focus:ring-primary/40 h-4 w-4 rounded border-zinc-950/25"
-          [ngModel]="rememberMe()"
-          (ngModelChange)="rememberMe.set($event)"
-          [ngModelOptions]="{ standalone: true }"
-          [disabled]="loading()"
-        />
-        Keep me signed in
-      </label>
+      <div class="flex items-center justify-between gap-3">
+        <label class="flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-700">
+          <input
+            type="checkbox"
+            class="text-primary focus:ring-primary/40 h-4 w-4 rounded border-zinc-950/25"
+            [ngModel]="rememberMe()"
+            (ngModelChange)="rememberMe.set($event)"
+            [ngModelOptions]="{ standalone: true }"
+            [disabled]="loading()"
+          />
+          Keep me signed in
+        </label>
+        <a routerLink="/admin/forgot-password" class="text-primary shrink-0 text-xs font-semibold hover:underline">
+          Forgot password?
+        </a>
+      </div>
 
-      <app-turnstile-widget action="admin-login" />
+      <app-turnstile-widget action="admin-login" colorTheme="light" />
 
       <button
         type="submit"

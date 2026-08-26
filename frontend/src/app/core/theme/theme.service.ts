@@ -13,7 +13,7 @@ export class ThemeService {
 
   constructor() {
     const mode = this.mode();
-    this.apply(mode);
+    this.apply(this.isAdminLoginPath() ? 'light' : mode);
     // Persist light when unset so the app never falls back to OS appearance.
     if (this.readRaw() == null) {
       this.persist(mode);
@@ -28,6 +28,16 @@ export class ThemeService {
     this.mode.set(mode);
     this.apply(mode);
     this.persist(mode);
+  }
+
+  /** Paint a theme on the document without changing the stored preference. */
+  applyAppearance(mode: ThemeMode): void {
+    this.apply(mode);
+  }
+
+  /** Re-apply the stored theme preference to the document. */
+  applyStored(): void {
+    this.apply(this.mode());
   }
 
   private readStored(): ThemeMode {
@@ -56,5 +66,13 @@ export class ThemeService {
     }
     document.documentElement.classList.toggle('dark', mode === 'dark');
     document.documentElement.style.colorScheme = mode === 'dark' ? 'dark' : 'only light';
+  }
+
+  private isAdminLoginPath(): boolean {
+    if (typeof location === 'undefined') {
+      return false;
+    }
+    const path = location.pathname.replace(/\/+$/, '') || '/';
+    return path === '/admin';
   }
 }

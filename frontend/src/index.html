@@ -9,7 +9,9 @@
     <meta name="theme-color" content="#9b1c1c" />
     <script>
       try {
-        var dark = localStorage.getItem('lpu-helpdesk-theme') === 'dark';
+        var path = (location.pathname || '/').replace(/\/+$/, '') || '/';
+        var adminLogin = path === '/admin';
+        var dark = !adminLogin && localStorage.getItem('lpu-helpdesk-theme') === 'dark';
         document.documentElement.classList.toggle('dark', dark);
         document.documentElement.style.colorScheme = dark ? 'dark' : 'only light';
       } catch (_) {

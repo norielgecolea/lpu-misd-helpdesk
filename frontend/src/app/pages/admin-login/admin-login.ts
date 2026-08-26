@@ -1,9 +1,10 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, ViewChild, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { APP_NAME, APP_VERSION } from '../../core/app-info';
 import { AuthService } from '../../core/auth/auth.service';
+import { ThemeService } from '../../core/theme/theme.service';
 import { TurnstileWidget } from '../../shared/turnstile-widget/turnstile-widget';
 
 @Component({
@@ -11,7 +12,7 @@ import { TurnstileWidget } from '../../shared/turnstile-widget/turnstile-widget'
   imports: [FormsModule, RouterLink, TurnstileWidget],
   templateUrl: './admin-login.html',
 })
-export class AdminLogin {
+export class AdminLogin implements OnInit, OnDestroy {
   @ViewChild(TurnstileWidget) protected readonly turnstile?: TurnstileWidget;
 
   protected readonly login = signal('');
@@ -24,6 +25,15 @@ export class AdminLogin {
 
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly theme = inject(ThemeService);
+
+  ngOnInit(): void {
+    this.theme.applyAppearance('light');
+  }
+
+  ngOnDestroy(): void {
+    this.theme.applyStored();
+  }
 
   protected async onSubmit(): Promise<void> {
     this.error.set(null);
