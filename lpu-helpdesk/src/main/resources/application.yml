@@ -80,6 +80,11 @@ app:
   storage:
     pictures-dir: ${APP_PICTURES_DIR:/usr/local/tomcat/pictures}
     max-id-bytes: ${APP_MAX_ID_BYTES:5242880}
+  turnstile:
+    secret: ${TURNSTILE_SECRET:}
+    # Comma-separated frontend hostnames Siteverify must return. Production
+    # deployments must not include localhost or 127.0.0.1.
+    hostnames: ${TURNSTILE_HOSTNAMES:}
 
 logging:
   config: classpath:log4j2.xml

@@ -84,9 +84,11 @@
         Keep me signed in
       </label>
 
+      <app-turnstile-widget action="admin-login" />
+
       <button
         type="submit"
-        [disabled]="loading()"
+        [disabled]="loading() || !turnstile?.solved()"
         class="bg-primary border-primary hover:bg-primary/90 focus-visible:ring-primary/40 mt-2 inline-flex w-full cursor-pointer select-none items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-semibold leading-none text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
       >
         @if (loading()) {

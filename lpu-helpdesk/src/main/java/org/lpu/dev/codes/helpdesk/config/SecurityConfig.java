@@ -27,7 +27,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableWebSecurity
 @EnableMethodSecurity
 @EnableConfigurationProperties({JwtProperties.class, OtpProperties.class, MsalProperties.class,
-        AuthProperties.class, MailProperties.class, GateAttendanceProperties.class, StorageProperties.class})
+        AuthProperties.class, MailProperties.class, GateAttendanceProperties.class, StorageProperties.class,
+        TurnstileProperties.class})
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;

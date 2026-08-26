@@ -132,9 +132,11 @@
               />
             </div>
 
+            <app-turnstile-widget action="otp-request" />
+
             <button
               type="submit"
-              [disabled]="sendingOtp()"
+              [disabled]="sendingOtp() || !turnstile?.solved()"
               class="bg-primary border-primary hover:bg-primary/90 focus-visible:ring-primary/40 inline-flex w-full cursor-pointer select-none items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-semibold leading-none text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
             >
               @if (sendingOtp()) {
@@ -198,6 +200,10 @@
               }
             </button>
 
+            @if (resendCooldown() === 0) {
+              <app-turnstile-widget action="otp-request" />
+            }
+
             <div class="flex items-center justify-between text-xs font-semibold">
               <button
                 type="button"
@@ -209,7 +215,7 @@
               <button
                 type="button"
                 (click)="onResendOtp()"
-                [disabled]="resendCooldown() > 0 || sendingOtp()"
+                [disabled]="resendCooldown() > 0 || sendingOtp() || !turnstile?.solved()"
                 class="hover:text-primary cursor-pointer text-gray-600 transition-colors disabled:cursor-not-allowed disabled:text-gray-400"
               >
                 @if (resendCooldown() > 0) {

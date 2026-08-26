@@ -1,8 +1,10 @@
 import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { APP_NAME, APP_VERSION } from '../../core/app-info';
 import { AuthService, InvalidEmailDomainError } from '../../core/auth/auth.service';
+import { TurnstileWidget } from '../../shared/turnstile-widget/turnstile-widget';
 
 const RESEND_COOLDOWN_SECONDS = 60;
 const OTP_LENGTH = 6;
@@ -11,7 +13,7 @@ type Step = 'email' | 'otp';
 
 @Component({
   selector: 'app-login',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, TurnstileWidget],
   templateUrl: './login.html',
   styles: `
     @keyframes login-rise {
@@ -53,6 +55,7 @@ type Step = 'email' | 'otp';
 })
 export class Login implements OnInit, OnDestroy {
   @ViewChild('otpInput') private readonly otpInput?: ElementRef<HTMLInputElement>;
+  @ViewChild(TurnstileWidget) protected readonly turnstile?: TurnstileWidget;
 
   protected readonly error = signal<string | null>(null);
   protected readonly loading = signal(false);
@@ -114,19 +117,25 @@ export class Login implements OnInit, OnDestroy {
       this.error.set('Please enter your LPU Laguna email address.');
       return;
     }
+    const turnstileToken = this.turnstile?.currentToken() ?? '';
+    if (!turnstileToken) {
+      this.error.set('Please complete the verification check.');
+      return;
+    }
 
     this.sendingOtp.set(true);
     try {
-      await this.auth.requestOtp(email);
+      await this.auth.requestOtp(email, turnstileToken);
       this.email.set(email.toLowerCase());
       this.otp.set('');
-      this.step.set('otp');
       this.startResendCooldown();
+      this.step.set('otp');
       queueMicrotask(() => this.otpInput?.nativeElement.focus());
     } catch (err: unknown) {
       this.error.set(this.describeError(err));
     } finally {
       this.sendingOtp.set(false);
+      this.turnstile?.reset();
     }
   }
 
@@ -187,6 +196,9 @@ export class Login implements OnInit, OnDestroy {
   private describeError(err: unknown): string {
     if (err instanceof InvalidEmailDomainError) {
       return err.message;
+    }
+    if (err instanceof HttpErrorResponse && err.status === 403) {
+      return 'Verification failed. Refresh the check and try again.';
     }
     // MSAL throws when the user closes the popup — not a real failure.
     if (err && typeof err === 'object' && 'errorCode' in err) {

@@ -1,9 +1,12 @@
 package org.lpu.dev.codes.helpdesk.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 
 public record ForgotPasswordRequest(
         @NotBlank(message = "Username or email is required")
-        String login
+        String login,
+
+        @JsonProperty("cf-turnstile-response")
+        String turnstileResponse
 ) {}

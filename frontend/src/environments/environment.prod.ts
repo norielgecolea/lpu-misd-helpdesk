@@ -11,4 +11,7 @@ export const environment = {
   },
   allowedEmailDomain: 'lpulaguna.edu.ph',
   allowedEmailDomains: ['lpulaguna.edu.ph', 'lpusc.edu.ph'],
+  turnstile: {
+    siteKey: '0x4AAAAAAEctnNMmaNQygCCJ',
+  },
 };

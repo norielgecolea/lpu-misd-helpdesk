@@ -47,6 +47,8 @@ services:
       GATE_ATTENDANCE_DB_PASSWORD: ${GATE_ATTENDANCE_DB_PASSWORD:-}
       GATE_ATTENDANCE_URL: ${GATE_ATTENDANCE_URL:-}
       APP_PICTURES_DIR: /usr/local/tomcat/pictures
+      TURNSTILE_SECRET: ${TURNSTILE_SECRET:-}
+      TURNSTILE_HOSTNAMES: ${TURNSTILE_HOSTNAMES:-localhost,127.0.0.1}
       JAVA_OPTS: "-Dlpu.log.dir=/usr/local/tomcat/logs"
     volumes:
       # Deploy: mvn -f lpu-helpdesk clean package && cp lpu-helpdesk/target/lpu-helpdesk.war data/tomcat/webapps/

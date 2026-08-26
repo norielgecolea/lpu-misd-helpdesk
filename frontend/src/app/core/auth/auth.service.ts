@@ -10,6 +10,7 @@ import {
   AppRole,
   AuthUser,
   LoginResponse,
+  OtpRequestRequest,
   OtpRequestResponse,
 } from './auth.models';
 
@@ -110,12 +111,13 @@ export class AuthService {
    * Sends a one-time login code via the backend (`POST /api/auth/otp/request`).
    * Accepts any valid email address (campus or outside).
    */
-  async requestOtp(email: string): Promise<OtpRequestResponse> {
+  async requestOtp(email: string, turnstileToken: string): Promise<OtpRequestResponse> {
     const normalized = this.normalizeEmail(email);
     return firstValueFrom(
       this.http.post<OtpRequestResponse>(`${environment.apiBaseUrl}/auth/otp/request`, {
         email: normalized,
-      }),
+        'cf-turnstile-response': turnstileToken,
+      } satisfies OtpRequestRequest),
     );
   }
 
@@ -142,12 +144,18 @@ export class AuthService {
    * kept in `localStorage` so it survives browser restarts; otherwise it's
    * `sessionStorage`-only like the student flows.
    */
-  async loginWithPassword(login: string, password: string, rememberMe: boolean): Promise<AuthUser> {
+  async loginWithPassword(
+    login: string,
+    password: string,
+    rememberMe: boolean,
+    turnstileToken: string,
+  ): Promise<AuthUser> {
     const response = await firstValueFrom(
       this.http.post<LoginResponse>(`${environment.apiBaseUrl}/admin/auth/login`, {
         login: login.trim().toLowerCase(),
         password,
         rememberMe,
+        'cf-turnstile-response': turnstileToken,
       } satisfies AdminLoginRequest),
     );
 
@@ -155,10 +163,11 @@ export class AuthService {
     return this.userSignal()!;
   }
 
-  async forgotPassword(login: string): Promise<string> {
+  async forgotPassword(login: string, turnstileToken: string): Promise<string> {
     const response = await firstValueFrom(
       this.http.post<{ message: string }>(`${environment.apiBaseUrl}/admin/auth/forgot-password`, {
         login: login.trim().toLowerCase(),
+        'cf-turnstile-response': turnstileToken,
       }),
     );
     return response.message;

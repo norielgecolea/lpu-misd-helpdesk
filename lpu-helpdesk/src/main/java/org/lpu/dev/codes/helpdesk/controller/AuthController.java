@@ -1,5 +1,6 @@
 package org.lpu.dev.codes.helpdesk.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -10,6 +11,7 @@ import org.lpu.dev.codes.helpdesk.dto.OtpRequestResponse;
 import org.lpu.dev.codes.helpdesk.dto.OtpVerifyRequest;
 import org.lpu.dev.codes.helpdesk.security.AuthenticatedUser;
 import org.lpu.dev.codes.helpdesk.service.AuthService;
+import org.lpu.dev.codes.helpdesk.service.TurnstileVerificationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,10 +24,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private final AuthService authService;
+    private static final String OTP_REQUEST_ACTION = "otp-request";
 
-    public AuthController(AuthService authService) {
+    private final AuthService authService;
+    private final TurnstileVerificationService turnstileVerificationService;
+
+    public AuthController(AuthService authService, TurnstileVerificationService turnstileVerificationService) {
         this.authService = authService;
+        this.turnstileVerificationService = turnstileVerificationService;
     }
 
     @PostMapping("/microsoft")
@@ -34,7 +40,11 @@ public class AuthController {
     }
 
     @PostMapping("/otp/request")
-    public ResponseEntity<OtpRequestResponse> requestOtp(@Valid @RequestBody OtpRequestRequest request) {
+    public ResponseEntity<OtpRequestResponse> requestOtp(
+            @Valid @RequestBody OtpRequestRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        turnstileVerificationService.verify(request.turnstileResponse(), OTP_REQUEST_ACTION, httpRequest);
         return ResponseEntity.ok(authService.requestOtp(request.email()));
     }
 

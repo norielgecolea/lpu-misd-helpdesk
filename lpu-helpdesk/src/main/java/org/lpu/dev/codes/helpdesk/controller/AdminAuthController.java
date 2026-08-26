@@ -1,5 +1,6 @@
 package org.lpu.dev.codes.helpdesk.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.Map;
 import org.lpu.dev.codes.helpdesk.dto.AdminLoginRequest;
@@ -10,6 +11,7 @@ import org.lpu.dev.codes.helpdesk.dto.ResetPasswordRequest;
 import org.lpu.dev.codes.helpdesk.security.AuthenticatedUser;
 import org.lpu.dev.codes.helpdesk.service.AdminAuthService;
 import org.lpu.dev.codes.helpdesk.service.AdminPasswordService;
+import org.lpu.dev.codes.helpdesk.service.TurnstileVerificationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,22 +23,39 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/admin/auth")
 public class AdminAuthController {
 
+    private static final String ADMIN_LOGIN_ACTION = "admin-login";
+    private static final String FORGOT_PASSWORD_ACTION = "forgot-password";
+
     private final AdminAuthService adminAuthService;
     private final AdminPasswordService adminPasswordService;
+    private final TurnstileVerificationService turnstileVerificationService;
 
-    public AdminAuthController(AdminAuthService adminAuthService, AdminPasswordService adminPasswordService) {
+    public AdminAuthController(
+            AdminAuthService adminAuthService,
+            AdminPasswordService adminPasswordService,
+            TurnstileVerificationService turnstileVerificationService
+    ) {
         this.adminAuthService = adminAuthService;
         this.adminPasswordService = adminPasswordService;
+        this.turnstileVerificationService = turnstileVerificationService;
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody AdminLoginRequest request) {
+    public ResponseEntity<LoginResponse> login(
+            @Valid @RequestBody AdminLoginRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        turnstileVerificationService.verify(request.turnstileResponse(), ADMIN_LOGIN_ACTION, httpRequest);
         boolean rememberMe = Boolean.TRUE.equals(request.rememberMe());
         return ResponseEntity.ok(adminAuthService.login(request.login(), request.password(), rememberMe));
     }
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+    public ResponseEntity<Map<String, String>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        turnstileVerificationService.verify(request.turnstileResponse(), FORGOT_PASSWORD_ACTION, httpRequest);
         adminPasswordService.requestPasswordReset(request.login());
         return ResponseEntity.ok(Map.of(
                 "message",

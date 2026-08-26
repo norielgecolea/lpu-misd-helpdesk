@@ -1,5 +1,6 @@
 package org.lpu.dev.codes.helpdesk.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 
 public record AdminLoginRequest(
@@ -10,6 +11,9 @@ public record AdminLoginRequest(
         @NotBlank(message = "Password is required")
         String password,
 
-        Boolean rememberMe
+        Boolean rememberMe,
+
+        @JsonProperty("cf-turnstile-response")
+        String turnstileResponse
 ) {
 }

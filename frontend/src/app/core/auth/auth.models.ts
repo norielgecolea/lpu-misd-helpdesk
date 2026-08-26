@@ -4,6 +4,7 @@ export interface MicrosoftLoginRequest {
 
 export interface OtpRequestRequest {
   email: string;
+  'cf-turnstile-response': string;
 }
 
 export interface OtpRequestResponse {
@@ -20,6 +21,7 @@ export interface AdminLoginRequest {
   login: string;
   password: string;
   rememberMe?: boolean;
+  'cf-turnstile-response': string;
 }
 
 export interface LoginResponse {

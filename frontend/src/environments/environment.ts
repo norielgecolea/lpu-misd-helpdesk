@@ -18,4 +18,7 @@ export const environment = {
   // re-validated by the backend when it exchanges the Microsoft ID token.
   allowedEmailDomain: 'lpulaguna.edu.ph',
   allowedEmailDomains: ['lpulaguna.edu.ph', 'lpusc.edu.ph'],
+  turnstile: {
+    siteKey: '0x4AAAAAAEctnNMmaNQygCCJ',
+  },
 };
