@@ -1,8 +1,9 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, ViewChild, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
+import { ThemeService } from '../../core/theme/theme.service';
 import { TurnstileWidget } from '../../shared/turnstile-widget/turnstile-widget';
 
 @Component({
@@ -10,7 +11,7 @@ import { TurnstileWidget } from '../../shared/turnstile-widget/turnstile-widget'
   imports: [FormsModule, RouterLink, TurnstileWidget],
   templateUrl: './admin-forgot-password.html',
 })
-export class AdminForgotPassword {
+export class AdminForgotPassword implements OnInit, OnDestroy {
   @ViewChild(TurnstileWidget) protected readonly turnstile?: TurnstileWidget;
 
   protected readonly login = signal('');
@@ -19,6 +20,15 @@ export class AdminForgotPassword {
   protected readonly success = signal<string | null>(null);
 
   private readonly auth = inject(AuthService);
+  private readonly theme = inject(ThemeService);
+
+  ngOnInit(): void {
+    this.theme.applyAppearance('light');
+  }
+
+  ngOnDestroy(): void {
+    this.theme.applyStored();
+  }
 
   protected async onSubmit(): Promise<void> {
     this.error.set(null);

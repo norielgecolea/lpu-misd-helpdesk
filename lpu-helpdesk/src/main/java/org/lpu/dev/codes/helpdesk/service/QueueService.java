@@ -33,9 +33,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Onsite (walk-in / RFID kiosk) queueing. Each admin has their own
- * "now serving" slot — claiming a ticket assigns it to that admin.
- * Transfers require the target admin to be active and to approve first.
+ * Onsite (walk-in / RFID kiosk) tickets. Open tickets sit on the line;
+ * claiming one assigns it to the acting admin as in progress.
  */
 @Service
 public class QueueService {
@@ -130,25 +129,18 @@ public class QueueService {
         return beginServing(next, actingAdmin.getId());
     }
 
-    /** Pick a specific waiting ticket and assign it to the acting admin. */
+    /** Mark a waiting onsite ticket as in progress and assign it to the acting admin. */
     @Transactional
     public Ticket claim(AuthenticatedUser actingAdmin, Long ticketId) {
-        requireNotAlreadyServing(actingAdmin.getId());
-
-        if (transferRequestRepository.existsPendingForTicket(ticketId)) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "This ticket has a pending transfer — wait for approval or cancel it first"
-            );
-        }
-
         Ticket ticket = ticketRepository.lockWaitingOnsiteById(ticketId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.CONFLICT,
                         "That ticket is no longer waiting — it may have been claimed already"
                 ));
 
-        return beginServing(ticket, actingAdmin.getId());
+        Ticket saved = beginServing(ticket, actingAdmin.getId());
+        cancelPendingTransfersForTicket(ticketId);
+        return saved;
     }
 
     /**
@@ -287,6 +279,9 @@ public class QueueService {
     @Transactional
     public Ticket completeServing(Long ticketId) {
         Ticket ticket = getOnsiteTicketOrThrow(ticketId);
+        if (ticket.getStatus() != TicketStatus.IN_PROGRESS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only in-progress tickets can be completed");
+        }
         ticket.setStatus(TicketStatus.CLOSED);
         ticket.setResolvedAt(Instant.now());
         ticket.setUpdatedAt(Instant.now());
@@ -316,12 +311,15 @@ public class QueueService {
     @Transactional
     public Ticket requeue(Long ticketId) {
         Ticket ticket = getOnsiteTicketOrThrow(ticketId);
+        if (ticket.getStatus() != TicketStatus.IN_PROGRESS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only in-progress tickets can be returned to the line");
+        }
         ticket.setStatus(TicketStatus.OPEN);
         ticket.setAssignedAdminId(null);
         ticket.setUpdatedAt(Instant.now());
         Ticket saved = ticketRepository.save(ticket);
         cancelPendingTransfersForTicket(ticketId);
-        log.info("Queue ticket {} sent back to waiting", saved.getTicketNumber());
+        log.info("Queue ticket {} sent back to the line", saved.getTicketNumber());
         return saved;
     }
 

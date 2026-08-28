@@ -10,8 +10,11 @@
     <script>
       try {
         var path = (location.pathname || '/').replace(/\/+$/, '') || '/';
-        var adminLogin = path === '/admin';
-        var dark = !adminLogin && localStorage.getItem('lpu-helpdesk-theme') === 'dark';
+        var forceLight =
+          path === '/admin' ||
+          path === '/admin/forgot-password' ||
+          path === '/admin/reset-password';
+        var dark = !forceLight && localStorage.getItem('lpu-helpdesk-theme') === 'dark';
         document.documentElement.classList.toggle('dark', dark);
         document.documentElement.style.colorScheme = dark ? 'dark' : 'only light';
       } catch (_) {

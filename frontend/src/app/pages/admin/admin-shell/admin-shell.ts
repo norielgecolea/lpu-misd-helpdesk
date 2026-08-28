@@ -141,6 +141,7 @@ export class AdminShell {
       url.startsWith('/admin/my-tickets')
       || url.startsWith('/admin/tickets')
       || url.startsWith('/admin/onsite-tickets')
+      || url.startsWith('/admin/queue')
     );
   });
 

@@ -44,28 +44,20 @@
           <div class="flex shrink-0 items-end justify-between gap-3 border-b border-zinc-800 bg-[#1a1e28] px-4 py-2.5">
             <div>
               <p class="text-[10px] font-semibold tracking-[0.16em] text-[#e8a0b4] uppercase">Onsite</p>
-              <h2 class="text-base font-semibold tracking-tight text-white">In queue</h2>
+              <h2 class="text-base font-semibold tracking-tight text-white">Waiting</h2>
             </div>
             <p class="text-xs font-medium text-zinc-400">{{ waiting().length }} waiting</p>
           </div>
 
           @if (waiting().length === 0) {
             <div class="flex flex-1 items-center justify-center px-4 py-6 text-center">
-              <p class="text-sm font-medium text-zinc-500">Queue is empty</p>
+              <p class="text-sm font-medium text-zinc-500">No waiting onsite tickets</p>
             </div>
           } @else {
             <ul class="monitor-scroll min-h-0 flex-1 divide-y divide-zinc-800/80 overflow-y-auto overscroll-contain">
               @for (ticket of waiting(); track ticket.id; let i = $index) {
-                <li class="flex items-center gap-3 px-4 py-2" [class.bg-[#8d2546]/10]="i === 0">
-                  <span
-                    class="inline-flex min-w-12 shrink-0 items-center justify-center rounded-md bg-[#8d2546] px-2 py-1.5 font-mono text-lg font-bold text-white tabular-nums"
-                  >
-                    {{ ticket.queueNumber ?? '—' }}
-                  </span>
+                <li class="flex items-center gap-3 px-4 py-2">
                   <div class="min-w-0 flex-1">
-                    @if (i === 0) {
-                      <p class="mb-px text-[10px] font-bold tracking-wide text-[#e8a0b4] uppercase">Next up</p>
-                    }
                     <p class="truncate font-mono text-sm font-semibold tracking-tight text-[#f0b4c4]">
                       {{ personLabel(ticket) }}
                     </p>
@@ -73,6 +65,7 @@
                       {{ ticket.requesterName }}
                       <span class="text-zinc-500"> · {{ ticket.categoryPath || ticket.categoryLabel }}</span>
                     </p>
+                    <p class="mt-0.5 truncate font-mono text-[11px] text-zinc-500">{{ ticket.ticketNumber }}</p>
                   </div>
                   <p class="hidden shrink-0 text-[10px] font-semibold tracking-wide text-zinc-500 uppercase sm:block">
                     #{{ i + 1 }}
@@ -87,15 +80,15 @@
         <section class="flex min-h-0 flex-col overflow-hidden rounded-lg border border-zinc-800 bg-[#151821]">
           <div class="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-800 bg-[#1a1e28] px-4 py-2.5">
             <div class="min-w-0">
-              <p class="text-[10px] font-semibold tracking-[0.16em] text-[#e8a0b4] uppercase">Now serving</p>
-              <h2 class="text-base leading-tight font-semibold tracking-tight text-white">Active counters</h2>
+              <p class="text-[10px] font-semibold tracking-[0.16em] text-[#e8a0b4] uppercase">In progress</p>
+              <h2 class="text-base leading-tight font-semibold tracking-tight text-white">Assigned tickets</h2>
             </div>
             <p class="shrink-0 text-xs font-medium text-zinc-400">{{ nowServing().length }} active</p>
           </div>
 
           @if (nowServing().length === 0) {
             <div class="flex min-h-0 flex-1 items-center justify-center px-4 text-center">
-              <p class="text-sm font-medium text-zinc-500">No one is being served right now</p>
+              <p class="text-sm font-medium text-zinc-500">No onsite tickets in progress</p>
             </div>
           } @else {
             <div class="monitor-scroll min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-contain p-3">
@@ -106,9 +99,6 @@
                   [class.border-[#8d2546]]="isJustCalled(entry)"
                 >
                   <p class="truncate text-sm font-bold tracking-wide text-white">{{ entry.adminName }}</p>
-                  <p class="mt-1 text-4xl leading-none font-semibold tracking-tight text-white tabular-nums">
-                    {{ entry.ticket.queueNumber ?? '—' }}
-                  </p>
                   <div class="mt-2 min-w-0">
                     <p class="truncate font-mono text-base font-semibold text-[#f0b4c4]">
                       {{ personLabel(entry.ticket) }}

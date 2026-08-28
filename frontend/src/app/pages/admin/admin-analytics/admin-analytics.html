@@ -2,7 +2,7 @@
   <div class="flex flex-wrap items-end justify-between gap-3">
     <div>
       <p class="text-sm text-zinc-600">
-        Live queue, open work, and what requesters are filing in {{ periodLabel().toLowerCase() }}.
+        Live onsite tickets, open work, and what requesters are filing in {{ periodLabel().toLowerCase() }}.
       </p>
     </div>
     <div class="flex flex-wrap items-center gap-2">
@@ -63,7 +63,7 @@
         }
         @if (data.queueToday.waiting > 0) {
           <a routerLink="/admin/queue" class="font-semibold underline-offset-2 hover:underline">
-            {{ data.queueToday.waiting }} waiting in queue
+            {{ data.queueToday.waiting }} waiting onsite
           </a>
         }
       </div>
@@ -81,9 +81,9 @@
         <p class="mt-1 text-xs text-zinc-500">{{ data.totals.inProgress }} in progress · {{ data.totals.unassignedOpen }} unassigned</p>
       </div>
       <div class="rounded-2xl border border-zinc-200 bg-white px-4 py-4 shadow-sm">
-        <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">Queue now</p>
+        <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">Onsite now</p>
         <p class="mt-1 text-3xl font-bold text-zinc-900">{{ data.queueToday.waiting }}</p>
-        <p class="mt-1 text-xs text-zinc-500">{{ data.queueToday.serving }} being served</p>
+        <p class="mt-1 text-xs text-zinc-500">{{ data.queueToday.serving }} in progress</p>
       </div>
       <div class="rounded-2xl border border-zinc-200 bg-white px-4 py-4 shadow-sm">
         <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">Avg resolve</p>

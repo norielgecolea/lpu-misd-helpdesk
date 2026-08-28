@@ -13,7 +13,7 @@ export class ThemeService {
 
   constructor() {
     const mode = this.mode();
-    this.apply(this.isAdminLoginPath() ? 'light' : mode);
+    this.apply(this.isForcedLightPath() ? 'light' : mode);
     // Persist light when unset so the app never falls back to OS appearance.
     if (this.readRaw() == null) {
       this.persist(mode);
@@ -35,9 +35,9 @@ export class ThemeService {
     this.apply(mode);
   }
 
-  /** Re-apply the stored theme preference to the document. */
+  /** Re-apply the stored theme preference, unless this page is forced light. */
   applyStored(): void {
-    this.apply(this.mode());
+    this.apply(this.isForcedLightPath() ? 'light' : this.mode());
   }
 
   private readStored(): ThemeMode {
@@ -68,11 +68,11 @@ export class ThemeService {
     document.documentElement.style.colorScheme = mode === 'dark' ? 'dark' : 'only light';
   }
 
-  private isAdminLoginPath(): boolean {
+  private isForcedLightPath(): boolean {
     if (typeof location === 'undefined') {
       return false;
     }
     const path = location.pathname.replace(/\/+$/, '') || '/';
-    return path === '/admin';
+    return path === '/admin' || path === '/admin/forgot-password' || path === '/admin/reset-password';
   }
 }

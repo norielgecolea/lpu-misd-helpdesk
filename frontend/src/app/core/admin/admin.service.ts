@@ -14,7 +14,6 @@ import {
   CreateAdminRequest,
   CreateCategoryRequest,
   QueueSnapshot,
-  QueueTransferRequest,
   UpdateCategoryRequest,
   WalkInTicketRequest,
 } from './admin.models';
@@ -146,7 +145,7 @@ export class AdminService {
     return this.http.patch<Ticket>(`${environment.apiBaseUrl}/admin/tickets/${ticketId}/status`, { status });
   }
 
-  // --- Onsite queue ---
+  // --- Onsite tickets (queue page) ---
 
   getQueueSnapshot(): Observable<QueueSnapshot> {
     return this.http.get<QueueSnapshot>(`${environment.apiBaseUrl}/admin/queue`);
@@ -156,36 +155,8 @@ export class AdminService {
     return this.http.post<Ticket>(`${environment.apiBaseUrl}/admin/queue/walk-in`, request);
   }
 
-  callNext(): Observable<Ticket> {
-    return this.http.post<Ticket>(`${environment.apiBaseUrl}/admin/queue/call-next`, {});
-  }
-
   claimQueueTicket(ticketId: number): Observable<Ticket> {
     return this.http.post<Ticket>(`${environment.apiBaseUrl}/admin/queue/${ticketId}/claim`, {});
-  }
-
-  transferQueueTicket(ticketId: number, adminId: number): Observable<QueueTransferRequest> {
-    return this.http.post<QueueTransferRequest>(`${environment.apiBaseUrl}/admin/queue/${ticketId}/transfer`, {
-      adminId,
-    });
-  }
-
-  approveQueueTransfer(transferId: number): Observable<Ticket> {
-    return this.http.post<Ticket>(`${environment.apiBaseUrl}/admin/queue/transfers/${transferId}/approve`, {});
-  }
-
-  rejectQueueTransfer(transferId: number): Observable<QueueTransferRequest> {
-    return this.http.post<QueueTransferRequest>(
-      `${environment.apiBaseUrl}/admin/queue/transfers/${transferId}/reject`,
-      {}
-    );
-  }
-
-  cancelQueueTransfer(transferId: number): Observable<QueueTransferRequest> {
-    return this.http.post<QueueTransferRequest>(
-      `${environment.apiBaseUrl}/admin/queue/transfers/${transferId}/cancel`,
-      {}
-    );
   }
 
   completeServing(ticketId: number): Observable<Ticket> {
@@ -194,9 +165,5 @@ export class AdminService {
 
   requeue(ticketId: number): Observable<Ticket> {
     return this.http.post<Ticket>(`${environment.apiBaseUrl}/admin/queue/${ticketId}/requeue`, {});
-  }
-
-  holdServing(ticketId: number): Observable<Ticket> {
-    return this.http.post<Ticket>(`${environment.apiBaseUrl}/admin/queue/${ticketId}/hold`, {});
   }
 }

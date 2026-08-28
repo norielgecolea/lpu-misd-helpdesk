@@ -221,12 +221,12 @@ public class TicketRepository {
         return query.getResultList();
     }
 
-    /** Onsite tickets still waiting to be called, ordered oldest-first by queue number. */
+    /** Open onsite tickets waiting on the line, oldest first. */
     @Transactional(readOnly = true)
     public List<Ticket> findWaitingOnsiteOrderByQueueNumber() {
         return currentSession()
                 .createQuery(
-                        "FROM Ticket t WHERE t.channel = :channel AND t.status = :status ORDER BY t.queueNumber ASC",
+                        "FROM Ticket t WHERE t.channel = :channel AND t.status = :status ORDER BY t.createdAt ASC, t.id ASC",
                         Ticket.class
                 )
                 .setParameter("channel", TicketChannel.ONSITE_RFID)
@@ -234,13 +234,13 @@ public class TicketRepository {
                 .getResultList();
     }
 
-    /** Every admin's current "now serving" onsite ticket. */
+    /** Onsite tickets currently in progress and assigned to an admin. */
     @Transactional(readOnly = true)
     public List<Ticket> findServingOnsite() {
         return currentSession()
                 .createQuery(
                         "FROM Ticket t WHERE t.channel = :channel AND t.status = :status AND t.assignedAdminId IS NOT NULL"
-                                + " AND t.queueNumber IS NOT NULL ORDER BY t.updatedAt ASC",
+                                + " ORDER BY t.updatedAt ASC",
                         Ticket.class
                 )
                 .setParameter("channel", TicketChannel.ONSITE_RFID)

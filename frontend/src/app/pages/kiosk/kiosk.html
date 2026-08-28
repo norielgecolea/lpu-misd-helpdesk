@@ -57,7 +57,7 @@
           MISD Helpdesk
         </h1>
         <p class="mt-3 max-w-lg text-base font-medium text-white/80 sm:text-xl">
-          Tap your LPU ID to join the queue.
+          Tap your LPU ID to submit a concern.
         </p>
 
         <div class="relative mt-10 flex h-28 w-28 items-center justify-center sm:h-32 sm:w-32">
@@ -363,7 +363,7 @@
                   <span class="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white"></span>
                   <span>Creating ticket…</span>
                 } @else {
-                  <span>Get queue number</span>
+                  <span>Submit ticket</span>
                 }
               </button>
             }
@@ -378,19 +378,16 @@
         <div
           class="overflow-hidden rounded-[2rem] bg-white px-6 py-10 text-center shadow-[0_30px_80px_-30px_rgba(0,0,0,0.55)] sm:px-10 sm:py-12"
         >
-          <p class="text-[11px] font-bold tracking-[0.28em] text-[#8d2546]/70 uppercase">You're in the queue</p>
-          <p class="mt-6 text-sm font-medium text-zinc-500">Your number</p>
+          <p class="text-[11px] font-bold tracking-[0.28em] text-[#8d2546]/70 uppercase">Ticket submitted</p>
+          <p class="mt-6 text-sm font-medium text-zinc-500">Your ticket</p>
           <p
-            class="kiosk-number mt-1 text-[7.5rem] leading-none font-extrabold tracking-tight text-[#8d2546] tabular-nums sm:text-[9rem]"
+            class="kiosk-number mt-1 text-4xl leading-tight font-extrabold tracking-tight text-[#8d2546] sm:text-5xl"
           >
-            {{ ticket.queueNumber ?? '—' }}
+            {{ ticket.ticketNumber }}
           </p>
           <div class="mx-auto mt-6 h-px w-24 bg-zinc-200" aria-hidden="true"></div>
-          <p class="mt-5 text-sm text-zinc-600">
-            Ticket <span class="font-semibold text-zinc-900">{{ ticket.ticketNumber }}</span>
-          </p>
-          <p class="mt-1 text-sm font-medium text-zinc-500">{{ ticket.categoryPath || ticket.categoryLabel }}</p>
-          <p class="mt-6 text-base font-semibold text-zinc-900">Please wait to be called.</p>
+          <p class="mt-5 text-sm font-medium text-zinc-500">{{ ticket.categoryPath || ticket.categoryLabel }}</p>
+          <p class="mt-6 text-base font-semibold text-zinc-900">Please wait at the helpdesk.</p>
 
           <button
             type="button"
