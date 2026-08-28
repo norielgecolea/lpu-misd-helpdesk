@@ -27,8 +27,6 @@ export class AdminQueue implements OnInit, OnDestroy {
   protected readonly nowServing = signal<NowServingEntry[]>([]);
   protected readonly categories = signal<TicketCategoryOption[]>([]);
   protected readonly loading = signal(true);
-  protected readonly error = signal<string | null>(null);
-  protected readonly success = signal<string | null>(null);
   protected readonly busyTicketIds = signal<Set<number>>(new Set());
 
   protected readonly showWalkInForm = signal(false);
@@ -57,17 +55,6 @@ export class AdminQueue implements OnInit, OnDestroy {
     );
   }
 
-  protected readonly controllerStatus = computed(() => {
-    const mine = this.myAssigned().length;
-    if (mine > 0) {
-      return `${mine} assigned to you`;
-    }
-    if (this.waiting().length === 0) {
-      return 'No waiting tickets';
-    }
-    return 'Ready';
-  });
-
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
   private pollInFlight = false;
 
@@ -83,45 +70,33 @@ export class AdminQueue implements OnInit, OnDestroy {
   }
 
   protected async onMarkInProgress(ticketId: number): Promise<void> {
-    this.error.set(null);
-    this.success.set(null);
     this.setBusy(ticketId, true);
     try {
       await firstValueFrom(this.adminService.claimQueueTicket(ticketId));
-      this.success.set('Ticket marked as in progress and assigned to you.');
       await this.loadSnapshot();
-    } catch (err) {
-      this.error.set(this.describeError(err));
+    } catch {
     } finally {
       this.setBusy(ticketId, false);
     }
   }
 
   protected async onComplete(ticketId: number): Promise<void> {
-    this.error.set(null);
-    this.success.set(null);
     this.setBusy(ticketId, true);
     try {
       await firstValueFrom(this.adminService.completeServing(ticketId));
-      this.success.set('Ticket marked as complete.');
       await this.loadSnapshot();
-    } catch (err) {
-      this.error.set(this.describeError(err));
+    } catch {
     } finally {
       this.setBusy(ticketId, false);
     }
   }
 
   protected async onRequeue(ticketId: number): Promise<void> {
-    this.error.set(null);
-    this.success.set(null);
     this.setBusy(ticketId, true);
     try {
       await firstValueFrom(this.adminService.requeue(ticketId));
-      this.success.set('Ticket returned to the line.');
       await this.loadSnapshot();
-    } catch (err) {
-      this.error.set(this.describeError(err));
+    } catch {
     } finally {
       this.setBusy(ticketId, false);
     }
@@ -159,7 +134,6 @@ export class AdminQueue implements OnInit, OnDestroy {
     try {
       await firstValueFrom(this.adminService.createWalkIn({ name, email, category, subcategory, subject }));
       this.showWalkInForm.set(false);
-      this.success.set('Onsite ticket created.');
       await this.loadSnapshot();
     } catch (err) {
       this.walkInError.set(this.describeError(err));
@@ -220,17 +194,13 @@ export class AdminQueue implements OnInit, OnDestroy {
     }
     if (!silent) {
       this.loading.set(true);
-      this.error.set(null);
     }
     this.pollInFlight = true;
     try {
       const snapshot: QueueSnapshot = await firstValueFrom(this.adminService.getQueueSnapshot());
       this.waiting.set(snapshot.waiting);
       this.nowServing.set(snapshot.nowServing);
-    } catch (err) {
-      if (!silent) {
-        this.error.set(this.describeError(err));
-      }
+    } catch {
     } finally {
       this.pollInFlight = false;
       this.loading.set(false);
