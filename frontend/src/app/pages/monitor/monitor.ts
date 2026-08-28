@@ -5,9 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import {
   armAutoUnlock,
   playNewTicketCue,
-  playNowServingCue,
 } from '../../core/audio/cue-sounds';
-import { NowServingEntry } from '../../core/admin/admin.models';
 import { AuthService } from '../../core/auth/auth.service';
 import { MonitorService } from '../../core/monitor/monitor.service';
 import { Ticket } from '../../core/tickets/ticket.models';
@@ -48,49 +46,11 @@ const REFRESH_MS = 1_000;
       background: rgb(63 63 70 / 0.85);
     }
 
-    @keyframes counter-call-in {
-      0% {
-        opacity: 0;
-        transform: translateY(8px) scale(0.96);
-        box-shadow: 0 0 0 0 rgb(141 37 70 / 0);
-      }
-      40% {
-        opacity: 1;
-        transform: translateY(0) scale(1.02);
-        box-shadow: 0 0 0 3px rgb(141 37 70 / 0.4);
-      }
-      100% {
-        opacity: 1;
-        transform: scale(1);
-        box-shadow: 0 0 0 0 rgb(141 37 70 / 0);
-      }
-    }
-
-    .counter-call-in {
-      animation: counter-call-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
-    }
-
-    @keyframes unassigned-blink {
-      0%,
-      100% {
-        background-color: rgb(141 37 70 / 0.08);
-        box-shadow: inset 3px 0 0 0 rgb(141 37 70 / 0.55);
-      }
-      50% {
-        background-color: rgb(141 37 70 / 0.28);
-        box-shadow: inset 3px 0 0 0 rgb(232 160 180 / 0.95);
-      }
-    }
-
     .unassigned-blink {
       animation: unassigned-blink 1.4s ease-in-out infinite;
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .counter-call-in {
-        animation: none;
-      }
-
       .unassigned-blink {
         animation: none;
         background-color: rgb(141 37 70 / 0.18);
@@ -105,12 +65,9 @@ export class Monitor implements OnDestroy, OnInit {
 
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
-  protected readonly nowServing = signal<NowServingEntry[]>([]);
   protected readonly waiting = signal<Ticket[]>([]);
   protected readonly recentTickets = signal<Ticket[]>([]);
   protected readonly clock = signal<Date>(new Date());
-  /** Serving keys that just received a called ticket (for call-in animation). */
-  protected readonly calledKeys = signal<Set<string>>(new Set());
 
   protected readonly recentOnline = computed(() => {
     const open = this.recentTickets().filter(
@@ -125,12 +82,10 @@ export class Monitor implements OnDestroy, OnInit {
 
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
   private clockTimer: ReturnType<typeof setInterval> | null = null;
-  private callAnimTimer: ReturnType<typeof setTimeout> | null = null;
   private disarmAudio: (() => void) | null = null;
   private primed = false;
   private pollInFlight = false;
   private knownTicketIds = new Set<number>();
-  private knownServingKeys = new Set<string>();
 
   async ngOnInit(): Promise<void> {
     this.disarmAudio = armAutoUnlock();
@@ -145,9 +100,6 @@ export class Monitor implements OnDestroy, OnInit {
     }
     if (this.clockTimer) {
       clearInterval(this.clockTimer);
-    }
-    if (this.callAnimTimer) {
-      clearTimeout(this.callAnimTimer);
     }
     this.disarmAudio?.();
     this.disarmAudio = null;
@@ -164,22 +116,8 @@ export class Monitor implements OnDestroy, OnInit {
     return ticket.requesterName;
   }
 
-  protected personTypeLabel(ticket: Ticket): string {
-    if (ticket.requesterPersonType === 'STUDENT') {
-      return 'Student ID';
-    }
-    if (ticket.requesterPersonType === 'EMPLOYEE') {
-      return 'Employee ID';
-    }
-    return 'Requester';
-  }
-
   protected isUnassigned(ticket: Ticket): boolean {
     return ticket.assignedAdminId == null;
-  }
-
-  protected isJustCalled(entry: NowServingEntry): boolean {
-    return this.calledKeys().has(this.servingKey(entry));
   }
 
   private async loadSnapshot(initial: boolean): Promise<void> {
@@ -193,17 +131,15 @@ export class Monitor implements OnDestroy, OnInit {
     this.pollInFlight = true;
     try {
       const snap = await firstValueFrom(this.monitorService.snapshot(40));
-      this.nowServing.set(snap.nowServing ?? []);
       this.waiting.set(snap.waiting ?? []);
       this.recentTickets.set(snap.recentTickets ?? []);
       this.error.set(null);
 
       if (!this.primed) {
         this.knownTicketIds = new Set((snap.recentTickets ?? []).map((t) => t.id));
-        this.knownServingKeys = new Set((snap.nowServing ?? []).map((e) => this.servingKey(e)));
         this.primed = true;
       } else {
-        this.detectAndCue(snap.nowServing ?? [], snap.recentTickets ?? []);
+        this.detectAndCue(snap.recentTickets ?? []);
       }
     } catch (err) {
       if (initial) {
@@ -215,7 +151,7 @@ export class Monitor implements OnDestroy, OnInit {
     }
   }
 
-  private detectAndCue(serving: NowServingEntry[], recent: Ticket[]): void {
+  private detectAndCue(recent: Ticket[]): void {
     let newTicket = false;
 
     for (const ticket of recent) {
@@ -225,38 +161,11 @@ export class Monitor implements OnDestroy, OnInit {
       }
     }
 
-    const nextServingKeys = new Set(serving.map((e) => this.servingKey(e)));
-    const newlyCalled: string[] = [];
-    for (const key of nextServingKeys) {
-      if (!this.knownServingKeys.has(key)) {
-        newlyCalled.push(key);
-      }
-    }
-
     this.knownTicketIds = new Set(recent.map((t) => t.id));
-    this.knownServingKeys = nextServingKeys;
 
-    if (newlyCalled.length > 0) {
-      playNowServingCue();
-      this.flashCalledKeys(newlyCalled);
-    } else if (newTicket) {
+    if (newTicket) {
       playNewTicketCue();
     }
-  }
-
-  private flashCalledKeys(keys: string[]): void {
-    this.calledKeys.set(new Set(keys));
-    if (this.callAnimTimer) {
-      clearTimeout(this.callAnimTimer);
-    }
-    this.callAnimTimer = setTimeout(() => {
-      this.calledKeys.set(new Set());
-      this.callAnimTimer = null;
-    }, 900);
-  }
-
-  private servingKey(entry: NowServingEntry): string {
-    return `${entry.adminId}:${entry.ticket?.id ?? 'none'}`;
   }
 
   private describeError(err: unknown): string {

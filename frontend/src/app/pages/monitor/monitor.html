@@ -38,8 +38,8 @@
         </div>
       </div>
 
-      <div class="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-3">
-        <!-- Left: Onsite in queue -->
+      <div class="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-2">
+        <!-- Left: Onsite waiting -->
         <section class="flex min-h-0 flex-col overflow-hidden rounded-lg border border-zinc-800 bg-[#151821]">
           <div class="flex shrink-0 items-end justify-between gap-3 border-b border-zinc-800 bg-[#1a1e28] px-4 py-2.5">
             <div>
@@ -73,44 +73,6 @@
                 </li>
               }
             </ul>
-          }
-        </section>
-
-        <!-- Middle: Now serving -->
-        <section class="flex min-h-0 flex-col overflow-hidden rounded-lg border border-zinc-800 bg-[#151821]">
-          <div class="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-800 bg-[#1a1e28] px-4 py-2.5">
-            <div class="min-w-0">
-              <p class="text-[10px] font-semibold tracking-[0.16em] text-[#e8a0b4] uppercase">In progress</p>
-              <h2 class="text-base leading-tight font-semibold tracking-tight text-white">Assigned tickets</h2>
-            </div>
-            <p class="shrink-0 text-xs font-medium text-zinc-400">{{ nowServing().length }} active</p>
-          </div>
-
-          @if (nowServing().length === 0) {
-            <div class="flex min-h-0 flex-1 items-center justify-center px-4 text-center">
-              <p class="text-sm font-medium text-zinc-500">No onsite tickets in progress</p>
-            </div>
-          } @else {
-            <div class="monitor-scroll min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-contain p-3">
-              @for (entry of nowServing(); track entry.adminId + ':' + entry.ticket.id) {
-                <article
-                  class="rounded-lg border border-zinc-700 bg-[#1c212d] px-4 py-3"
-                  [class.counter-call-in]="isJustCalled(entry)"
-                  [class.border-[#8d2546]]="isJustCalled(entry)"
-                >
-                  <p class="truncate text-sm font-bold tracking-wide text-white">{{ entry.adminName }}</p>
-                  <div class="mt-2 min-w-0">
-                    <p class="truncate font-mono text-base font-semibold text-[#f0b4c4]">
-                      {{ personLabel(entry.ticket) }}
-                    </p>
-                    <p class="mt-0.5 truncate text-sm text-zinc-300">{{ entry.ticket.requesterName }}</p>
-                    <p class="mt-0.5 truncate text-xs text-zinc-500">
-                      {{ entry.ticket.ticketNumber }} · {{ entry.ticket.categoryPath || entry.ticket.categoryLabel }}
-                    </p>
-                  </div>
-                </article>
-              }
-            </div>
           }
         </section>
 
