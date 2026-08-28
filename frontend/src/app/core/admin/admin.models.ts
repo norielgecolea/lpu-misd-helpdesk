@@ -174,6 +174,7 @@ export interface AnalyticsTicketListItem {
   id: number;
   ticketNumber: string;
   subject: string;
+  description?: string | null;
   status: string;
   category: string;
   categoryLabel: string;

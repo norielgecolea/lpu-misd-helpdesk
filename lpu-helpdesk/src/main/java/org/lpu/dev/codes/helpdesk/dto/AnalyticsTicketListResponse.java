@@ -13,6 +13,7 @@ public record AnalyticsTicketListResponse(
             Long id,
             String ticketNumber,
             String subject,
+            String description,
             String status,
             String category,
             String categoryLabel,

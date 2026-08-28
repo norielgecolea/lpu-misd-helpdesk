@@ -78,6 +78,16 @@ export class AdminService {
     );
   }
 
+  getCreatedTickets(from: string, to: string, limit?: number): Observable<AnalyticsTicketList> {
+    const params = new URLSearchParams({ from, to });
+    if (limit != null) {
+      params.set('limit', String(limit));
+    }
+    return this.http.get<AnalyticsTicketList>(
+      `${environment.apiBaseUrl}/admin/analytics/tickets?${params.toString()}`,
+    );
+  }
+
   getResolvedTickets(from: string, to: string, limit?: number): Observable<AnalyticsTicketList> {
     const params = new URLSearchParams({ from, to });
     if (limit != null) {

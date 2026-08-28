@@ -31,6 +31,7 @@ import {
 import { firstValueFrom } from 'rxjs';
 import { AdminService } from '../../../core/admin/admin.service';
 import {
+  AdminCategory,
   AnalyticsAssigneeCsm,
   AnalyticsAssigneeLoad,
   AnalyticsConcernCount,
@@ -73,6 +74,7 @@ const ALL_TIME_FROM = '2020-01-01';
 
 type DashboardPeriod = 'today' | '7d' | '30d' | 'year';
 type ReportMode = 'all' | 'range';
+type ReportKind = 'analytics' | 'tickets';
 
 @Component({
   selector: 'app-admin-analytics',
@@ -108,6 +110,7 @@ export class AdminAnalytics implements OnInit, AfterViewInit, OnDestroy {
   protected readonly csmLabels = CSM_LABEL;
 
   protected readonly reportOpen = signal(false);
+  protected readonly reportKind = signal<ReportKind>('analytics');
   protected readonly reportMode = signal<ReportMode>('range');
   protected readonly reportFrom = signal(this.periodBounds().from);
   protected readonly reportTo = signal(this.periodBounds().to);
@@ -269,8 +272,17 @@ export class AdminAnalytics implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  protected openReportDialog(): void {
+  protected openAnalyticsReportDialog(): void {
+    this.openReportDialog('analytics');
+  }
+
+  protected openTicketReportDialog(): void {
+    this.openReportDialog('tickets');
+  }
+
+  private openReportDialog(kind: ReportKind): void {
     const bounds = this.periodBounds();
+    this.reportKind.set(kind);
     this.reportMode.set('range');
     this.reportFrom.set(bounds.from);
     this.reportTo.set(bounds.to);
@@ -287,45 +299,43 @@ export class AdminAnalytics implements OnInit, AfterViewInit, OnDestroy {
   }
 
   protected async generateReport(): Promise<void> {
-    const mode = this.reportMode();
-    let from: string;
-    let to: string;
-    let periodLabel: string;
-
-    if (mode === 'all') {
-      from = ALL_TIME_FROM;
-      to = this.todayIso();
-      periodLabel = 'All time';
-    } else {
-      from = this.reportFrom().trim();
-      to = this.reportTo().trim();
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
-        this.reportError.set('Choose a valid from and to date.');
-        return;
-      }
-      if (to < from) {
-        this.reportError.set('“To” must be on or after “From”.');
-        return;
-      }
-      periodLabel = `${from} to ${to}`;
+    const range = this.resolveReportRange();
+    if (!range) {
+      return;
     }
+    const { from, to, periodLabel, mode } = range;
+    const kind = this.reportKind();
 
     this.reportLoading.set(true);
     this.reportError.set(null);
     try {
-      const [summary, csmByAssignee, resolved] = await Promise.all([
-        firstValueFrom(this.adminService.getAnalyticsSummary(from, to)),
-        firstValueFrom(this.adminService.getCsmByAssignee(from, to)),
-        firstValueFrom(this.adminService.getResolvedTickets(from, to, 2000)),
-      ]);
-      const csv = this.buildAnalyticsCsv(
-        { ...summary, byConcern: summary.byConcern ?? [] },
-        csmByAssignee.byAssignee ?? [],
-        resolved.items ?? [],
-        periodLabel,
-        mode,
-      );
-      this.downloadCsv(csv, this.reportFilename(mode, from, to));
+      if (kind === 'tickets') {
+        const [summary, tickets] = await Promise.all([
+          firstValueFrom(this.adminService.getAnalyticsSummary(from, to)),
+          firstValueFrom(this.adminService.getCreatedTickets(from, to, 20000)),
+        ]);
+        const csv = this.buildTicketCsv(
+          { ...summary, byConcern: summary.byConcern ?? [] },
+          tickets,
+          periodLabel,
+          mode,
+        );
+        this.downloadCsv(csv, this.reportFilename('tickets', mode, from, to));
+      } else {
+        const [summary, csmByAssignee, categories] = await Promise.all([
+          firstValueFrom(this.adminService.getAnalyticsSummary(from, to)),
+          firstValueFrom(this.adminService.getCsmByAssignee(from, to)),
+          firstValueFrom(this.adminService.listCategories()),
+        ]);
+        const csv = this.buildAnalyticsCsv(
+          { ...summary, byConcern: summary.byConcern ?? [] },
+          csmByAssignee.byAssignee ?? [],
+          categories,
+          periodLabel,
+          mode,
+        );
+        this.downloadCsv(csv, this.reportFilename('analytics', mode, from, to));
+      }
       this.reportOpen.set(false);
     } catch (err) {
       this.reportError.set(this.describeError(err));
@@ -334,10 +344,28 @@ export class AdminAnalytics implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  private resolveReportRange(): { from: string; to: string; periodLabel: string; mode: ReportMode } | null {
+    const mode = this.reportMode();
+    if (mode === 'all') {
+      return { from: ALL_TIME_FROM, to: this.todayIso(), periodLabel: 'All time', mode };
+    }
+    const from = this.reportFrom().trim();
+    const to = this.reportTo().trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+      this.reportError.set('Choose a valid from and to date.');
+      return null;
+    }
+    if (to < from) {
+      this.reportError.set('“To” must be on or after “From”.');
+      return null;
+    }
+    return { from, to, periodLabel: `${from} to ${to}`, mode };
+  }
+
   private buildAnalyticsCsv(
     summary: AnalyticsSummary,
     csmByAdmin: AnalyticsAssigneeCsm[],
-    resolved: AnalyticsTicketListItem[],
+    categories: AdminCategory[],
     periodLabel: string,
     mode: ReportMode,
   ): string {
@@ -368,26 +396,10 @@ export class AdminAnalytics implements OnInit, AfterViewInit, OnDestroy {
     push('SECTION', 'Concerns per tickets');
     push('Rank', 'Category', 'Concern', 'Tickets', '% of tickets');
     const created = summary.totals.created || 0;
-    const concerns = [...(summary.byConcern ?? [])].sort((a, b) => b.count - a.count);
-    concerns.forEach((row, index) => {
+    this.allConcernRows(categories, summary.byConcern ?? []).forEach((row, index) => {
       const share = created > 0 ? Math.round((row.count * 1000) / created) / 10 : '';
       push(index + 1, row.categoryLabel, row.concernLabel, row.count, share);
     });
-    blank();
-
-    push('SECTION', 'Resolve time per ticket');
-    push('Ticket', 'Subject', 'Status', 'Assignee', 'Created', 'Resolved', 'Resolve hours');
-    for (const item of resolved) {
-      push(
-        item.ticketNumber,
-        item.subject,
-        item.status,
-        item.assignedAdminName ?? '',
-        item.createdAt,
-        item.resolvedAt ?? '',
-        ticketResolveHours(item) ?? '',
-      );
-    }
     blank();
 
     push('SECTION', 'CSM overall');
@@ -407,6 +419,104 @@ export class AdminAnalytics implements OnInit, AfterViewInit, OnDestroy {
     }
 
     return `\uFEFF${lines.join('\r\n')}\r\n`;
+  }
+
+  private buildTicketCsv(
+    summary: AnalyticsSummary,
+    tickets: AnalyticsTicketList,
+    periodLabel: string,
+    mode: ReportMode,
+  ): string {
+    const lines: string[] = [];
+    const push = (...cells: Array<string | number | null | undefined>) => {
+      lines.push(cells.map((c) => this.csvCell(c)).join(','));
+    };
+    const blank = () => lines.push('');
+    const items = tickets.items ?? [];
+
+    push('LPU MISD Helpdesk — Ticket Report');
+    push('Period', periodLabel);
+    push('Mode', mode === 'all' ? 'All time' : 'Date span');
+    push('From', summary.from);
+    push('To', summary.to);
+    push('Generated at', new Date().toISOString());
+    blank();
+
+    push('SECTION', 'Summary');
+    push('Metric', 'Value');
+    push('Tickets in report', items.length);
+    push('Tickets created in period', summary.totals.created);
+    push('Average resolve hours', summary.totals.avgResolveHours ?? '');
+    if (tickets.truncated) {
+      push('Note', `List truncated at ${tickets.limit} tickets`);
+    }
+    blank();
+
+    push('SECTION', 'Tickets');
+    push(
+      'Ticket',
+      'Subject',
+      'Description',
+      'Status',
+      'Channel',
+      'Category',
+      'Requester',
+      'Email',
+      'Assignee',
+      'Created',
+      'Resolved',
+      'Resolve hours',
+    );
+    for (const item of items) {
+      push(
+        item.ticketNumber,
+        item.subject,
+        item.description ?? '',
+        item.status,
+        item.channel === 'ONSITE_RFID' ? 'Onsite' : item.channel === 'ONLINE' ? 'Online' : item.channel,
+        item.categoryPath || item.categoryLabel,
+        item.requesterName,
+        item.requesterEmail,
+        item.assignedAdminName ?? 'Unassigned',
+        item.createdAt,
+        item.resolvedAt ?? '',
+        ticketResolveHours(item) ?? '',
+      );
+    }
+
+    return `\uFEFF${lines.join('\r\n')}\r\n`;
+  }
+
+  private allConcernRows(
+    categories: AdminCategory[],
+    byConcern: AnalyticsConcernCount[],
+  ): AnalyticsConcernCount[] {
+    const countByKey = new Map<string, number>();
+    for (const row of byConcern) {
+      countByKey.set(`${row.categoryKey}::${row.concernKey}`, row.count);
+    }
+    const rows: AnalyticsConcernCount[] = [];
+    const seen = new Set<string>();
+    for (const parent of categories) {
+      for (const child of parent.children ?? []) {
+        const key = `${parent.code}::${child.code}`;
+        seen.add(key);
+        rows.push({
+          categoryKey: parent.code,
+          categoryLabel: parent.label,
+          concernKey: child.code,
+          concernLabel: child.label,
+          count: countByKey.get(key) ?? 0,
+        });
+      }
+    }
+    for (const row of byConcern) {
+      const key = `${row.categoryKey}::${row.concernKey}`;
+      if (!seen.has(key)) {
+        rows.push(row);
+      }
+    }
+    return rows;
   }
 
   private csvCell(value: string | number | null | undefined): string {
@@ -433,11 +543,12 @@ export class AdminAnalytics implements OnInit, AfterViewInit, OnDestroy {
     URL.revokeObjectURL(url);
   }
 
-  private reportFilename(mode: ReportMode, from: string, to: string): string {
+  private reportFilename(kind: ReportKind, mode: ReportMode, from: string, to: string): string {
+    const prefix = kind === 'tickets' ? 'helpdesk-tickets' : 'helpdesk-analytics';
     if (mode === 'all') {
-      return `helpdesk-analytics-all-time-${this.todayIso()}.csv`;
+      return `${prefix}-all-time-${this.todayIso()}.csv`;
     }
-    return `helpdesk-analytics-${from}_to_${to}.csv`;
+    return `${prefix}-${from}_to_${to}.csv`;
   }
 
   private async load(): Promise<void> {

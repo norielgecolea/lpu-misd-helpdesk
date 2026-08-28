@@ -91,6 +91,20 @@ public class AdminAnalyticsController {
         return ResponseEntity.ok(analyticsService.csmByAssignee(fromInstant, toInstant));
     }
 
+    @GetMapping("/tickets")
+    public ResponseEntity<AnalyticsTicketListResponse> createdTickets(
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to,
+            @RequestParam(required = false) Integer limit
+    ) {
+        Instant fromInstant = parseStart(from, Instant.now().minus(30, ChronoUnit.DAYS));
+        Instant toInstant = parseEndExclusive(to, Instant.now().plus(1, ChronoUnit.DAYS));
+        if (toInstant.isBefore(fromInstant)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "'to' must be on or after 'from'");
+        }
+        return ResponseEntity.ok(analyticsService.createdTickets(fromInstant, toInstant, limit));
+    }
+
     @GetMapping("/resolved-tickets")
     public ResponseEntity<AnalyticsTicketListResponse> resolvedTickets(
             @RequestParam(required = false) String from,

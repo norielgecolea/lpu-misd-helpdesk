@@ -524,6 +524,21 @@ public class TicketRepository {
                 .getResultList();
     }
 
+    /** Tickets created in range, newest first. */
+    @Transactional(readOnly = true)
+    public List<Ticket> findCreatedBetween(Instant from, Instant to, int limit) {
+        return currentSession()
+                .createQuery(
+                        "FROM Ticket t WHERE t.createdAt >= :from AND t.createdAt < :to "
+                                + "ORDER BY t.createdAt DESC, t.id DESC",
+                        Ticket.class
+                )
+                .setParameter("from", from)
+                .setParameter("to", to)
+                .setMaxResults(Math.max(1, limit))
+                .getResultList();
+    }
+
     /** Tickets resolved (or closed) in range, newest first. */
     @Transactional(readOnly = true)
     public List<Ticket> findResolvedBetween(Instant from, Instant to, int limit) {

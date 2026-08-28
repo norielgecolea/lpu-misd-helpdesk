@@ -40,6 +40,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class AnalyticsService {
 
     private static final int LIST_LIMIT = 200;
+    private static final int REPORT_LIMIT = 20_000;
 
     private final TicketRepository ticketRepository;
     private final TicketCsmRepository ticketCsmRepository;
@@ -354,11 +355,31 @@ public class AnalyticsService {
         return new AnalyticsCsmByAssigneeResponse(rows);
     }
 
+    private List<Item> toListItems(List<Ticket> tickets) {
+        List<Long> adminIds = tickets.stream()
+                .map(Ticket::getAssignedAdminId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<Long, User> admins = userRepository.findByIdIn(adminIds);
+        return tickets.stream()
+                .map(ticket -> {
+                    String adminName = null;
+                    if (ticket.getAssignedAdminId() != null) {
+                        User admin = admins.get(ticket.getAssignedAdminId());
+                        adminName = admin != null ? admin.getName() : ("Admin #" + ticket.getAssignedAdminId());
+                    }
+                    return toItem(ticket, adminName, null);
+                })
+                .toList();
+    }
+
     private static Item toItem(Ticket ticket, String assignedAdminName, TicketCsm csm) {
         return new Item(
                 ticket.getId(),
                 ticket.getTicketNumber(),
                 ticket.getSubject(),
+                ticket.getDescription(),
                 ticket.getStatus().name(),
                 ticket.getCategory(),
                 CategoryLabelCache.pathFor(ticket),
@@ -377,6 +398,26 @@ public class AnalyticsService {
     }
 
     @Transactional(readOnly = true)
+    public AnalyticsTicketListResponse createdTickets(Instant from, Instant to, Integer limit) {
+        Instant rangeFrom = from != null ? from : Instant.now().minus(30, ChronoUnit.DAYS);
+        Instant rangeTo = to != null ? to : Instant.now().plus(1, ChronoUnit.DAYS);
+        int cap = limit != null && limit > 0 ? Math.min(limit, REPORT_LIMIT) : REPORT_LIMIT;
+
+        List<Ticket> tickets = ticketRepository.findCreatedBetween(rangeFrom, rangeTo, cap + 1);
+        boolean truncated = tickets.size() > cap;
+        if (truncated) {
+            tickets = tickets.subList(0, cap);
+        }
+
+        return new AnalyticsTicketListResponse(
+                "Tickets",
+                truncated,
+                cap,
+                toListItems(tickets)
+        );
+    }
+
+    @Transactional(readOnly = true)
     public AnalyticsTicketListResponse resolvedTickets(Instant from, Instant to, Integer limit) {
         Instant rangeFrom = from != null ? from : Instant.now().minus(30, ChronoUnit.DAYS);
         Instant rangeTo = to != null ? to : Instant.now().plus(1, ChronoUnit.DAYS);
@@ -388,29 +429,11 @@ public class AnalyticsService {
             tickets = tickets.subList(0, cap);
         }
 
-        List<Long> adminIds = tickets.stream()
-                .map(Ticket::getAssignedAdminId)
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
-        Map<Long, User> admins = userRepository.findByIdIn(adminIds);
-
-        List<Item> items = tickets.stream()
-                .map(ticket -> {
-                    String adminName = null;
-                    if (ticket.getAssignedAdminId() != null) {
-                        User admin = admins.get(ticket.getAssignedAdminId());
-                        adminName = admin != null ? admin.getName() : ("Admin #" + ticket.getAssignedAdminId());
-                    }
-                    return toItem(ticket, adminName, null);
-                })
-                .toList();
-
         return new AnalyticsTicketListResponse(
                 "Resolve time per ticket",
                 truncated,
                 cap,
-                items
+                toListItems(tickets)
         );
     }
 
