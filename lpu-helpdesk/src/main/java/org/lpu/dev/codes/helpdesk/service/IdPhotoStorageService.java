@@ -25,13 +25,6 @@ public class IdPhotoStorageService {
 
     private static final Logger log = LogManager.getLogger(IdPhotoStorageService.class);
 
-    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
-            MediaType.IMAGE_JPEG_VALUE,
-            MediaType.IMAGE_PNG_VALUE,
-            "image/webp",
-            MediaType.APPLICATION_PDF_VALUE
-    );
-
     private static final Set<String> IMAGE_CONTENT_TYPES = Set.of(
             MediaType.IMAGE_JPEG_VALUE,
             MediaType.IMAGE_PNG_VALUE,
@@ -52,13 +45,13 @@ public class IdPhotoStorageService {
     }
 
     public String storeTicketIdPhoto(Long ticketId, MultipartFile file) {
-        validate(file, true);
+        validate(file);
         return store(ticketIdDir(), "ticket-" + ticketId + "-", file);
     }
 
     /** Images only (JPEG/PNG/WEBP) for chat / ticket thread attachments. */
     public String storeMessageAttachment(Long ticketId, MultipartFile file) {
-        validate(file, false);
+        validate(file);
         return store(messageAttachmentDir(), "msg-" + ticketId + "-", file);
     }
 
@@ -149,7 +142,7 @@ public class IdPhotoStorageService {
         }
     }
 
-    private void validate(MultipartFile file, boolean allowPdf) {
+    private void validate(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Please choose a file");
         }
@@ -157,11 +150,7 @@ public class IdPhotoStorageService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File is too large (max 5 MB)");
         }
         String contentType = normalizeContentType(file.getContentType());
-        if (allowPdf) {
-            if (!ALLOWED_CONTENT_TYPES.contains(contentType)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only JPG, PNG, WEBP, or PDF files are allowed");
-            }
-        } else if (!IMAGE_CONTENT_TYPES.contains(contentType)) {
+        if (!IMAGE_CONTENT_TYPES.contains(contentType)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only JPG, PNG, or WEBP images are allowed");
         }
     }

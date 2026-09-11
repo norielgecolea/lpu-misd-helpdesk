@@ -520,7 +520,7 @@
                 <input
                   id="idPhoto"
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"
+                  accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
                   class="sr-only"
                   (change)="onIdSelected($event)"
                   [disabled]="submitting()"
@@ -529,7 +529,7 @@
                   {{ idPhotoName() || 'No file selected' }}
                 </span>
               </div>
-              <p class="text-xs text-zinc-500">Required. JPG, PNG, WEBP, or PDF · max 5 MB.</p>
+              <p class="text-xs text-zinc-500">Required. JPG, PNG, or WEBP · max 5 MB.</p>
             </div>
             <div class="flex flex-col gap-1.5 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-3">
               <span class="text-sm font-medium text-zinc-900">Attachments (optional)</span>

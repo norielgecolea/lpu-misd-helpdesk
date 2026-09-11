@@ -30,7 +30,7 @@ import { CSM_LABEL } from '../../core/csm/csm-labels';
 
 const MAX_ID_BYTES = 5 * 1024 * 1024;
 const MAX_ATTACHMENTS = 5;
-const ALLOWED_ID_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
+const ALLOWED_ID_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const POLL_MS = 3000;
 const LIST_POLL_MS = 5000;
@@ -366,7 +366,7 @@ export class Dashboard implements OnInit, OnDestroy {
       return;
     }
     if (!ALLOWED_ID_TYPES.has(file.type)) {
-      this.formError.set('ID photo must be JPG, PNG, WEBP, or PDF.');
+      this.formError.set('ID photo must be a JPG, PNG, or WEBP image.');
       input.value = '';
       this.idPhoto.set(null);
       this.idPhotoName.set('');
