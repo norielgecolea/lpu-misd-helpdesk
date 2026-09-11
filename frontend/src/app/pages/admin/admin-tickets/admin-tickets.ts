@@ -64,6 +64,8 @@ type SortDir = 'asc' | 'desc';
 })
 export class AdminTickets implements OnInit, OnDestroy {
   @ViewChild('messageList') private messageList?: ElementRef<HTMLElement>;
+  @ViewChild('composer') private composer?: ElementRef<HTMLTextAreaElement>;
+  private readonly composerMinHeightPx = 44;
 
   private readonly adminService = inject(AdminService);
   private readonly ticketService = inject(TicketService);
@@ -395,6 +397,7 @@ export class AdminTickets implements OnInit, OnDestroy {
     this.clearUnreadLocally(ticket.id);
     this.resetDirectoryLinkForm();
     this.stickToBottom = true;
+    queueMicrotask(() => this.resizeComposer());
     await Promise.all([this.loadMessages(ticket.id, true), this.loadIdPhoto(ticket)]);
     this.startPolling();
   }
@@ -431,6 +434,7 @@ export class AdminTickets implements OnInit, OnDestroy {
       this.mergeMessages([created]);
       this.draft.set('');
       this.clearDraftAttachment();
+      queueMicrotask(() => this.resizeComposer());
       await this.ensureAttachmentUrls([created]);
       this.keepThreadAtBottom(true);
     } catch (err) {
@@ -482,12 +486,26 @@ export class AdminTickets implements OnInit, OnDestroy {
     this.attachmentLightboxUrl.set(null);
   }
 
+  protected onDraftChange(value: string): void {
+    this.draft.set(value);
+    this.resizeComposer();
+  }
+
   protected onComposerKeydown(event: KeyboardEvent): void {
     if (event.key !== 'Enter' || event.shiftKey || event.isComposing) {
       return;
     }
     event.preventDefault();
     void this.sendMessage();
+  }
+
+  protected resizeComposer(): void {
+    const el = this.composer?.nativeElement;
+    if (!el) {
+      return;
+    }
+    el.style.height = 'auto';
+    el.style.height = `${Math.max(this.composerMinHeightPx, el.scrollHeight)}px`;
   }
 
   protected canMessage(ticket: Ticket | null = this.selectedTicket()): boolean {

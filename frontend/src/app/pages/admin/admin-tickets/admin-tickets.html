@@ -677,12 +677,14 @@
                     <span class="sr-only">Attach picture</span>
                   </label>
                   <textarea
-                    rows="2"
+                    #composer
+                    rows="1"
                     maxlength="5000"
                     placeholder="Write a reply…"
-                    class="min-h-[2.75rem] max-h-28 flex-1 resize-none rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-[#8d2546] focus:outline-none"
+                    class="max-h-64 min-h-[2.75rem] flex-1 resize-none overflow-y-auto rounded-lg border border-zinc-300 px-3 py-2 text-sm leading-5 focus:border-[#8d2546] focus:outline-none"
                     [ngModel]="draft()"
-                    (ngModelChange)="draft.set($event)"
+                    (ngModelChange)="onDraftChange($event)"
+                    (input)="resizeComposer()"
                     (keydown)="onComposerKeydown($event)"
                     [ngModelOptions]="{ standalone: true }"
                     [disabled]="sending()"
