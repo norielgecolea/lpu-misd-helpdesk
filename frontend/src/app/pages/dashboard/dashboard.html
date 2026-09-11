@@ -211,13 +211,13 @@
                 <span class="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600">
                   {{ ticket.categoryPath || ticket.categoryLabel }}
                 </span>
-                @if (live()) {
+                @if (staffOnline()) {
                   <span class="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700">
                     <span class="relative flex h-1.5 w-1.5">
                       <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60"></span>
                       <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
                     </span>
-                    Live
+                    Staff is online
                   </span>
                 }
               </div>

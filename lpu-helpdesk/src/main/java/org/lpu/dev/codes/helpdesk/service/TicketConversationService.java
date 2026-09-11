@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import org.lpu.dev.codes.helpdesk.dto.TicketMessageResponse;
+import org.lpu.dev.codes.helpdesk.dto.TicketMessagesResponse;
 import org.lpu.dev.codes.helpdesk.model.Role;
 import org.lpu.dev.codes.helpdesk.model.Ticket;
 import org.lpu.dev.codes.helpdesk.model.TicketMessage;
@@ -29,19 +30,22 @@ public class TicketConversationService {
     private final TicketThreadEmailService ticketThreadEmailService;
     private final TicketUnreadService ticketUnreadService;
     private final IdPhotoStorageService idPhotoStorageService;
+    private final TicketPresenceService ticketPresenceService;
 
     public TicketConversationService(
             TicketRepository ticketRepository,
             TicketMessageRepository ticketMessageRepository,
             TicketThreadEmailService ticketThreadEmailService,
             TicketUnreadService ticketUnreadService,
-            IdPhotoStorageService idPhotoStorageService
+            IdPhotoStorageService idPhotoStorageService,
+            TicketPresenceService ticketPresenceService
     ) {
         this.ticketRepository = ticketRepository;
         this.ticketMessageRepository = ticketMessageRepository;
         this.ticketThreadEmailService = ticketThreadEmailService;
         this.ticketUnreadService = ticketUnreadService;
         this.idPhotoStorageService = idPhotoStorageService;
+        this.ticketPresenceService = ticketPresenceService;
     }
 
     @Transactional(readOnly = true)
@@ -53,7 +57,7 @@ public class TicketConversationService {
     }
 
     @Transactional
-    public List<TicketMessageResponse> listMessages(AuthenticatedUser user, Long ticketId) {
+    public TicketMessagesResponse listMessages(AuthenticatedUser user, Long ticketId) {
         getAccessibleTicket(user, ticketId);
         List<TicketMessage> messages = ticketMessageRepository.findByTicketIdOrderByCreatedAtAsc(ticketId);
         if (!messages.isEmpty()) {
@@ -63,7 +67,12 @@ public class TicketConversationService {
                     messages.get(messages.size() - 1).getId()
             );
         }
-        return messages.stream().map(TicketMessageResponse::from).toList();
+        ticketPresenceService.heartbeat(ticketId, user.getRole());
+        return new TicketMessagesResponse(
+                messages.stream().map(TicketMessageResponse::from).toList(),
+                ticketPresenceService.requesterOnline(ticketId),
+                ticketPresenceService.staffOnline(ticketId)
+        );
     }
 
     /**

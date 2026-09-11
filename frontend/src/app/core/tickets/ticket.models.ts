@@ -132,6 +132,12 @@ export interface TicketMessage {
   createdAt: string;
 }
 
+export interface TicketMessagesResponse {
+  messages: TicketMessage[];
+  requesterOnline: boolean;
+  staffOnline: boolean;
+}
+
 export function isRequesterMessage(message: Pick<TicketMessage, 'authorRole'>): boolean {
   return (message.authorRole ?? '').toUpperCase() === 'USER';
 }

@@ -106,7 +106,7 @@ export class AdminTickets implements OnInit, OnDestroy {
   protected readonly draft = signal('');
   protected readonly sending = signal(false);
   protected readonly messageError = signal<string | null>(null);
-  protected readonly live = signal(false);
+  protected readonly requesterOnline = signal(false);
   protected readonly draftAttachment = signal<File | null>(null);
   protected readonly draftAttachmentPreview = signal<string | null>(null);
   protected readonly attachmentUrls = signal<Record<number, string>>({});
@@ -394,6 +394,7 @@ export class AdminTickets implements OnInit, OnDestroy {
     this.revokeAttachmentUrls();
     this.messageError.set(null);
     this.messages.set([]);
+    this.requesterOnline.set(false);
     this.clearUnreadLocally(ticket.id);
     this.resetDirectoryLinkForm();
     this.stickToBottom = true;
@@ -410,7 +411,7 @@ export class AdminTickets implements OnInit, OnDestroy {
     this.clearDraftAttachment();
     this.revokeAttachmentUrls();
     this.messageError.set(null);
-    this.live.set(false);
+    this.requesterOnline.set(false);
     this.revokeIdPhoto();
     this.resetDirectoryLinkForm();
   }
@@ -870,12 +871,12 @@ export class AdminTickets implements OnInit, OnDestroy {
       this.loadingMessages.set(true);
     }
     try {
-      const messages = await firstValueFrom(this.ticketService.listMessages(ticketId));
+      const thread = await firstValueFrom(this.ticketService.listMessages(ticketId));
       const previousCount = this.messages().length;
-      this.messages.set(messages);
-      await this.ensureAttachmentUrls(messages);
-      this.live.set(true);
-      if (showSpinner || messages.length > previousCount) {
+      this.messages.set(thread.messages);
+      await this.ensureAttachmentUrls(thread.messages);
+      this.requesterOnline.set(thread.requesterOnline);
+      if (showSpinner || thread.messages.length > previousCount) {
         this.keepThreadAtBottom(showSpinner);
       }
     } catch (err) {
@@ -898,16 +899,16 @@ export class AdminTickets implements OnInit, OnDestroy {
     }
     this.pollInFlight = true;
     try {
-      const messages = await firstValueFrom(this.ticketService.listMessages(ticketId));
+      const thread = await firstValueFrom(this.ticketService.listMessages(ticketId));
       if (this.selectedTicketId() !== ticketId) {
         return;
       }
       const previousIds = new Set(this.messages().map((m) => m.id));
-      const newcomers = messages.filter((m) => !previousIds.has(m.id));
+      const newcomers = thread.messages.filter((m) => !previousIds.has(m.id));
       const hasNewFromOther = newcomers.some((m) => !this.isMine(m));
-      this.messages.set(messages);
-      await this.ensureAttachmentUrls(messages);
-      this.live.set(true);
+      this.messages.set(thread.messages);
+      await this.ensureAttachmentUrls(thread.messages);
+      this.requesterOnline.set(thread.requesterOnline);
       this.clearUnreadLocally(ticketId);
       if (hasNewFromOther) {
         playMessageCue();

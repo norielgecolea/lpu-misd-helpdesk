@@ -9,6 +9,7 @@ import {
   Ticket,
   TicketCategoryOption,
   TicketMessage,
+  TicketMessagesResponse,
 } from './ticket.models';
 
 @Injectable({ providedIn: 'root' })
@@ -57,8 +58,8 @@ export class TicketService {
     });
   }
 
-  listMessages(ticketId: number): Observable<TicketMessage[]> {
-    return this.http.get<TicketMessage[]>(`${this.base}/${ticketId}/messages`);
+  listMessages(ticketId: number): Observable<TicketMessagesResponse> {
+    return this.http.get<TicketMessagesResponse>(`${this.base}/${ticketId}/messages`);
   }
 
   postMessage(ticketId: number, body: string, attachment?: File | null): Observable<TicketMessage> {

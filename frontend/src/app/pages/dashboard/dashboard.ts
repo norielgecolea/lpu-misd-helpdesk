@@ -72,7 +72,7 @@ export class Dashboard implements OnInit, OnDestroy {
   protected readonly draft = signal('');
   protected readonly sendingMessage = signal(false);
   protected readonly statusUpdating = signal(false);
-  protected readonly live = signal(false);
+  protected readonly staffOnline = signal(false);
 
   protected readonly showForm = signal(false);
   protected readonly submitting = signal(false);
@@ -229,7 +229,7 @@ export class Dashboard implements OnInit, OnDestroy {
     this.clearDraftAttachment();
     this.revokeAttachmentUrls();
     this.messageError.set(null);
-    this.live.set(false);
+    this.staffOnline.set(false);
     this.clearUnreadLocally(ticket.id);
     this.stickToBottom = true;
     await this.loadMessages(ticket.id, true);
@@ -244,7 +244,7 @@ export class Dashboard implements OnInit, OnDestroy {
     this.clearDraftAttachment();
     this.revokeAttachmentUrls();
     this.messageError.set(null);
-    this.live.set(false);
+    this.staffOnline.set(false);
   }
 
   protected async openForm(): Promise<void> {
@@ -598,12 +598,12 @@ export class Dashboard implements OnInit, OnDestroy {
       this.messageError.set(null);
     }
     try {
-      const messages = await firstValueFrom(this.ticketService.listMessages(ticketId));
+      const thread = await firstValueFrom(this.ticketService.listMessages(ticketId));
       const previousCount = this.messages().length;
-      this.messages.set(messages);
-      await this.ensureAttachmentUrls(messages);
-      this.live.set(true);
-      if (showSpinner || messages.length > previousCount) {
+      this.messages.set(thread.messages);
+      await this.ensureAttachmentUrls(thread.messages);
+      this.staffOnline.set(thread.staffOnline);
+      if (showSpinner || thread.messages.length > previousCount) {
         this.keepThreadAtBottom(showSpinner);
       }
     } catch (err: unknown) {
@@ -626,16 +626,16 @@ export class Dashboard implements OnInit, OnDestroy {
     }
     this.pollInFlight = true;
     try {
-      const messages = await firstValueFrom(this.ticketService.listMessages(ticketId));
+      const thread = await firstValueFrom(this.ticketService.listMessages(ticketId));
       if (this.selectedTicketId() !== ticketId) {
         return;
       }
       const previousIds = new Set(this.messages().map((m) => m.id));
-      const newcomers = messages.filter((m) => !previousIds.has(m.id));
+      const newcomers = thread.messages.filter((m) => !previousIds.has(m.id));
       const hasNewFromOther = newcomers.some((m) => !this.isMine(m));
-      this.messages.set(messages);
-      await this.ensureAttachmentUrls(messages);
-      this.live.set(true);
+      this.messages.set(thread.messages);
+      await this.ensureAttachmentUrls(thread.messages);
+      this.staffOnline.set(thread.staffOnline);
       this.clearUnreadLocally(ticketId);
       if (hasNewFromOther) {
         playMessageCue();

@@ -11,6 +11,7 @@ import org.lpu.dev.codes.helpdesk.dto.SubmitCsmRequest;
 import org.lpu.dev.codes.helpdesk.dto.TicketCategoryOption;
 import org.lpu.dev.codes.helpdesk.dto.TicketCreateRequest;
 import org.lpu.dev.codes.helpdesk.dto.TicketMessageResponse;
+import org.lpu.dev.codes.helpdesk.dto.TicketMessagesResponse;
 import org.lpu.dev.codes.helpdesk.dto.TicketResponse;
 import org.lpu.dev.codes.helpdesk.model.Ticket;
 import org.lpu.dev.codes.helpdesk.model.User;
@@ -123,7 +124,7 @@ public class TicketController {
     }
 
     @GetMapping("/{id}/messages")
-    public ResponseEntity<List<TicketMessageResponse>> messages(
+    public ResponseEntity<TicketMessagesResponse> messages(
             @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable Long id
     ) {
