@@ -82,8 +82,7 @@ services:
     command: >-
       sh -c "test -f package.json || { echo 'Missing package.json — mount ./frontend to /app'; exit 1; }
       && npm install
-      && npx ng build --watch --configuration development &
-      until [ -f dist/lpu-misd-helpdesk/browser/index.html ]; do sleep 1; done
+      && npx ng build --configuration production
       && npx --yes serve -s dist/lpu-misd-helpdesk/browser -c /app/serve.json -l tcp://0.0.0.0:4200"
     stdin_open: true
     tty: true

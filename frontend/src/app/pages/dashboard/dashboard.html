@@ -658,8 +658,8 @@
               id="studentNo"
               type="text"
               autocomplete="off"
-              maxlength="50"
-              placeholder="e.g. 202012345"
+              maxlength="20"
+              placeholder="2020-10184"
               class="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-[#8d2546] focus:outline-none"
               [ngModel]="studentNo()"
               (ngModelChange)="studentNo.set($event)"
@@ -681,9 +681,6 @@
               [ngModelOptions]="{ standalone: true }"
               [disabled]="savingStudentInfo()"
             />
-            <p class="text-[11px] text-zinc-500">
-              Used only to verify your campus record. If ID and email don’t both match, your typed name and ID are kept as-is.
-            </p>
           </div>
 
           @if (studentInfoError()) {

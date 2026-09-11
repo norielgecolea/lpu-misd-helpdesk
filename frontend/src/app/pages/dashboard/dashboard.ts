@@ -14,7 +14,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { playMessageCue, unlockAudio } from '../../core/audio/cue-sounds';
-import { AuthService } from '../../core/auth/auth.service';
+import { AuthService, allowedUserEmailLabel, isAllowedUserEmail } from '../../core/auth/auth.service';
 import { ProfileService } from '../../core/profile/profile.service';
 import {
   CreateTicketRequest,
@@ -36,6 +36,7 @@ const POLL_MS = 3000;
 const LIST_POLL_MS = 5000;
 const LAYOUT_STORAGE_KEY = 'dashboard-layout-v2';
 const GROUP_ORDER: TicketStatus[] = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
+const CAMPUS_ID_PATTERN = /^\d{4}-\d+$/;
 
 type LayoutMode = 'split' | 'list' | 'chat';
 
@@ -275,6 +276,15 @@ export class Dashboard implements OnInit, OnDestroy {
     const personType = this.personType();
     if (!name || !no || !lpuEmail) {
       this.studentInfoError.set('Please enter your name, ID number, and LPU email.');
+      return;
+    }
+    if (!CAMPUS_ID_PATTERN.test(no)) {
+      const kind = personType === 'EMPLOYEE' ? 'Employee' : 'Student';
+      this.studentInfoError.set(`${kind} ID number must be YEAR-NUMBER, e.g. 2020-10184 or 2026-2650.`);
+      return;
+    }
+    if (!isAllowedUserEmail(lpuEmail)) {
+      this.studentInfoError.set(`LPU email must be a campus address (${allowedUserEmailLabel()}).`);
       return;
     }
     this.studentInfoError.set(null);

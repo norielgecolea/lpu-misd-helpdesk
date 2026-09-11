@@ -1,6 +1,7 @@
 package org.lpu.dev.codes.helpdesk.service;
 
 import java.time.Instant;
+import java.util.regex.Pattern;
 import org.lpu.dev.codes.helpdesk.config.AuthProperties;
 import org.lpu.dev.codes.helpdesk.dto.DirectoryProfileResponse;
 import org.lpu.dev.codes.helpdesk.dto.StudentInfoRequest;
@@ -17,6 +18,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class ProfileService {
+
+    private static final Pattern CAMPUS_ID_PATTERN = Pattern.compile("^\\d{4}-\\d+$");
 
     private final UserRepository userRepository;
     private final TicketRepository ticketRepository;
@@ -81,6 +84,13 @@ public class ProfileService {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Name, ID number, and LPU email are required"
+            );
+        }
+        if (!CAMPUS_ID_PATTERN.matcher(personNo).matches()) {
+            String kind = "EMPLOYEE".equals(personType) ? "Employee" : "Student";
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    kind + " ID number must be YEAR-NUMBER, e.g. 2020-10184 or 2026-2650"
             );
         }
         if (!authProperties.isAllowedEmail(lpuEmail)) {
