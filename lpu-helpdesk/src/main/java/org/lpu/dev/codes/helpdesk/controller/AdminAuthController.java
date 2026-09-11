@@ -3,17 +3,23 @@ package org.lpu.dev.codes.helpdesk.controller;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.Map;
+import org.lpu.dev.codes.helpdesk.dto.AdminAccountResponse;
 import org.lpu.dev.codes.helpdesk.dto.AdminLoginRequest;
 import org.lpu.dev.codes.helpdesk.dto.ChangePasswordRequest;
 import org.lpu.dev.codes.helpdesk.dto.ForgotPasswordRequest;
 import org.lpu.dev.codes.helpdesk.dto.LoginResponse;
 import org.lpu.dev.codes.helpdesk.dto.ResetPasswordRequest;
+import org.lpu.dev.codes.helpdesk.dto.UpdateOwnProfileRequest;
 import org.lpu.dev.codes.helpdesk.security.AuthenticatedUser;
+import org.lpu.dev.codes.helpdesk.service.AdminAccountService;
 import org.lpu.dev.codes.helpdesk.service.AdminAuthService;
 import org.lpu.dev.codes.helpdesk.service.AdminPasswordService;
 import org.lpu.dev.codes.helpdesk.service.TurnstileVerificationService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,15 +33,18 @@ public class AdminAuthController {
     private static final String FORGOT_PASSWORD_ACTION = "forgot-password";
 
     private final AdminAuthService adminAuthService;
+    private final AdminAccountService adminAccountService;
     private final AdminPasswordService adminPasswordService;
     private final TurnstileVerificationService turnstileVerificationService;
 
     public AdminAuthController(
             AdminAuthService adminAuthService,
+            AdminAccountService adminAccountService,
             AdminPasswordService adminPasswordService,
             TurnstileVerificationService turnstileVerificationService
     ) {
         this.adminAuthService = adminAuthService;
+        this.adminAccountService = adminAccountService;
         this.adminPasswordService = adminPasswordService;
         this.turnstileVerificationService = turnstileVerificationService;
     }
@@ -67,6 +76,21 @@ public class AdminAuthController {
     public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         adminPasswordService.resetPassword(request.token(), request.newPassword());
         return ResponseEntity.ok(Map.of("message", "Password updated. You can sign in with your new password."));
+    }
+
+    @GetMapping("/me")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'MONITORING')")
+    public ResponseEntity<AdminAccountResponse> me(@AuthenticationPrincipal AuthenticatedUser user) {
+        return ResponseEntity.ok(AdminAccountResponse.from(adminAccountService.getStaff(user.getId())));
+    }
+
+    @PatchMapping("/profile")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'MONITORING')")
+    public ResponseEntity<AdminAccountResponse> updateProfile(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @Valid @RequestBody UpdateOwnProfileRequest request
+    ) {
+        return ResponseEntity.ok(AdminAccountResponse.from(adminAccountService.updateOwnProfile(user, request)));
     }
 
     @PostMapping("/change-password")

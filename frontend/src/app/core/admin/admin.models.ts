@@ -21,6 +21,30 @@ export interface CreateAdminRequest {
   role?: AdminRole;
 }
 
+export interface UpdateAdminRequest {
+  email: string;
+  username: string;
+  name: string;
+  role?: AdminRole;
+  password?: string;
+}
+
+export interface StaffProfile {
+  id: number;
+  email: string;
+  username: string | null;
+  name: string;
+  role: AdminRole;
+}
+
+export interface UpdateOwnProfileRequest {
+  email: string;
+  username: string;
+  name: string;
+  currentPassword?: string;
+  newPassword?: string;
+}
+
 /** Lean admin summary used for the ticket "assign to" dropdown. */
 export interface AdminSummary {
   id: number;

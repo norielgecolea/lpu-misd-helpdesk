@@ -3,7 +3,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { AdminService } from '../../../core/admin/admin.service';
-import { AdminAccount, AdminRole, CreateAdminRequest } from '../../../core/admin/admin.models';
+import { AdminAccount, AdminRole, CreateAdminRequest, UpdateAdminRequest } from '../../../core/admin/admin.models';
 import { AuthService } from '../../../core/auth/auth.service';
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9._-]+$/;
@@ -23,6 +23,7 @@ export class AdminAccounts implements OnInit {
   protected readonly busyIds = signal<Set<number>>(new Set());
 
   protected readonly showForm = signal(false);
+  protected readonly editingAdmin = signal<AdminAccount | null>(null);
   protected readonly submitting = signal(false);
   protected readonly formError = signal<string | null>(null);
   protected readonly name = signal('');
@@ -37,6 +38,7 @@ export class AdminAccounts implements OnInit {
 
   protected openForm(): void {
     this.formError.set(null);
+    this.editingAdmin.set(null);
     this.name.set('');
     this.username.set('');
     this.email.set('');
@@ -45,8 +47,29 @@ export class AdminAccounts implements OnInit {
     this.showForm.set(true);
   }
 
+  protected openEditForm(admin: AdminAccount): void {
+    this.formError.set(null);
+    this.editingAdmin.set(admin);
+    this.name.set(admin.name);
+    this.username.set(admin.username ?? '');
+    this.email.set(admin.email);
+    this.password.set('');
+    this.role.set(admin.role);
+    this.showForm.set(true);
+  }
+
   protected closeForm(): void {
     this.showForm.set(false);
+    this.editingAdmin.set(null);
+  }
+
+  protected isEditing(): boolean {
+    return this.editingAdmin() != null;
+  }
+
+  protected isEditingSelf(): boolean {
+    const editing = this.editingAdmin();
+    return editing != null && this.isSelf(editing);
   }
 
   protected roleLabel(role: AdminRole): string {
@@ -67,8 +90,8 @@ export class AdminAccounts implements OnInit {
     const email = this.email().trim();
     const password = this.password();
 
-    if (!name || !username || !email || !password) {
-      this.formError.set('Please fill in all fields.');
+    if (!name || !username || !email) {
+      this.formError.set('Please fill in name, username, and email.');
       return;
     }
     if (username.length < 3) {
@@ -79,17 +102,42 @@ export class AdminAccounts implements OnInit {
       this.formError.set('Username may only contain letters, numbers, dots, underscores, and hyphens.');
       return;
     }
-    if (password.length < 8) {
+
+    const editing = this.editingAdmin();
+    if (!editing && !password) {
+      this.formError.set('Please fill in all fields.');
+      return;
+    }
+    if (password && password.length < 8) {
       this.formError.set('Password must be at least 8 characters.');
       return;
     }
 
-    const request: CreateAdminRequest = { name, username, email, password, role: this.role() };
     this.submitting.set(true);
     try {
-      const created = await firstValueFrom(this.adminService.createAdmin(request));
-      this.admins.update((current) => [created, ...current]);
-      this.showForm.set(false);
+      if (editing) {
+        const request: UpdateAdminRequest = {
+          name,
+          username,
+          email,
+          role: this.isSelf(editing) ? undefined : this.role(),
+        };
+        if (password) {
+          request.password = password;
+        }
+        const updated = await firstValueFrom(this.adminService.updateAdmin(editing.id, request));
+        this.admins.update((current) => current.map((a) => (a.id === updated.id ? updated : a)));
+        if (this.isSelf(updated)) {
+          this.auth.updateProfile({ name: updated.name, email: updated.email, username: updated.username });
+        }
+        this.showForm.set(false);
+        this.editingAdmin.set(null);
+      } else {
+        const request: CreateAdminRequest = { name, username, email, password, role: this.role() };
+        const created = await firstValueFrom(this.adminService.createAdmin(request));
+        this.admins.update((current) => [created, ...current]);
+        this.showForm.set(false);
+      }
     } catch (err) {
       this.formError.set(this.describeError(err));
     } finally {

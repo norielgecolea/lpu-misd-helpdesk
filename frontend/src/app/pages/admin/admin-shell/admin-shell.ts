@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
@@ -66,6 +66,15 @@ export class AdminShell {
   protected readonly sidebarOpen = signal(true);
   protected readonly mobileNavOpen = signal(false);
   protected readonly loggingOut = signal(false);
+  protected readonly accountMenuOpen = signal(false);
+  protected readonly accountSettingsOpen = signal(false);
+  protected readonly accountSettingsLoading = signal(false);
+  protected readonly accountSettingsSaving = signal(false);
+  protected readonly accountSettingsError = signal<string | null>(null);
+  protected readonly accountSettingsSuccess = signal<string | null>(null);
+  protected readonly settingsName = signal('');
+  protected readonly settingsUsername = signal('');
+  protected readonly settingsEmail = signal('');
   protected readonly changePasswordOpen = signal(false);
   protected readonly changePasswordLoading = signal(false);
   protected readonly changePasswordError = signal<string | null>(null);
@@ -182,6 +191,106 @@ export class AdminShell {
     return url === route || url.startsWith(`${route}/`);
   }
 
+  @HostListener('document:click')
+  protected onDocumentClick(): void {
+    this.accountMenuOpen.set(false);
+  }
+
+  protected toggleAccountMenu(event: Event): void {
+    event.stopPropagation();
+    this.accountMenuOpen.update((open) => !open);
+  }
+
+  protected async openAccountSettings(): Promise<void> {
+    this.accountMenuOpen.set(false);
+    this.accountSettingsError.set(null);
+    this.accountSettingsSuccess.set(null);
+    this.currentPassword.set('');
+    this.newPassword.set('');
+    this.confirmPassword.set('');
+    this.accountSettingsOpen.set(true);
+    this.accountSettingsLoading.set(true);
+    try {
+      const profile = await this.auth.getStaffProfile();
+      this.settingsName.set(profile.name);
+      this.settingsUsername.set(profile.username ?? '');
+      this.settingsEmail.set(profile.email);
+    } catch (err: unknown) {
+      const user = this.auth.user();
+      this.settingsName.set(user?.name ?? '');
+      this.settingsUsername.set(user?.username ?? '');
+      this.settingsEmail.set(user?.email ?? '');
+      this.accountSettingsError.set(this.describeAuthError(err) ?? 'Could not load account details.');
+    } finally {
+      this.accountSettingsLoading.set(false);
+    }
+  }
+
+  protected closeAccountSettings(): void {
+    if (this.accountSettingsSaving()) {
+      return;
+    }
+    this.accountSettingsOpen.set(false);
+  }
+
+  protected async submitAccountSettings(): Promise<void> {
+    this.accountSettingsError.set(null);
+    this.accountSettingsSuccess.set(null);
+    const name = this.settingsName().trim();
+    const username = this.settingsUsername().trim().toLowerCase();
+    const email = this.settingsEmail().trim();
+    const current = this.currentPassword();
+    const next = this.newPassword();
+    const confirm = this.confirmPassword();
+
+    if (!name || !username || !email) {
+      this.accountSettingsError.set('Please fill in name, username, and email.');
+      return;
+    }
+    if (username.length < 3) {
+      this.accountSettingsError.set('Username must be at least 3 characters.');
+      return;
+    }
+    if (!/^[a-zA-Z0-9._-]+$/.test(username)) {
+      this.accountSettingsError.set('Username may only contain letters, numbers, dots, underscores, and hyphens.');
+      return;
+    }
+    if (next || confirm || current) {
+      if (!current || !next) {
+        this.accountSettingsError.set('Enter your current and new password to change it.');
+        return;
+      }
+      if (next.length < 8) {
+        this.accountSettingsError.set('New password must be at least 8 characters.');
+        return;
+      }
+      if (next !== confirm) {
+        this.accountSettingsError.set('New passwords do not match.');
+        return;
+      }
+    }
+
+    this.accountSettingsSaving.set(true);
+    try {
+      await this.auth.updateStaffProfile({
+        name,
+        username,
+        email,
+        currentPassword: next ? current : undefined,
+        newPassword: next || undefined,
+      });
+      this.accountSettingsSuccess.set('Account settings saved.');
+      this.currentPassword.set('');
+      this.newPassword.set('');
+      this.confirmPassword.set('');
+      setTimeout(() => this.accountSettingsOpen.set(false), 1200);
+    } catch (err: unknown) {
+      this.accountSettingsError.set(this.describeAuthError(err) ?? 'Could not save account settings.');
+    } finally {
+      this.accountSettingsSaving.set(false);
+    }
+  }
+
   protected openChangePassword(): void {
     this.currentPassword.set('');
     this.newPassword.set('');
@@ -238,5 +347,12 @@ export class AdminShell {
   protected signOut(): void {
     this.loggingOut.set(true);
     void this.auth.logout('/admin').finally(() => this.loggingOut.set(false));
+  }
+
+  private describeAuthError(err: unknown): string | null {
+    if (err && typeof err === 'object' && 'error' in err) {
+      return (err as { error?: { message?: string } }).error?.message ?? null;
+    }
+    return null;
   }
 }

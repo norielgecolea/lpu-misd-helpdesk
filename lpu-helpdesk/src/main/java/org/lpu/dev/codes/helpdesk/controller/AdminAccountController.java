@@ -5,6 +5,7 @@ import java.util.List;
 import org.lpu.dev.codes.helpdesk.dto.AdminAccountResponse;
 import org.lpu.dev.codes.helpdesk.dto.CreateAdminRequest;
 import org.lpu.dev.codes.helpdesk.dto.SetActiveRequest;
+import org.lpu.dev.codes.helpdesk.dto.UpdateAdminRequest;
 import org.lpu.dev.codes.helpdesk.model.User;
 import org.lpu.dev.codes.helpdesk.security.AuthenticatedUser;
 import org.lpu.dev.codes.helpdesk.service.AdminAccountService;
@@ -46,6 +47,16 @@ public class AdminAccountController {
     ) {
         User created = adminAccountService.createAdmin(actingAdmin, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(AdminAccountResponse.from(created));
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<AdminAccountResponse> update(
+            @AuthenticationPrincipal AuthenticatedUser actingAdmin,
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateAdminRequest request
+    ) {
+        User updated = adminAccountService.updateAdmin(actingAdmin, id, request);
+        return ResponseEntity.ok(AdminAccountResponse.from(updated));
     }
 
     @PatchMapping("/{id}/active")

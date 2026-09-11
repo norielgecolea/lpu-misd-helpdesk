@@ -12,6 +12,7 @@ import {
   AnalyticsTicketList,
   AnalyticsCsmByAssignee,
   CreateAdminRequest,
+  UpdateAdminRequest,
   CreateCategoryRequest,
   QueueSnapshot,
   UpdateCategoryRequest,
@@ -30,6 +31,10 @@ export class AdminService {
 
   createAdmin(request: CreateAdminRequest): Observable<AdminAccount> {
     return this.http.post<AdminAccount>(`${environment.apiBaseUrl}/admin/accounts`, request);
+  }
+
+  updateAdmin(id: number, request: UpdateAdminRequest): Observable<AdminAccount> {
+    return this.http.patch<AdminAccount>(`${environment.apiBaseUrl}/admin/accounts/${id}`, request);
   }
 
   setAdminActive(id: number, active: boolean): Observable<AdminAccount> {

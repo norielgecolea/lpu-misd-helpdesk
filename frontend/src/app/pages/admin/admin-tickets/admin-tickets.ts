@@ -18,7 +18,7 @@ import { playMessageCue, unlockAudio } from '../../../core/audio/cue-sounds';
 import { AdminService } from '../../../core/admin/admin.service';
 import { AdminCategory, AdminSummary } from '../../../core/admin/admin.models';
 import { AuthService, isAllowedUserEmail, allowedUserEmailLabel } from '../../../core/auth/auth.service';
-import { Ticket, TicketChannel, TicketMessage, TicketStatus, adminTicketsPathForChannel, canEncodeLpuEmail, displayRequesterEmail, formatResolveDuration, messageAuthorLabel as formatMessageAuthor, needsDirectoryLink, ticketCategoryPath, ticketResolveHours } from '../../../core/tickets/ticket.models';
+import { Ticket, TicketChannel, TicketMessage, TicketStatus, adminTicketsPathForChannel, canEncodeLpuEmail, displayRequesterEmail, formatResolveDuration, isStaffMessage, messageAuthorLabel as formatMessageAuthor, needsDirectoryLink, ticketCategoryPath, ticketResolveHours } from '../../../core/tickets/ticket.models';
 import { TicketService } from '../../../core/tickets/ticket.service';
 import { DirectoryService } from '../../../core/directory/directory.service';
 import { TicketSummaryDialog } from '../../../shared/ticket-summary-dialog/ticket-summary-dialog';
@@ -506,6 +506,11 @@ export class AdminTickets implements OnInit, OnDestroy {
 
   protected isMine(message: TicketMessage): boolean {
     return message.authorUserId === this.auth.userId();
+  }
+
+  /** Another staff member's message (left side, distinct from the requester). */
+  protected isOtherStaff(message: TicketMessage): boolean {
+    return !this.isMine(message) && isStaffMessage(message);
   }
 
   protected messageAuthorLabel(message: TicketMessage): string {

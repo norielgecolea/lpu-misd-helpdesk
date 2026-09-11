@@ -45,6 +45,7 @@ export interface AuthUser {
   id: number;
   email: string;
   name: string;
+  username?: string | null;
   role: AppRole;
   needsStudentInfo?: boolean;
   declaredStudentName?: string | null;

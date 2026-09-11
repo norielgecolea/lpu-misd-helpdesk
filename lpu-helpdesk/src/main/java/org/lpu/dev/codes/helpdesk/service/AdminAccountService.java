@@ -6,6 +6,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.lpu.dev.codes.helpdesk.config.AuthProperties;
 import org.lpu.dev.codes.helpdesk.dto.CreateAdminRequest;
+import org.lpu.dev.codes.helpdesk.dto.UpdateAdminRequest;
+import org.lpu.dev.codes.helpdesk.dto.UpdateOwnProfileRequest;
 import org.lpu.dev.codes.helpdesk.model.Role;
 import org.lpu.dev.codes.helpdesk.model.User;
 import org.lpu.dev.codes.helpdesk.repository.UserRepository;
@@ -73,6 +75,68 @@ public class AdminAccountService {
         return userRepository.findByRoleIn(STAFF_ROLES);
     }
 
+    @Transactional(readOnly = true)
+    public User getStaff(Long userId) {
+        return requireStaffAccount(userId);
+    }
+
+    @Transactional
+    public User updateAdmin(AuthenticatedUser actingAdmin, Long userId, UpdateAdminRequest request) {
+        User user = requireStaffAccount(userId);
+        applyIdentity(user, request.email(), request.username(), request.name());
+
+        if (request.role() != null && !request.role().isBlank()) {
+            if (userId.equals(actingAdmin.getId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "You cannot change your own role");
+            }
+            user.setRole(resolveRole(actingAdmin, request.role()));
+        }
+
+        if (request.password() != null && !request.password().isBlank()) {
+            if (request.password().length() < 8) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password must be at least 8 characters");
+            }
+            user.setPasswordHash(passwordEncoder.encode(request.password()));
+        }
+
+        user.setUpdatedAt(Instant.now());
+        User saved = userRepository.save(user);
+        log.info(
+                "Admin account updated email={} username={} role={} by={}",
+                saved.getEmail(),
+                saved.getUsername(),
+                saved.getRole(),
+                actingAdmin.getEmail()
+        );
+        return saved;
+    }
+
+    @Transactional
+    public User updateOwnProfile(AuthenticatedUser acting, UpdateOwnProfileRequest request) {
+        User user = requireStaffAccount(acting.getId());
+        applyIdentity(user, request.email(), request.username(), request.name());
+
+        if (request.newPassword() != null && !request.newPassword().isBlank()) {
+            if (user.getPasswordHash() == null
+                    || request.currentPassword() == null
+                    || !passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Current password is incorrect");
+            }
+            if (request.newPassword().length() < 8) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password must be at least 8 characters");
+            }
+            if (passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New password must be different from the current password");
+            }
+            user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        }
+
+        user.setUpdatedAt(Instant.now());
+        User saved = userRepository.save(user);
+        log.info("Staff profile updated userId={} email={}", saved.getId(), saved.getEmail());
+        return saved;
+    }
+
     @Transactional
     public User setActive(AuthenticatedUser actingAdmin, Long userId, boolean active) {
         User user = userRepository.findById(userId)
@@ -90,6 +154,37 @@ public class AdminAccountService {
         User saved = userRepository.save(user);
         log.info("Admin account {} email={} by={}", active ? "activated" : "deactivated", saved.getEmail(), actingAdmin.getEmail());
         return saved;
+    }
+
+    private User requireStaffAccount(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Admin account not found"));
+        if (!STAFF_ROLES.contains(user.getRole())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not a staff account");
+        }
+        return user;
+    }
+
+    private void applyIdentity(User user, String rawEmail, String rawUsername, String rawName) {
+        String email = rawEmail.trim().toLowerCase();
+        String username = rawUsername.trim().toLowerCase();
+        requireAllowedDomain(email);
+        requireValidUsername(username);
+
+        userRepository.findStaffByEmail(email).ifPresent(existing -> {
+            if (!existing.getId().equals(user.getId())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "A staff account with this email already exists");
+            }
+        });
+        userRepository.findByUsername(username).ifPresent(existing -> {
+            if (!existing.getId().equals(user.getId())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "An account with this username already exists");
+            }
+        });
+
+        user.setEmail(email);
+        user.setUsername(username);
+        user.setName(rawName.trim());
     }
 
     private Role resolveRole(AuthenticatedUser actingAdmin, String requestedRole) {

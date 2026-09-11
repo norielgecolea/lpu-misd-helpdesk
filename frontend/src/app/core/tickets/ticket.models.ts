@@ -136,6 +136,11 @@ export function isRequesterMessage(message: Pick<TicketMessage, 'authorRole'>): 
   return (message.authorRole ?? '').toUpperCase() === 'USER';
 }
 
+export function isStaffMessage(message: Pick<TicketMessage, 'authorRole'>): boolean {
+  const role = (message.authorRole ?? '').toUpperCase();
+  return role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'MONITORING';
+}
+
 export function messageAuthorLabel(
   message: TicketMessage,
   opts: { isMine: boolean; requesterName?: string | null },

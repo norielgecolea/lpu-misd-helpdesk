@@ -58,6 +58,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/auth/reset-password").permitAll()
                         .requestMatchers("/api/admin/auth/change-password")
                                 .hasAnyRole("ADMIN", "SUPER_ADMIN", "MONITORING")
+                        .requestMatchers("/api/admin/auth/me", "/api/admin/auth/profile")
+                                .hasAnyRole("ADMIN", "SUPER_ADMIN", "MONITORING")
                         .requestMatchers("/api/kiosk/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/directory/photos/**").permitAll()
                         .requestMatchers("/api/monitor/**").hasAnyRole("MONITORING", "ADMIN", "SUPER_ADMIN")

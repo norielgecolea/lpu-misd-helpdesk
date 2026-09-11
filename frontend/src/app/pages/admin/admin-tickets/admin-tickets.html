@@ -589,13 +589,16 @@
                       class="max-w-[85%] rounded-lg px-3.5 py-2.5 sm:max-w-[75%]"
                       [class.bg-[#8d2546]]="isMine(message)"
                       [class.text-white]="isMine(message)"
-                      [class.bg-zinc-100]="!isMine(message)"
-                      [class.text-zinc-900]="!isMine(message)"
+                      [class.bg-sky-100]="isOtherStaff(message)"
+                      [class.text-sky-950]="isOtherStaff(message)"
+                      [class.bg-zinc-100]="!isMine(message) && !isOtherStaff(message)"
+                      [class.text-zinc-900]="!isMine(message) && !isOtherStaff(message)"
                     >
                       <div
                         class="mb-1 flex flex-wrap items-baseline gap-x-2 text-[11px]"
                         [class.text-white/75]="isMine(message)"
-                        [class.text-zinc-500]="!isMine(message)"
+                        [class.text-sky-800/70]="isOtherStaff(message)"
+                        [class.text-zinc-500]="!isMine(message) && !isOtherStaff(message)"
                       >
                         <span class="font-semibold">
                           {{ messageAuthorLabel(message) }}
@@ -623,7 +626,8 @@
                           <p
                             class="mt-2 text-xs"
                             [class.text-white/80]="isMine(message)"
-                            [class.text-zinc-500]="!isMine(message)"
+                            [class.text-sky-800/80]="isOtherStaff(message)"
+                            [class.text-zinc-500]="!isMine(message) && !isOtherStaff(message)"
                           >
                             Loading picture…
                           </p>

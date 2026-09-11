@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { PublicClientApplication } from '@azure/msal-browser';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { StaffProfile, UpdateOwnProfileRequest } from '../admin/admin.models';
 import {
   AdminLoginRequest,
   AppRole,
@@ -181,6 +182,22 @@ export class AuthService {
       }),
     );
     return response.message;
+  }
+
+  async getStaffProfile(): Promise<StaffProfile> {
+    return firstValueFrom(this.http.get<StaffProfile>(`${environment.apiBaseUrl}/admin/auth/me`));
+  }
+
+  async updateStaffProfile(request: UpdateOwnProfileRequest): Promise<StaffProfile> {
+    const updated = await firstValueFrom(
+      this.http.patch<StaffProfile>(`${environment.apiBaseUrl}/admin/auth/profile`, request),
+    );
+    this.updateProfile({
+      email: updated.email,
+      name: updated.name,
+      username: updated.username,
+    });
+    return updated;
   }
 
   async changePassword(currentPassword: string, newPassword: string): Promise<string> {
