@@ -90,7 +90,7 @@ public class ProfileService {
             String kind = "EMPLOYEE".equals(personType) ? "Employee" : "Student";
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    kind + " ID number must be YEAR-NUMBER, e.g. 2020-10184 or 2026-2650"
+                    kind + " ID number must be YYYY-##### (year, hyphen, then ID number)"
             );
         }
         if (!authProperties.isAllowedEmail(lpuEmail)) {

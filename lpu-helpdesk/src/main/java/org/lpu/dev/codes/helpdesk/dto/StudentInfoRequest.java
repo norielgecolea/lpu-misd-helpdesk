@@ -17,7 +17,7 @@ public record StudentInfoRequest(
         @NotBlank(message = "ID number is required")
         @Pattern(
                 regexp = "^\\d{4}-\\d+$",
-                message = "ID number must be YEAR-NUMBER, e.g. 2020-10184 or 2026-2650"
+                message = "ID number must be YYYY-##### (year, hyphen, then ID number)"
         )
         @Size(max = 50, message = "ID number must be at most 50 characters")
         String studentNo,

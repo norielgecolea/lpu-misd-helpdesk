@@ -280,7 +280,7 @@ export class Dashboard implements OnInit, OnDestroy {
     }
     if (!CAMPUS_ID_PATTERN.test(no)) {
       const kind = personType === 'EMPLOYEE' ? 'Employee' : 'Student';
-      this.studentInfoError.set(`${kind} ID number must be YEAR-NUMBER, e.g. 2020-10184 or 2026-2650.`);
+      this.studentInfoError.set(`${kind} ID number must be YYYY-##### (year, hyphen, then ID number).`);
       return;
     }
     if (!isAllowedUserEmail(lpuEmail)) {
