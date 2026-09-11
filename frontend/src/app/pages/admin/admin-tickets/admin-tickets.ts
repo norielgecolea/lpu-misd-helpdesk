@@ -491,14 +491,6 @@ export class AdminTickets implements OnInit, OnDestroy {
     this.resizeComposer();
   }
 
-  protected onComposerKeydown(event: KeyboardEvent): void {
-    if (event.key !== 'Enter' || event.shiftKey || event.isComposing) {
-      return;
-    }
-    event.preventDefault();
-    void this.sendMessage();
-  }
-
   protected resizeComposer(): void {
     const el = this.composer?.nativeElement;
     if (!el) {

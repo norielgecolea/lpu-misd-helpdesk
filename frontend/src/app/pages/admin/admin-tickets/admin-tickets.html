@@ -685,7 +685,6 @@
                     [ngModel]="draft()"
                     (ngModelChange)="onDraftChange($event)"
                     (input)="resizeComposer()"
-                    (keydown)="onComposerKeydown($event)"
                     [ngModelOptions]="{ standalone: true }"
                     [disabled]="sending()"
                   ></textarea>
