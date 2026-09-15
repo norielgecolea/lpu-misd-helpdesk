@@ -72,6 +72,9 @@ export class Login implements OnInit, OnDestroy {
     8000,
   );
 
+  /** Flip to true when Google sign-in is wired up. */
+  protected readonly googleSignInEnabled = false;
+
   protected readonly otpLength = OTP_LENGTH;
   protected readonly step = signal<Step>('email');
   protected readonly email = signal('');
@@ -114,7 +117,7 @@ export class Login implements OnInit, OnDestroy {
     this.error.set(null);
     const email = this.email().trim();
     if (!email) {
-      this.error.set('Please enter your LPU Laguna email address.');
+      this.error.set('Please enter your email address.');
       return;
     }
     const turnstileToken = this.turnstile?.currentToken() ?? '';
