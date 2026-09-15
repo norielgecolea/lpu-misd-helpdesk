@@ -5,7 +5,7 @@ import { AuthService } from './auth.service';
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
   const header = auth.getAuthorizationHeader();
-  if (!header || req.url.includes('/auth/microsoft')) {
+  if (!header || req.url.includes('/auth/microsoft') || req.url.includes('/auth/google')) {
     return next(req);
   }
   return next(

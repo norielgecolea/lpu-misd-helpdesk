@@ -27,8 +27,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableWebSecurity
 @EnableMethodSecurity
 @EnableConfigurationProperties({JwtProperties.class, OtpProperties.class, MsalProperties.class,
-        AuthProperties.class, MailProperties.class, GateAttendanceProperties.class, StorageProperties.class,
-        TurnstileProperties.class})
+        GoogleProperties.class, AuthProperties.class, MailProperties.class, GateAttendanceProperties.class,
+        StorageProperties.class, TurnstileProperties.class})
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
@@ -51,7 +51,8 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthEntryPoint))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/auth/microsoft").permitAll()
+                        .requestMatchers("/api/auth/microsoft", "/api/auth/google", "/api/auth/google/config")
+                                .permitAll()
                         .requestMatchers("/api/auth/otp/**").permitAll()
                         .requestMatchers("/api/admin/auth/login").permitAll()
                         .requestMatchers("/api/admin/auth/forgot-password").permitAll()

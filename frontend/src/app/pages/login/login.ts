@@ -59,6 +59,8 @@ export class Login implements OnInit, OnDestroy {
 
   protected readonly error = signal<string | null>(null);
   protected readonly loading = signal(false);
+  protected readonly googleLoading = signal(false);
+  protected readonly googleSignInEnabled = true;
   protected readonly appName = APP_NAME;
   protected readonly appVersion = APP_VERSION;
 
@@ -71,9 +73,6 @@ export class Login implements OnInit, OnDestroy {
     () => this.activeImage.update((i) => (i + 1) % this.heroImages.length),
     8000,
   );
-
-  /** Flip to true when Google sign-in is wired up. */
-  protected readonly googleSignInEnabled = false;
 
   protected readonly otpLength = OTP_LENGTH;
   protected readonly step = signal<Step>('email');
@@ -88,9 +87,10 @@ export class Login implements OnInit, OnDestroy {
   private readonly auth = inject(AuthService);
 
   ngOnInit(): void {
-    const msalError = this.auth.consumeMicrosoftRedirectError();
-    if (msalError) {
-      this.error.set(msalError);
+    const ssoError =
+      this.auth.consumeMicrosoftRedirectError() ?? this.auth.consumeGoogleRedirectError();
+    if (ssoError) {
+      this.error.set(ssoError);
     }
   }
 
@@ -110,6 +110,18 @@ export class Login implements OnInit, OnDestroy {
     } catch (err: unknown) {
       this.error.set(this.describeError(err));
       this.loading.set(false);
+    }
+  }
+
+  protected async onSignInWithGoogle(): Promise<void> {
+    this.error.set(null);
+    this.googleLoading.set(true);
+    try {
+      // Full-page redirect — this promise does not resolve on success.
+      await this.auth.loginWithGoogle();
+    } catch (err: unknown) {
+      this.error.set(this.describeError(err));
+      this.googleLoading.set(false);
     }
   }
 
@@ -210,10 +222,15 @@ export class Login implements OnInit, OnDestroy {
         return 'Sign-in was cancelled.';
       }
     }
-    const message =
-      err && typeof err === 'object' && 'error' in err
-        ? ((err as { error?: { message?: string } }).error?.message ?? null)
-        : null;
-    return message ?? 'Something went wrong. Please try again.';
+    if (err instanceof HttpErrorResponse && err.error && typeof err.error === 'object') {
+      const body = err.error as { detail?: string; message?: string };
+      if (body.detail || body.message) {
+        return body.detail || body.message || '';
+      }
+    }
+    if (err instanceof Error && err.message) {
+      return err.message;
+    }
+    return 'Something went wrong. Please try again.';
   }
 }

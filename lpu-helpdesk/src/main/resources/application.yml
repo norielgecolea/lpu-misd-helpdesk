@@ -61,6 +61,9 @@ app:
     # From Azure Portal -> App registrations -> your app.
     tenant-id: ${APP_MSAL_TENANT_ID:}
     client-id: ${APP_MSAL_CLIENT_ID:}
+  google:
+    # From Google Cloud Console -> APIs & Services -> Credentials -> OAuth 2.0 Client IDs (Web).
+    client-id: ${APP_GOOGLE_CLIENT_ID:}
   auth:
     allowed-email-domain: ${APP_ALLOWED_EMAIL_DOMAIN:lpulaguna.edu.ph,lpusc.edu.ph}
   cors:

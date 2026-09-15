@@ -1,5 +1,7 @@
 package org.lpu.dev.codes.helpdesk.service;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.lpu.dev.codes.helpdesk.config.AuthProperties;
@@ -21,6 +23,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final OtpService otpService;
     private final MicrosoftTokenService microsoftTokenService;
+    private final GoogleTokenService googleTokenService;
     private final AuthProperties authProperties;
 
     public AuthService(
@@ -28,12 +31,14 @@ public class AuthService {
             JwtService jwtService,
             OtpService otpService,
             MicrosoftTokenService microsoftTokenService,
+            GoogleTokenService googleTokenService,
             AuthProperties authProperties
     ) {
         this.userService = userService;
         this.jwtService = jwtService;
         this.otpService = otpService;
         this.microsoftTokenService = microsoftTokenService;
+        this.googleTokenService = googleTokenService;
         this.authProperties = authProperties;
     }
 
@@ -45,6 +50,24 @@ public class AuthService {
         User user = userService.findOrCreateByEmail(identity.email(), identity.name());
         log.info("Microsoft login success for email={}", user.getEmail());
         return issueLoginResponse(user);
+    }
+
+    @Transactional
+    public LoginResponse loginWithGoogle(String idToken, String nonce) {
+        // Any verified Google account (campus or personal). Microsoft stays campus-only.
+        GoogleTokenService.GoogleIdentity identity = googleTokenService.validate(idToken, nonce);
+
+        User user = userService.findOrCreateByEmail(identity.email(), identity.name());
+        log.info("Google login success for email={}", user.getEmail());
+        return issueLoginResponse(user);
+    }
+
+    public Map<String, Object> googleLoginConfig() {
+        boolean configured = googleTokenService.isConfigured();
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("configured", configured);
+        body.put("clientId", configured ? googleTokenService.clientId() : "");
+        return body;
     }
 
     @Transactional

@@ -3,10 +3,11 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { PublicClientApplication } from '@azure/msal-browser';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, timeout } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { StaffProfile, UpdateOwnProfileRequest } from '../admin/admin.models';
 import {
+  GoogleLoginConfig,
   AdminLoginRequest,
   AppRole,
   AuthUser,
@@ -104,6 +105,60 @@ export class AuthService {
     const message = sessionStorage.getItem('lpu_helpdesk_msal_error');
     if (message) {
       sessionStorage.removeItem('lpu_helpdesk_msal_error');
+    }
+    return message;
+  }
+
+  /**
+   * Starts Google sign-in via a full-page OpenID redirect. The return trip is
+   * finished in main.ts before Angular boots (see completeGoogleRedirectBeforeBootstrap).
+   */
+  async loginWithGoogle(): Promise<void> {
+    if (!isPlatformBrowser(this.platformId)) {
+      throw new Error('Google sign-in is only available in the browser.');
+    }
+
+    let config: GoogleLoginConfig;
+    try {
+      config = await firstValueFrom(
+        this.http.get<GoogleLoginConfig>(`${environment.apiBaseUrl}/auth/google/config`).pipe(
+          timeout({ first: 12_000 }),
+        ),
+      );
+    } catch {
+      throw new Error('Unable to start Google sign-in. Please try again or use a login code.');
+    }
+    const clientId = config.clientId?.trim();
+    if (!config.configured || !clientId) {
+      throw new Error('Google sign-in is not configured yet.');
+    }
+
+    const state = this.randomId();
+    const nonce = this.randomId();
+    sessionStorage.setItem('lpu_helpdesk_google_pending', '1');
+    sessionStorage.setItem('lpu_helpdesk_google_state', state);
+    sessionStorage.setItem('lpu_helpdesk_google_nonce', nonce);
+
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: window.location.origin,
+      response_type: 'id_token',
+      scope: 'openid email profile',
+      nonce,
+      state,
+      prompt: 'select_account',
+    });
+    window.location.assign(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
+  }
+
+  /** Surfaces a Google redirect failure stored before Angular booted. */
+  consumeGoogleRedirectError(): string | null {
+    if (!isPlatformBrowser(this.platformId)) {
+      return null;
+    }
+    const message = sessionStorage.getItem('lpu_helpdesk_google_error');
+    if (message) {
+      sessionStorage.removeItem('lpu_helpdesk_google_error');
     }
     return message;
   }
@@ -276,6 +331,13 @@ export class AuthService {
   /** Web Crypto subtle is missing on plain HTTP except localhost — MSAL requires it. */
   private isSecureCryptoAvailable(): boolean {
     return typeof globalThis.crypto?.subtle !== 'undefined';
+  }
+
+  private randomId(): string {
+    if (typeof globalThis.crypto?.randomUUID === 'function') {
+      return globalThis.crypto.randomUUID();
+    }
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
   }
 
   private persistSession(response: LoginResponse, remember = false): void {

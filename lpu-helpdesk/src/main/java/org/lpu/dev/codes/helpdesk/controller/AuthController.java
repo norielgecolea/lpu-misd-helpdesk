@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.lpu.dev.codes.helpdesk.dto.GoogleLoginRequest;
 import org.lpu.dev.codes.helpdesk.dto.LoginResponse;
 import org.lpu.dev.codes.helpdesk.dto.MicrosoftLoginRequest;
 import org.lpu.dev.codes.helpdesk.dto.OtpRequestRequest;
@@ -37,6 +38,16 @@ public class AuthController {
     @PostMapping("/microsoft")
     public ResponseEntity<LoginResponse> loginWithMicrosoft(@Valid @RequestBody MicrosoftLoginRequest request) {
         return ResponseEntity.ok(authService.loginWithMicrosoft(request.idToken()));
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<LoginResponse> loginWithGoogle(@Valid @RequestBody GoogleLoginRequest request) {
+        return ResponseEntity.ok(authService.loginWithGoogle(request.idToken(), request.nonce()));
+    }
+
+    @GetMapping("/google/config")
+    public ResponseEntity<Map<String, Object>> googleConfig() {
+        return ResponseEntity.ok(authService.googleLoginConfig());
     }
 
     @PostMapping("/otp/request")

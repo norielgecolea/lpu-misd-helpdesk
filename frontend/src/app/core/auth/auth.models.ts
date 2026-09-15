@@ -2,6 +2,16 @@ export interface MicrosoftLoginRequest {
   idToken: string;
 }
 
+export interface GoogleLoginRequest {
+  idToken: string;
+  nonce?: string;
+}
+
+export interface GoogleLoginConfig {
+  configured: boolean;
+  clientId: string;
+}
+
 export interface OtpRequestRequest {
   email: string;
   'cf-turnstile-response': string;
