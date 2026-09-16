@@ -15,6 +15,8 @@ import {
   UpdateAdminRequest,
   CreateCategoryRequest,
   QueueSnapshot,
+  StaffNotification,
+  StaffNotificationList,
   UpdateCategoryRequest,
   WalkInTicketRequest,
 } from './admin.models';
@@ -180,5 +182,21 @@ export class AdminService {
 
   requeue(ticketId: number): Observable<Ticket> {
     return this.http.post<Ticket>(`${environment.apiBaseUrl}/admin/queue/${ticketId}/requeue`, {});
+  }
+
+  listNotifications(): Observable<StaffNotificationList> {
+    return this.http.get<StaffNotificationList>(`${environment.apiBaseUrl}/admin/notifications`);
+  }
+
+  markNotificationRead(id: number): Observable<StaffNotification> {
+    return this.http.post<StaffNotification>(`${environment.apiBaseUrl}/admin/notifications/${id}/read`, {});
+  }
+
+  markAllNotificationsRead(): Observable<void> {
+    return this.http.post<void>(`${environment.apiBaseUrl}/admin/notifications/read-all`, {});
+  }
+
+  clearNotifications(): Observable<void> {
+    return this.http.delete<void>(`${environment.apiBaseUrl}/admin/notifications`);
   }
 }

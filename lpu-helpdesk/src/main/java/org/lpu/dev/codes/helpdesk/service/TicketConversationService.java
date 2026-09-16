@@ -31,6 +31,7 @@ public class TicketConversationService {
     private final TicketUnreadService ticketUnreadService;
     private final IdPhotoStorageService idPhotoStorageService;
     private final TicketPresenceService ticketPresenceService;
+    private final StaffNotificationService staffNotificationService;
 
     public TicketConversationService(
             TicketRepository ticketRepository,
@@ -38,7 +39,8 @@ public class TicketConversationService {
             TicketThreadEmailService ticketThreadEmailService,
             TicketUnreadService ticketUnreadService,
             IdPhotoStorageService idPhotoStorageService,
-            TicketPresenceService ticketPresenceService
+            TicketPresenceService ticketPresenceService,
+            StaffNotificationService staffNotificationService
     ) {
         this.ticketRepository = ticketRepository;
         this.ticketMessageRepository = ticketMessageRepository;
@@ -46,6 +48,7 @@ public class TicketConversationService {
         this.ticketUnreadService = ticketUnreadService;
         this.idPhotoStorageService = idPhotoStorageService;
         this.ticketPresenceService = ticketPresenceService;
+        this.staffNotificationService = staffNotificationService;
     }
 
     @Transactional(readOnly = true)
@@ -117,6 +120,7 @@ public class TicketConversationService {
         }
 
         TicketMessage message = persistMessage(user, ticket, body, hasAttachment ? attachment : null, true);
+        staffNotificationService.notifyRequesterMessage(ticket, user, message.getBody());
         return TicketMessageResponse.from(message);
     }
 

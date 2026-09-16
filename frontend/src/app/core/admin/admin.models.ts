@@ -235,3 +235,21 @@ export interface AnalyticsAssigneeCsm {
 export interface AnalyticsCsmByAssignee {
   byAssignee: AnalyticsAssigneeCsm[];
 }
+
+export type StaffNotificationType = 'NEW_TICKET' | 'NEW_MESSAGE';
+
+export interface StaffNotification {
+  id: number;
+  type: StaffNotificationType;
+  title: string;
+  body: string | null;
+  ticketId: number | null;
+  ticketChannel: string | null;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface StaffNotificationList {
+  items: StaffNotification[];
+  unreadCount: number;
+}

@@ -253,6 +253,82 @@
       </h1>
 
       <div class="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
+        <div class="relative" (click)="$event.stopPropagation()">
+          <button
+            type="button"
+            class="text-primary-foreground/90 hover:bg-primary-foreground/10 relative inline-flex size-9 cursor-pointer items-center justify-center rounded-lg transition-colors"
+            (click)="toggleNotifications($event)"
+            [attr.aria-expanded]="notificationsOpen()"
+            aria-haspopup="menu"
+            aria-label="Notifications"
+            title="Notifications"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5" aria-hidden="true">
+              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+              <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+            </svg>
+            @if (unreadCount() > 0) {
+              <span
+                class="absolute top-0.5 right-0.5 inline-flex min-w-4 items-center justify-center rounded-full bg-amber-300 px-1 text-[10px] font-bold leading-4 text-zinc-900"
+              >
+                {{ unreadLabel() }}
+              </span>
+            }
+          </button>
+          @if (notificationsOpen()) {
+            <div
+              class="absolute right-0 top-full z-40 mt-2 w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl"
+              role="menu"
+            >
+              <div class="flex items-center justify-between gap-2 border-b border-zinc-100 px-3 py-2">
+                <p class="text-sm font-semibold text-zinc-900">Notifications</p>
+                <div class="flex items-center gap-2">
+                  <button
+                    type="button"
+                    class="cursor-pointer text-xs font-semibold text-zinc-600 hover:text-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-300"
+                    (click)="markAllNotificationsRead($event)"
+                    [disabled]="unreadCount() === 0"
+                  >
+                    Mark all read
+                  </button>
+                  <button
+                    type="button"
+                    class="cursor-pointer text-xs font-semibold text-zinc-600 hover:text-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-300"
+                    (click)="clearNotifications($event)"
+                    [disabled]="notifications().length === 0"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+              <div class="max-h-80 overflow-y-auto">
+                @if (notificationsLoading() && notifications().length === 0) {
+                  <p class="px-3 py-6 text-center text-sm text-zinc-500">Loading…</p>
+                } @else if (notifications().length === 0) {
+                  <p class="px-3 py-6 text-center text-sm text-zinc-500">No notifications yet</p>
+                } @else {
+                  @for (item of notifications(); track item.id) {
+                    <button
+                      type="button"
+                      role="menuitem"
+                      class="flex w-full cursor-pointer flex-col gap-0.5 px-3 py-2.5 text-left hover:bg-zinc-50"
+                      [class.bg-amber-50]="!item.read"
+                      (click)="openNotification(item)"
+                    >
+                      <div class="flex items-start justify-between gap-2">
+                        <p class="text-sm font-semibold text-zinc-900">{{ item.title }}</p>
+                        <span class="shrink-0 text-[11px] font-medium text-zinc-400">{{ relativeTime(item.createdAt) }}</span>
+                      </div>
+                      @if (item.body) {
+                        <p class="line-clamp-2 text-xs text-zinc-600">{{ item.body }}</p>
+                      }
+                    </button>
+                  }
+                }
+              </div>
+            </div>
+          }
+        </div>
         <button
           type="button"
           class="text-primary-foreground/90 hover:bg-primary-foreground/10 inline-flex size-9 cursor-pointer items-center justify-center rounded-lg transition-colors"

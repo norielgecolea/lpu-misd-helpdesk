@@ -320,6 +320,29 @@ public class SchemaMigrationConfig {
                 """);
 
         jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS staff_notifications (
+                    id              BIGSERIAL PRIMARY KEY,
+                    recipient_id    BIGINT       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    type            VARCHAR(32)  NOT NULL,
+                    title           VARCHAR(200) NOT NULL,
+                    body            VARCHAR(1000),
+                    ticket_id       BIGINT REFERENCES tickets(id) ON DELETE CASCADE,
+                    ticket_channel  VARCHAR(20),
+                    read_at         TIMESTAMPTZ,
+                    created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+                )
+                """);
+        jdbc.execute("""
+                CREATE INDEX IF NOT EXISTS idx_staff_notifications_recipient
+                    ON staff_notifications (recipient_id, created_at DESC)
+                """);
+        jdbc.execute("""
+                CREATE INDEX IF NOT EXISTS idx_staff_notifications_unread
+                    ON staff_notifications (recipient_id)
+                    WHERE read_at IS NULL
+                """);
+
+        jdbc.execute("""
                 UPDATE tickets
                 SET ticket_number = CASE
                     WHEN channel = 'ONSITE_RFID'
@@ -330,7 +353,7 @@ public class SchemaMigrationConfig {
                    OR ticket_number !~ '^(OL|OS)-[0-9]{4}-[0-9]+$'
                 """);
 
-        log.info("Schema migration applied (users, otp_codes, tickets, ticket_messages, ticket_message_reads, queue_counters, queue_transfer_requests, ticket_categories, ticket_csm, password_reset_tokens)");
+        log.info("Schema migration applied (users, otp_codes, tickets, ticket_messages, ticket_message_reads, queue_counters, queue_transfer_requests, ticket_categories, ticket_csm, password_reset_tokens, staff_notifications)");
         return new SchemaMigrator();
     }
 

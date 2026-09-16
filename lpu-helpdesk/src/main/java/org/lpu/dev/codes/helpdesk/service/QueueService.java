@@ -49,6 +49,7 @@ public class QueueService {
     private final TicketCategoryService ticketCategoryService;
     private final TicketCsmService ticketCsmService;
     private final TicketThreadEmailService ticketThreadEmailService;
+    private final StaffNotificationService staffNotificationService;
 
     public QueueService(
             TicketRepository ticketRepository,
@@ -57,7 +58,8 @@ public class QueueService {
             UserRepository userRepository,
             TicketCategoryService ticketCategoryService,
             TicketCsmService ticketCsmService,
-            TicketThreadEmailService ticketThreadEmailService
+            TicketThreadEmailService ticketThreadEmailService,
+            StaffNotificationService staffNotificationService
     ) {
         this.ticketRepository = ticketRepository;
         this.queueCounterRepository = queueCounterRepository;
@@ -66,6 +68,7 @@ public class QueueService {
         this.ticketCategoryService = ticketCategoryService;
         this.ticketCsmService = ticketCsmService;
         this.ticketThreadEmailService = ticketThreadEmailService;
+        this.staffNotificationService = staffNotificationService;
     }
 
     @Transactional
@@ -109,6 +112,7 @@ public class QueueService {
         ticket.setTicketNumber(Ticket.formatPublicNumber(ticket.getChannel(), ticket.getCreatedAt(), ticket.getId()));
         Ticket saved = ticketRepository.save(ticket);
         log.info("Walk-in ticket created queueNumber={} ticketNumber={}", queueNumber, saved.getTicketNumber());
+        staffNotificationService.notifyNewTicket(saved);
         return saved;
     }
 

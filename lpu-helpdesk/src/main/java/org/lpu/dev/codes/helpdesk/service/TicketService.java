@@ -43,6 +43,7 @@ public class TicketService {
     private final TicketCsmService ticketCsmService;
     private final TicketThreadEmailService ticketThreadEmailService;
     private final TicketConversationService ticketConversationService;
+    private final StaffNotificationService staffNotificationService;
     private final AuthProperties authProperties;
 
     public TicketService(
@@ -54,6 +55,7 @@ public class TicketService {
             TicketCsmService ticketCsmService,
             TicketThreadEmailService ticketThreadEmailService,
             TicketConversationService ticketConversationService,
+            StaffNotificationService staffNotificationService,
             AuthProperties authProperties
     ) {
         this.ticketRepository = ticketRepository;
@@ -64,6 +66,7 @@ public class TicketService {
         this.ticketCsmService = ticketCsmService;
         this.ticketThreadEmailService = ticketThreadEmailService;
         this.ticketConversationService = ticketConversationService;
+        this.staffNotificationService = staffNotificationService;
         this.authProperties = authProperties;
     }
 
@@ -172,6 +175,7 @@ public class TicketService {
                 ? List.of()
                 : Arrays.stream(attachments).filter(f -> f != null && !f.isEmpty()).toList();
         ticketConversationService.seedOpeningMessages(requester, saved, description, attachmentList);
+        staffNotificationService.notifyNewTicket(saved);
         return saved;
     }
 

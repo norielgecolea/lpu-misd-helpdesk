@@ -1,10 +1,13 @@
-import { Component, HostListener, computed, inject, signal } from '@angular/core';
+import { Component, HostListener, OnDestroy, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { filter } from 'rxjs';
+import { filter, firstValueFrom } from 'rxjs';
+import { AdminService } from '../../../core/admin/admin.service';
+import { StaffNotification } from '../../../core/admin/admin.models';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ThemeService } from '../../../core/theme/theme.service';
+import { adminTicketsPathForChannel } from '../../../core/tickets/ticket.models';
 
 interface NavItem {
   label: string;
@@ -58,15 +61,20 @@ interface NavSection {
     }
   `,
 })
-export class AdminShell {
+export class AdminShell implements OnDestroy {
   protected readonly auth = inject(AuthService);
   protected readonly theme = inject(ThemeService);
   private readonly router = inject(Router);
+  private readonly adminApi = inject(AdminService);
 
   protected readonly sidebarOpen = signal(true);
   protected readonly mobileNavOpen = signal(false);
   protected readonly loggingOut = signal(false);
   protected readonly accountMenuOpen = signal(false);
+  protected readonly notificationsOpen = signal(false);
+  protected readonly notifications = signal<StaffNotification[]>([]);
+  protected readonly unreadCount = signal(0);
+  protected readonly notificationsLoading = signal(false);
   protected readonly accountSettingsOpen = signal(false);
   protected readonly accountSettingsLoading = signal(false);
   protected readonly accountSettingsSaving = signal(false);
@@ -83,6 +91,8 @@ export class AdminShell {
   protected readonly newPassword = signal('');
   protected readonly confirmPassword = signal('');
   private readonly currentUrl = signal(this.router.url);
+  private notifTimer: ReturnType<typeof setInterval> | null = null;
+  private notifInFlight = false;
 
   private readonly allNavSections: NavSection[] = [
     {
@@ -168,6 +178,15 @@ export class AdminShell {
         this.currentUrl.set(this.router.url);
         this.mobileNavOpen.set(false);
       });
+    void this.refreshNotifications(true);
+    this.notifTimer = setInterval(() => void this.refreshNotifications(false), 8_000);
+  }
+
+  ngOnDestroy(): void {
+    if (this.notifTimer) {
+      clearInterval(this.notifTimer);
+      this.notifTimer = null;
+    }
   }
 
   protected showSidebarLabels(): boolean {
@@ -194,11 +213,123 @@ export class AdminShell {
   @HostListener('document:click')
   protected onDocumentClick(): void {
     this.accountMenuOpen.set(false);
+    this.notificationsOpen.set(false);
+  }
+
+  @HostListener('document:visibilitychange')
+  protected onVisibilityChange(): void {
+    if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      void this.refreshNotifications(false);
+    }
   }
 
   protected toggleAccountMenu(event: Event): void {
     event.stopPropagation();
+    this.notificationsOpen.set(false);
     this.accountMenuOpen.update((open) => !open);
+  }
+
+  protected toggleNotifications(event: Event): void {
+    event.stopPropagation();
+    this.accountMenuOpen.set(false);
+    this.notificationsOpen.update((open) => !open);
+    if (this.notificationsOpen()) {
+      void this.refreshNotifications(true);
+    }
+  }
+
+  protected unreadLabel(): string {
+    const count = this.unreadCount();
+    if (count > 9) {
+      return '9+';
+    }
+    return String(count);
+  }
+
+  protected relativeTime(iso: string): string {
+    const then = new Date(iso).getTime();
+    if (Number.isNaN(then)) {
+      return '';
+    }
+    const minutes = Math.floor(Math.max(0, Date.now() - then) / 60_000);
+    if (minutes < 1) {
+      return 'Just now';
+    }
+    if (minutes < 60) {
+      return `${minutes}m ago`;
+    }
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) {
+      return `${hours}h ago`;
+    }
+    return `${Math.floor(hours / 24)}d ago`;
+  }
+
+  protected async openNotification(notification: StaffNotification): Promise<void> {
+    this.notificationsOpen.set(false);
+    if (!notification.read) {
+      try {
+        await firstValueFrom(this.adminApi.markNotificationRead(notification.id));
+        this.notifications.update((items) =>
+          items.map((item) => (item.id === notification.id ? { ...item, read: true } : item)),
+        );
+        this.unreadCount.update((count) => Math.max(0, count - 1));
+      } catch {
+        // Still open the ticket even if the read update fails.
+      }
+    }
+    if (notification.ticketId == null) {
+      return;
+    }
+    const path = adminTicketsPathForChannel(notification.ticketChannel);
+    await this.router.navigate([path], {
+      queryParams: { ticket: notification.ticketId },
+    });
+  }
+
+  protected async markAllNotificationsRead(event: Event): Promise<void> {
+    event.stopPropagation();
+    try {
+      await firstValueFrom(this.adminApi.markAllNotificationsRead());
+      this.notifications.update((items) => items.map((item) => ({ ...item, read: true })));
+      this.unreadCount.set(0);
+    } catch {
+      // Keep the current list if the request fails.
+    }
+  }
+
+  protected async clearNotifications(event: Event): Promise<void> {
+    event.stopPropagation();
+    try {
+      await firstValueFrom(this.adminApi.clearNotifications());
+      this.notifications.set([]);
+      this.unreadCount.set(0);
+    } catch {
+      // Keep the current list if the request fails.
+    }
+  }
+
+  private async refreshNotifications(showSpinner: boolean): Promise<void> {
+    if (this.notifInFlight) {
+      return;
+    }
+    if (!showSpinner && typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      return;
+    }
+    this.notifInFlight = true;
+    if (showSpinner && this.notifications().length === 0) {
+      this.notificationsLoading.set(true);
+    }
+    try {
+      const data = await firstValueFrom(this.adminApi.listNotifications());
+      this.notifications.set(data.items ?? []);
+      this.unreadCount.set(data.unreadCount ?? 0);
+    } catch {
+      // Leave the last successful snapshot in place.
+    } finally {
+      this.notifInFlight = false;
+      this.notificationsLoading.set(false);
+    }
   }
 
   protected async openAccountSettings(): Promise<void> {

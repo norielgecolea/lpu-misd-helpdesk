@@ -11,6 +11,14 @@ import { MonitorService } from '../../core/monitor/monitor.service';
 import { Ticket } from '../../core/tickets/ticket.models';
 
 const REFRESH_MS = 1_000;
+const ALERT_MS = 6_000;
+
+interface MonitorAlert {
+  title: string;
+  name: string;
+  detail: string;
+  extraCount: number;
+}
 
 @Component({
   selector: 'app-monitor',
@@ -50,11 +58,42 @@ const REFRESH_MS = 1_000;
       animation: unassigned-blink 1.4s ease-in-out infinite;
     }
 
+    @keyframes unassigned-blink {
+      0%,
+      100% {
+        background-color: transparent;
+        box-shadow: none;
+      }
+      50% {
+        background-color: rgb(141 37 70 / 0.18);
+        box-shadow: inset 3px 0 0 0 rgb(141 37 70 / 0.8);
+      }
+    }
+
+    .monitor-alert-enter {
+      animation: monitor-alert-enter 0.35s ease-out both;
+    }
+
+    @keyframes monitor-alert-enter {
+      from {
+        opacity: 0;
+        transform: scale(0.92);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
     @media (prefers-reduced-motion: reduce) {
       .unassigned-blink {
         animation: none;
         background-color: rgb(141 37 70 / 0.18);
         box-shadow: inset 3px 0 0 0 rgb(141 37 70 / 0.8);
+      }
+
+      .monitor-alert-enter {
+        animation: none;
       }
     }
   `,
@@ -68,6 +107,7 @@ export class Monitor implements OnDestroy, OnInit {
   protected readonly waiting = signal<Ticket[]>([]);
   protected readonly recentTickets = signal<Ticket[]>([]);
   protected readonly clock = signal<Date>(new Date());
+  protected readonly alert = signal<MonitorAlert | null>(null);
 
   protected readonly recentOnline = computed(() => {
     const open = this.recentTickets().filter(
@@ -86,6 +126,8 @@ export class Monitor implements OnDestroy, OnInit {
   private primed = false;
   private pollInFlight = false;
   private knownTicketIds = new Set<number>();
+  private knownWaitingIds = new Set<number>();
+  private alertTimer: ReturnType<typeof setTimeout> | null = null;
 
   async ngOnInit(): Promise<void> {
     this.disarmAudio = armAutoUnlock();
@@ -103,6 +145,10 @@ export class Monitor implements OnDestroy, OnInit {
     }
     this.disarmAudio?.();
     this.disarmAudio = null;
+    if (this.alertTimer) {
+      clearTimeout(this.alertTimer);
+      this.alertTimer = null;
+    }
   }
 
   protected async logout(): Promise<void> {
@@ -137,9 +183,10 @@ export class Monitor implements OnDestroy, OnInit {
 
       if (!this.primed) {
         this.knownTicketIds = new Set((snap.recentTickets ?? []).map((t) => t.id));
+        this.knownWaitingIds = new Set((snap.waiting ?? []).map((t) => t.id));
         this.primed = true;
       } else {
-        this.detectAndCue(snap.recentTickets ?? []);
+        this.detectAndCue(snap.waiting ?? [], snap.recentTickets ?? []);
       }
     } catch (err) {
       if (initial) {
@@ -151,21 +198,38 @@ export class Monitor implements OnDestroy, OnInit {
     }
   }
 
-  private detectAndCue(recent: Ticket[]): void {
-    let newTicket = false;
+  private detectAndCue(waiting: Ticket[], recent: Ticket[]): void {
+    const incoming = [
+      ...waiting.filter((ticket) => !this.knownWaitingIds.has(ticket.id)),
+      ...recent.filter((ticket) => !this.knownTicketIds.has(ticket.id)),
+    ];
 
-    for (const ticket of recent) {
-      if (!this.knownTicketIds.has(ticket.id)) {
-        newTicket = true;
-        break;
-      }
-    }
-
+    this.knownWaitingIds = new Set(waiting.map((t) => t.id));
     this.knownTicketIds = new Set(recent.map((t) => t.id));
 
-    if (newTicket) {
-      playNewTicketCue();
+    if (incoming.length === 0) {
+      return;
     }
+    playNewTicketCue();
+    this.showAlert(incoming);
+  }
+
+  private showAlert(tickets: Ticket[]): void {
+    const first = tickets[0];
+    const walkIn = first.channel === 'ONSITE_RFID';
+    this.alert.set({
+      title: tickets.length > 1 ? `${tickets.length} new tickets` : walkIn ? 'New walk-in' : 'New online ticket',
+      name: first.requesterName,
+      detail: [first.ticketNumber, first.categoryPath || first.categoryLabel].filter(Boolean).join(' · '),
+      extraCount: Math.max(0, tickets.length - 1),
+    });
+    if (this.alertTimer) {
+      clearTimeout(this.alertTimer);
+    }
+    this.alertTimer = setTimeout(() => {
+      this.alert.set(null);
+      this.alertTimer = null;
+    }, ALERT_MS);
   }
 
   private describeError(err: unknown): string {
