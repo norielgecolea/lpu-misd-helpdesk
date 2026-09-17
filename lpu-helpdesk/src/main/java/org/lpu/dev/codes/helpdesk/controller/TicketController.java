@@ -12,9 +12,11 @@ import org.lpu.dev.codes.helpdesk.dto.TicketCategoryOption;
 import org.lpu.dev.codes.helpdesk.dto.TicketCreateRequest;
 import org.lpu.dev.codes.helpdesk.dto.TicketMessageResponse;
 import org.lpu.dev.codes.helpdesk.dto.TicketMessagesResponse;
+import org.lpu.dev.codes.helpdesk.dto.TicketPageResponse;
 import org.lpu.dev.codes.helpdesk.dto.TicketResponse;
 import org.lpu.dev.codes.helpdesk.model.Ticket;
 import org.lpu.dev.codes.helpdesk.model.User;
+import org.lpu.dev.codes.helpdesk.repository.TicketPage;
 import org.lpu.dev.codes.helpdesk.repository.UserRepository;
 import org.lpu.dev.codes.helpdesk.security.AuthenticatedUser;
 import org.lpu.dev.codes.helpdesk.service.TicketCategoryService;
@@ -83,9 +85,19 @@ public class TicketController {
     }
 
     @GetMapping("/mine")
-    public ResponseEntity<List<TicketResponse>> mine(@AuthenticationPrincipal AuthenticatedUser user) {
-        List<Ticket> tickets = ticketService.listMyTickets(user);
-        return ResponseEntity.ok(toResponses(user, tickets));
+    public ResponseEntity<TicketPageResponse> mine(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(defaultValue = "50") int limit
+    ) {
+        TicketPage page = ticketService.listMyTickets(user, offset, limit);
+        return ResponseEntity.ok(new TicketPageResponse(
+                toResponses(user, page.items()),
+                page.total(),
+                page.unreadTotal(),
+                page.openCount(),
+                page.inProgressCount()
+        ));
     }
 
     @GetMapping("/pending-csm")

@@ -62,6 +62,14 @@ export interface Ticket {
   canReopen?: boolean;
 }
 
+export interface TicketPage {
+  items: Ticket[];
+  total: number;
+  unreadTotal: number;
+  openCount: number;
+  inProgressCount: number;
+}
+
 export const LINK_LPU_EMAIL_CATEGORY = 'LINK_LPU_EMAIL';
 
 export function isPendingRequesterEmail(

@@ -1,4 +1,4 @@
-import { HttpClient, HttpResponse } from '@angular/common/http';
+import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
@@ -10,6 +10,7 @@ import {
   TicketCategoryOption,
   TicketMessage,
   TicketMessagesResponse,
+  TicketPage,
 } from './ticket.models';
 
 @Injectable({ providedIn: 'root' })
@@ -21,8 +22,9 @@ export class TicketService {
     return this.http.get<TicketCategoryOption[]>(`${this.base}/categories`);
   }
 
-  getMyTickets(): Observable<Ticket[]> {
-    return this.http.get<Ticket[]>(`${this.base}/mine`);
+  getMyTickets(offset = 0, limit = 50): Observable<TicketPage> {
+    const params = new HttpParams().set('offset', String(offset)).set('limit', String(limit));
+    return this.http.get<TicketPage>(`${this.base}/mine`, { params });
   }
 
   getPendingCsm(): Observable<PendingCsm | null> {

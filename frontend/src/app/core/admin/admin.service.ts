@@ -1,8 +1,8 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { Ticket, TicketStatus } from '../tickets/ticket.models';
+import { Ticket, TicketChannel, TicketPage, TicketStatus } from '../tickets/ticket.models';
 import {
   AdminAccount,
   AdminCategory,
@@ -125,11 +125,38 @@ export class AdminService {
 
   // --- Online tickets ---
 
-  listTickets(status?: TicketStatus | ''): Observable<Ticket[]> {
-    const url = status
-      ? `${environment.apiBaseUrl}/admin/tickets?status=${encodeURIComponent(status)}`
-      : `${environment.apiBaseUrl}/admin/tickets`;
-    return this.http.get<Ticket[]>(url);
+  listTickets(params: {
+    status?: TicketStatus | '';
+    channel?: TicketChannel | null;
+    scope?: string;
+    category?: string;
+    subcategory?: string;
+    sort?: string;
+    dir?: 'asc' | 'desc';
+    offset?: number;
+    limit?: number;
+  } = {}): Observable<TicketPage> {
+    let httpParams = new HttpParams()
+      .set('offset', String(params.offset ?? 0))
+      .set('limit', String(params.limit ?? 20))
+      .set('sort', params.sort ?? 'updatedAt')
+      .set('dir', params.dir ?? 'desc');
+    if (params.status) {
+      httpParams = httpParams.set('status', params.status);
+    }
+    if (params.channel) {
+      httpParams = httpParams.set('channel', params.channel);
+    }
+    if (params.scope && params.scope !== 'all') {
+      httpParams = httpParams.set('scope', params.scope);
+    }
+    if (params.category) {
+      httpParams = httpParams.set('category', params.category);
+    }
+    if (params.subcategory) {
+      httpParams = httpParams.set('subcategory', params.subcategory);
+    }
+    return this.http.get<TicketPage>(`${environment.apiBaseUrl}/admin/tickets`, { params: httpParams });
   }
 
   listTicketHistory(params: {

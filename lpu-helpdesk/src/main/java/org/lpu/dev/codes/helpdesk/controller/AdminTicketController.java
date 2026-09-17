@@ -5,16 +5,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.lpu.dev.codes.helpdesk.dto.AssignTicketRequest;
+import org.lpu.dev.codes.helpdesk.dto.TicketListQuery;
+import org.lpu.dev.codes.helpdesk.dto.TicketPageResponse;
 import org.lpu.dev.codes.helpdesk.dto.TicketResponse;
 import org.lpu.dev.codes.helpdesk.dto.UpdateTicketStatusRequest;
 import org.lpu.dev.codes.helpdesk.model.Role;
 import org.lpu.dev.codes.helpdesk.model.Ticket;
+import org.lpu.dev.codes.helpdesk.model.TicketChannel;
 import org.lpu.dev.codes.helpdesk.model.TicketStatus;
 import org.lpu.dev.codes.helpdesk.model.User;
+import org.lpu.dev.codes.helpdesk.repository.TicketPage;
 import org.lpu.dev.codes.helpdesk.repository.UserRepository;
 import org.lpu.dev.codes.helpdesk.security.AuthenticatedUser;
 import org.lpu.dev.codes.helpdesk.service.AdminTicketService;
 import org.lpu.dev.codes.helpdesk.service.TicketUnreadService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,6 +30,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/admin/tickets")
@@ -46,16 +52,40 @@ public class AdminTicketController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TicketResponse>> list(
+    public ResponseEntity<TicketPageResponse> list(
             @AuthenticationPrincipal AuthenticatedUser actingAdmin,
-            @RequestParam(required = false) String status
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String channel,
+            @RequestParam(required = false) String scope,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String subcategory,
+            @RequestParam(defaultValue = "updatedAt") String sort,
+            @RequestParam(defaultValue = "desc") String dir,
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(defaultValue = "20") int limit
     ) {
-        TicketStatus statusFilter = null;
-        if (status != null && !status.isBlank()) {
-            statusFilter = TicketStatus.valueOf(status.trim().toUpperCase());
-        }
-        List<Ticket> tickets = adminTicketService.listTickets(statusFilter);
-        return ResponseEntity.ok(enrich(tickets, actingAdmin));
+        TicketListQuery query = new TicketListQuery(
+                parseStatus(status),
+                parseChannel(channel),
+                assignedAdminId(scope, actingAdmin),
+                isUnassignedScope(scope),
+                category,
+                subcategory,
+                null,
+                null,
+                sort,
+                "asc".equalsIgnoreCase(dir),
+                offset,
+                limit
+        );
+        TicketPage page = adminTicketService.listTickets(query, actingAdmin.getId());
+        return ResponseEntity.ok(new TicketPageResponse(
+                enrich(page.items(), actingAdmin),
+                page.total(),
+                page.unreadTotal(),
+                page.openCount(),
+                page.inProgressCount()
+        ));
     }
 
     @GetMapping("/history")
@@ -123,5 +153,49 @@ public class AdminTicketController {
                     );
                 })
                 .toList();
+    }
+
+    private static TicketStatus parseStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return null;
+        }
+        try {
+            return TicketStatus.valueOf(status.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown ticket status");
+        }
+    }
+
+    private static TicketChannel parseChannel(String channel) {
+        if (channel == null || channel.isBlank()) {
+            return null;
+        }
+        try {
+            return TicketChannel.valueOf(channel.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown ticket channel");
+        }
+    }
+
+    private static boolean isUnassignedScope(String scope) {
+        return scope != null && scope.trim().equalsIgnoreCase("unassigned");
+    }
+
+    private static Long assignedAdminId(String scope, AuthenticatedUser actingAdmin) {
+        if (scope == null || scope.isBlank()) {
+            return null;
+        }
+        String trimmed = scope.trim();
+        if (trimmed.equalsIgnoreCase("mine")) {
+            return actingAdmin.getId();
+        }
+        if (trimmed.startsWith("admin:")) {
+            try {
+                return Long.parseLong(trimmed.substring(6));
+            } catch (NumberFormatException ex) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid assignee scope");
+            }
+        }
+        return null;
     }
 }

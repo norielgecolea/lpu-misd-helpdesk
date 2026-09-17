@@ -7,11 +7,13 @@ import java.util.Set;
 import org.lpu.dev.codes.helpdesk.config.AuthProperties;
 import org.lpu.dev.codes.helpdesk.dto.DirectoryProfileResponse;
 import org.lpu.dev.codes.helpdesk.dto.TicketCreateRequest;
+import org.lpu.dev.codes.helpdesk.dto.TicketListQuery;
 import org.lpu.dev.codes.helpdesk.model.Role;
 import org.lpu.dev.codes.helpdesk.model.Ticket;
 import org.lpu.dev.codes.helpdesk.model.TicketChannel;
 import org.lpu.dev.codes.helpdesk.model.TicketStatus;
 import org.lpu.dev.codes.helpdesk.model.User;
+import org.lpu.dev.codes.helpdesk.repository.TicketPage;
 import org.lpu.dev.codes.helpdesk.repository.TicketRepository;
 import org.lpu.dev.codes.helpdesk.repository.UserRepository;
 import org.lpu.dev.codes.helpdesk.security.AuthenticatedUser;
@@ -180,11 +182,22 @@ public class TicketService {
     }
 
     @Transactional(readOnly = true)
-    public List<Ticket> listMyTickets(AuthenticatedUser requester) {
-        return ticketRepository.findMineByUserIdOrEmailOrderByCreatedAtDesc(
+    public TicketPage listMyTickets(AuthenticatedUser requester, int offset, int limit) {
+        TicketListQuery query = new TicketListQuery(
+                null,
+                null,
+                null,
+                false,
+                null,
+                null,
                 requester.getId(),
-                requester.getEmail()
+                requester.getEmail(),
+                "createdAt",
+                false,
+                offset,
+                limit
         );
+        return ticketRepository.page(query, requester.getId());
     }
 
     /**

@@ -141,6 +141,14 @@ public class SchemaMigrationConfig {
                 CREATE INDEX IF NOT EXISTS idx_tickets_queue
                     ON tickets (channel, status, queue_number)
                 """);
+        jdbc.execute("""
+                CREATE INDEX IF NOT EXISTS idx_tickets_channel_status_updated
+                    ON tickets (channel, status, updated_at DESC, id DESC)
+                """);
+        jdbc.execute("""
+                CREATE INDEX IF NOT EXISTS idx_tickets_channel_assignee_updated
+                    ON tickets (channel, assigned_admin_id, updated_at DESC, id DESC)
+                """);
 
         jdbc.execute("""
                 CREATE TABLE IF NOT EXISTS queue_counters (

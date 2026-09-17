@@ -34,6 +34,7 @@ const ALLOWED_ID_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const POLL_MS = 3000;
 const LIST_POLL_MS = 5000;
+const PAGE_SIZE = 50;
 const LAYOUT_STORAGE_KEY = 'dashboard-layout-v2';
 const GROUP_ORDER: TicketStatus[] = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
 const CAMPUS_ID_PATTERN = /^\d{4}-\d+$/;
@@ -61,6 +62,10 @@ export class Dashboard implements OnInit, OnDestroy {
 
   protected readonly displayName = signal('');
   protected readonly tickets = signal<Ticket[]>([]);
+  protected readonly ticketTotal = signal(0);
+  protected readonly openCount = signal(0);
+  protected readonly inProgressCount = signal(0);
+  protected readonly loadingMore = signal(false);
   protected readonly categories = signal<TicketCategoryOption[]>([]);
   protected readonly loadingTickets = signal(true);
   protected readonly loadError = signal<string | null>(null);
@@ -123,14 +128,19 @@ export class Dashboard implements OnInit, OnDestroy {
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private listPollTimer: ReturnType<typeof setInterval> | null = null;
   private pollInFlight = false;
-  private listPollInFlight = false;
+  private listBusy = false;
+  private listRequestId = 0;
   private unreadPrimed = false;
   private knownOtherUnread = 0;
   private stickToBottom = true;
+  private readonly selectedTicketHold = signal<Ticket | null>(null);
+
+  protected readonly hasMoreTickets = computed(() => this.tickets().length < this.ticketTotal());
 
   protected readonly selectedTicket = computed(() => {
     const id = this.selectedTicketId();
-    return this.tickets().find((t) => t.id === id) ?? null;
+    return this.tickets().find((t) => t.id === id)
+      ?? (this.selectedTicketHold()?.id === id ? this.selectedTicketHold() : null);
   });
 
   protected readonly selectedTickets = computed(() => {
@@ -150,13 +160,6 @@ export class Dashboard implements OnInit, OnDestroy {
       };
     });
   });
-
-  protected readonly openCount = computed(
-    () => this.tickets().filter((t) => t.status === 'OPEN').length,
-  );
-  protected readonly inProgressCount = computed(
-    () => this.tickets().filter((t) => t.status === 'IN_PROGRESS').length,
-  );
 
   async ngOnInit(): Promise<void> {
     this.displayName.set(this.auth.user()?.name ?? '');
@@ -231,9 +234,12 @@ export class Dashboard implements OnInit, OnDestroy {
     this.messageError.set(null);
     this.staffOnline.set(false);
     this.clearUnreadLocally(ticket.id);
+    this.selectedTicketHold.set(ticket);
     this.stickToBottom = true;
     await this.loadMessages(ticket.id, true);
-    this.startPolling();
+    if (this.selectedTicketId() === ticket.id) {
+      this.startPolling();
+    }
   }
 
   protected clearSelection(): void {
@@ -245,6 +251,7 @@ export class Dashboard implements OnInit, OnDestroy {
     this.revokeAttachmentUrls();
     this.messageError.set(null);
     this.staffOnline.set(false);
+    this.selectedTicketHold.set(null);
   }
 
   protected async openForm(): Promise<void> {
@@ -478,7 +485,9 @@ export class Dashboard implements OnInit, OnDestroy {
     this.submitting.set(true);
     try {
       const created = await firstValueFrom(this.ticketService.createTicket(request));
-      this.tickets.update((current) => [created, ...current]);
+      this.tickets.update((current) => [created, ...current.filter((t) => t.id !== created.id)]);
+      this.ticketTotal.update((total) => total + 1);
+      this.openCount.update((count) => count + 1);
       this.showForm.set(false);
       await this.selectTicket(created);
     } catch (err: unknown) {
@@ -548,6 +557,9 @@ export class Dashboard implements OnInit, OnDestroy {
       this.tickets.update((current) =>
         current.map((t) => (t.id === updated.id ? { ...t, ...updated } : t)),
       );
+      if (this.selectedTicketHold()?.id === updated.id) {
+        this.selectedTicketHold.set({ ...this.selectedTicketHold()!, ...updated });
+      }
     } catch (err: unknown) {
       this.messageError.set(this.describeError(err));
     } finally {
@@ -599,21 +611,24 @@ export class Dashboard implements OnInit, OnDestroy {
     }
     try {
       const thread = await firstValueFrom(this.ticketService.listMessages(ticketId));
+      if (this.selectedTicketId() !== ticketId) {
+        return;
+      }
       const previousCount = this.messages().length;
       this.messages.set(thread.messages);
-      await this.ensureAttachmentUrls(thread.messages);
       this.staffOnline.set(thread.staffOnline);
+      void this.ensureAttachmentUrls(thread.messages);
       if (showSpinner || thread.messages.length > previousCount) {
         this.keepThreadAtBottom(showSpinner);
       }
     } catch (err: unknown) {
-      if (showSpinner) {
+      if (showSpinner && this.selectedTicketId() === ticketId) {
         this.messages.set([]);
         this.revokeAttachmentUrls();
         this.messageError.set(this.describeError(err));
       }
     } finally {
-      if (showSpinner) {
+      if (showSpinner && this.selectedTicketId() === ticketId) {
         this.loadingMessages.set(false);
       }
     }
@@ -634,7 +649,7 @@ export class Dashboard implements OnInit, OnDestroy {
       const newcomers = thread.messages.filter((m) => !previousIds.has(m.id));
       const hasNewFromOther = newcomers.some((m) => !this.isMine(m));
       this.messages.set(thread.messages);
-      await this.ensureAttachmentUrls(thread.messages);
+      void this.ensureAttachmentUrls(thread.messages);
       this.staffOnline.set(thread.staffOnline);
       this.clearUnreadLocally(ticketId);
       if (hasNewFromOther) {
@@ -651,21 +666,37 @@ export class Dashboard implements OnInit, OnDestroy {
   }
 
   private async ensureAttachmentUrls(messages: TicketMessage[]): Promise<void> {
-    const current = { ...this.attachmentUrls() };
-    const needed = messages.filter((m) => m.hasAttachment && !current[m.id]);
+    const ticketId = messages[0]?.ticketId;
+    const needed = messages.filter((m) => m.hasAttachment && !this.attachmentUrls()[m.id]);
+    const created: Record<number, string> = {};
     await Promise.all(
       needed.map(async (message) => {
         try {
           const blob = await firstValueFrom(
             this.ticketService.getMessageAttachment(message.ticketId, message.id),
           );
-          current[message.id] = URL.createObjectURL(blob);
+          created[message.id] = URL.createObjectURL(blob);
         } catch {
           // leave missing; bubble can fall back to label
         }
       }),
     );
-    this.attachmentUrls.set(current);
+    if (ticketId != null && this.selectedTicketId() !== ticketId) {
+      for (const url of Object.values(created)) {
+        URL.revokeObjectURL(url);
+      }
+      return;
+    }
+    const next = { ...this.attachmentUrls() };
+    for (const [idStr, url] of Object.entries(created)) {
+      const id = Number(idStr);
+      if (next[id]) {
+        URL.revokeObjectURL(url);
+      } else {
+        next[id] = url;
+      }
+    }
+    this.attachmentUrls.set(next);
   }
 
   private revokeAttachmentUrls(): void {
@@ -765,25 +796,36 @@ export class Dashboard implements OnInit, OnDestroy {
   }
 
   private async loadTickets(showSpinner = true): Promise<void> {
-    if (this.listPollInFlight) {
+    if (this.listBusy && !showSpinner) {
       return;
     }
-    this.listPollInFlight = true;
+    const requestId = ++this.listRequestId;
+    this.listBusy = true;
     if (showSpinner) {
       this.loadingTickets.set(true);
       this.loadError.set(null);
     }
     try {
-      const tickets = await firstValueFrom(this.ticketService.getMyTickets());
+      const limit = Math.min(Math.max(this.tickets().length, PAGE_SIZE), 200);
+      const page = await firstValueFrom(this.ticketService.getMyTickets(0, limit));
+      if (requestId !== this.listRequestId) {
+        return;
+      }
       const selectedId = this.selectedTicketId();
-      const normalized = tickets.map((t) =>
+      const normalized = page.items.map((t) =>
         selectedId != null && t.id === selectedId ? { ...t, unreadCount: 0 } : t,
       );
       this.tickets.set(normalized);
+      this.ticketTotal.set(page.total);
+      this.openCount.set(page.openCount);
+      this.inProgressCount.set(page.inProgressCount);
+      const fromPage = normalized.find((t) => t.id === selectedId);
+      if (fromPage) {
+        this.selectedTicketHold.set(fromPage);
+      }
 
-      const otherUnread = normalized
-        .filter((t) => t.id !== selectedId)
-        .reduce((sum, t) => sum + (t.unreadCount ?? 0), 0);
+      const selectedUnread = fromPage?.unreadCount ?? 0;
+      const otherUnread = Math.max(0, page.unreadTotal - selectedUnread);
       if (this.unreadPrimed && otherUnread > this.knownOtherUnread) {
         unlockAudio();
         playMessageCue();
@@ -798,17 +840,45 @@ export class Dashboard implements OnInit, OnDestroy {
         && this.layoutMode() !== 'list'
         && window.matchMedia('(min-width: 1024px)').matches
       ) {
-        await this.selectTicket(normalized[0]);
+        void this.selectTicket(normalized[0]);
       }
     } catch (err: unknown) {
-      if (showSpinner) {
+      if (showSpinner && requestId === this.listRequestId) {
         this.loadError.set(this.describeError(err));
       }
     } finally {
-      this.listPollInFlight = false;
-      if (showSpinner) {
-        this.loadingTickets.set(false);
+      if (requestId === this.listRequestId) {
+        this.listBusy = false;
+        if (showSpinner) {
+          this.loadingTickets.set(false);
+        }
       }
+    }
+  }
+
+  protected async loadMoreTickets(): Promise<void> {
+    if (this.listBusy || this.loadingMore() || !this.hasMoreTickets()) {
+      return;
+    }
+    this.listBusy = true;
+    this.loadingMore.set(true);
+    try {
+      const page = await firstValueFrom(
+        this.ticketService.getMyTickets(this.tickets().length, PAGE_SIZE),
+      );
+      const existing = new Set(this.tickets().map((t) => t.id));
+      const appended = page.items.filter((t) => !existing.has(t.id));
+      if (appended.length > 0) {
+        this.tickets.update((current) => current.concat(appended));
+      }
+      this.ticketTotal.set(page.total);
+      this.openCount.set(page.openCount);
+      this.inProgressCount.set(page.inProgressCount);
+    } catch {
+      // keep the already loaded window
+    } finally {
+      this.listBusy = false;
+      this.loadingMore.set(false);
     }
   }
 

@@ -28,12 +28,6 @@ const POLL_MS = 3000;
 const LIST_POLL_MS = 5000;
 const LAYOUT_STORAGE_KEY = 'admin-tickets-layout-v3';
 const PAGE_SIZE = 20;
-const STATUS_RANK: Record<TicketStatus, number> = {
-  OPEN: 0,
-  IN_PROGRESS: 1,
-  RESOLVED: 2,
-  CLOSED: 3,
-};
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
@@ -82,6 +76,7 @@ export class AdminTickets implements OnInit, OnDestroy {
   });
 
   protected readonly tickets = signal<Ticket[]>([]);
+  protected readonly listTotal = signal(0);
   protected readonly assignees = signal<AdminSummary[]>([]);
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
@@ -130,69 +125,26 @@ export class AdminTickets implements OnInit, OnDestroy {
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private listPollTimer: ReturnType<typeof setInterval> | null = null;
   private pollInFlight = false;
-  private listPollInFlight = false;
+  private listRequestId = 0;
   private unreadPrimed = false;
   private knownOtherUnread = 0;
   private ticketsReady = false;
   private pendingFocusTicket: Ticket | null = null;
   private stickToBottom = true;
-
-  protected readonly filteredTickets = computed(() => {
-    const scope = this.scopeFilter();
-    const myId = this.auth.userId();
-    const statusFilter = this.statusFilter();
-    const categoryFilter = this.categoryFilter();
-    const subcategoryFilter = this.subcategoryFilter();
-    return this.tickets().filter((ticket) => {
-      if (statusFilter && ticket.status !== statusFilter) {
-        return false;
-      }
-      if (categoryFilter && ticket.category !== categoryFilter) {
-        return false;
-      }
-      if (subcategoryFilter && (ticket.subcategory ?? '') !== subcategoryFilter) {
-        return false;
-      }
-      const channelLock = this.channelLocked();
-      if (channelLock && ticket.channel !== channelLock) {
-        return false;
-      }
-      if (scope === 'mine') {
-        return ticket.assignedAdminId != null && ticket.assignedAdminId === myId;
-      }
-      if (scope === 'unassigned') {
-        return ticket.assignedAdminId == null;
-      }
-      if (scope.startsWith('admin:')) {
-        const adminId = Number(scope.slice(6));
-        return Number.isFinite(adminId) && ticket.assignedAdminId === adminId;
-      }
-      return true;
-    });
-  });
-
-  protected readonly sortedTickets = computed(() => {
-    const key = this.sortKey();
-    const dir = this.sortDir() === 'asc' ? 1 : -1;
-    return [...this.filteredTickets()].sort((a, b) => this.compareTickets(a, b, key) * dir);
-  });
+  private readonly selectedTicketHold = signal<Ticket | null>(null);
 
   protected readonly listTotalPages = computed(() =>
-    Math.max(1, Math.ceil(this.sortedTickets().length / PAGE_SIZE)),
+    Math.max(1, Math.ceil(this.listTotal() / PAGE_SIZE)),
   );
 
   protected readonly currentListPage = computed(() =>
     Math.min(this.listPage(), this.listTotalPages()),
   );
 
-  protected readonly pagedTickets = computed(() => {
-    const page = this.currentListPage();
-    const start = (page - 1) * PAGE_SIZE;
-    return this.sortedTickets().slice(start, start + PAGE_SIZE);
-  });
+  protected readonly pagedTickets = computed(() => this.tickets());
 
   protected readonly listRangeLabel = computed(() => {
-    const total = this.sortedTickets().length;
+    const total = this.listTotal();
     if (total === 0) {
       return '0 shown';
     }
@@ -207,7 +159,8 @@ export class AdminTickets implements OnInit, OnDestroy {
     if (id == null) {
       return null;
     }
-    return this.filteredTickets().find((t) => t.id === id) ?? this.tickets().find((t) => t.id === id) ?? null;
+    return this.tickets().find((t) => t.id === id)
+      ?? (this.selectedTicketHold()?.id === id ? this.selectedTicketHold() : null);
   });
 
   protected readonly selectedTickets = computed(() => {
@@ -234,18 +187,9 @@ export class AdminTickets implements OnInit, OnDestroy {
     return options;
   });
 
-  protected readonly categoryFilterOptions = computed(() => {
-    const fromTree = this.categories().map((option) => ({ value: option.code, label: option.label }));
-    const known = new Set(fromTree.map((option) => option.value));
-    const extra: { value: string; label: string }[] = [];
-    for (const ticket of this.tickets()) {
-      if (ticket.category && !known.has(ticket.category)) {
-        known.add(ticket.category);
-        extra.push({ value: ticket.category, label: ticket.categoryLabel || ticket.category });
-      }
-    }
-    return fromTree.concat(extra);
-  });
+  protected readonly categoryFilterOptions = computed(() =>
+    this.categories().map((option) => ({ value: option.code, label: option.label })),
+  );
 
   protected readonly subcategoryFilterOptions = computed(() => {
     const category = this.categoryFilter();
@@ -254,18 +198,7 @@ export class AdminTickets implements OnInit, OnDestroy {
     }
     const fromTree =
       this.categories().find((option) => option.code === category)?.children ?? [];
-    const options = fromTree.map((option) => ({ value: option.code, label: option.label }));
-    const known = new Set(options.map((option) => option.value));
-    for (const ticket of this.tickets()) {
-      if (ticket.category === category && ticket.subcategory && !known.has(ticket.subcategory)) {
-        known.add(ticket.subcategory);
-        options.push({
-          value: ticket.subcategory,
-          label: ticket.subcategoryLabel || ticket.subcategory,
-        });
-      }
-    }
-    return options;
+    return fromTree.map((option) => ({ value: option.code, label: option.label }));
   });
 
   protected categoryPath(ticket: Ticket): string {
@@ -283,6 +216,9 @@ export class AdminTickets implements OnInit, OnDestroy {
       this.subcategoryFilter.set('');
       this.listPage.set(1);
       this.ensureSelectionVisible();
+      if (this.ticketsReady) {
+        void this.loadTickets(true);
+      }
     });
 
     this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
@@ -333,6 +269,7 @@ export class AdminTickets implements OnInit, OnDestroy {
 
   protected onScopeChange(): void {
     this.listPage.set(1);
+    void this.loadTickets(true);
     this.ensureSelectionVisible();
   }
 
@@ -340,12 +277,14 @@ export class AdminTickets implements OnInit, OnDestroy {
     this.categoryFilter.set(value);
     this.subcategoryFilter.set('');
     this.listPage.set(1);
+    void this.loadTickets(true);
     this.ensureSelectionVisible();
   }
 
   protected onSubcategoryFilterChange(value: string): void {
     this.subcategoryFilter.set(value);
     this.listPage.set(1);
+    void this.loadTickets(true);
     this.ensureSelectionVisible();
   }
 
@@ -357,6 +296,7 @@ export class AdminTickets implements OnInit, OnDestroy {
       this.sortDir.set(key === 'updatedAt' ? 'desc' : 'asc');
     }
     this.listPage.set(1);
+    void this.loadTickets(false);
   }
 
   protected sortIcon(key: SortKey): string {
@@ -367,7 +307,12 @@ export class AdminTickets implements OnInit, OnDestroy {
   }
 
   protected goToListPage(page: number): void {
-    this.listPage.set(Math.min(Math.max(1, page), this.listTotalPages()));
+    const next = Math.min(Math.max(1, page), this.listTotalPages());
+    if (next === this.listPage()) {
+      return;
+    }
+    this.listPage.set(next);
+    void this.loadTickets(false);
   }
 
   protected setLayoutMode(mode: LayoutMode): void {
@@ -396,11 +341,15 @@ export class AdminTickets implements OnInit, OnDestroy {
     this.messages.set([]);
     this.requesterOnline.set(false);
     this.clearUnreadLocally(ticket.id);
+    this.selectedTicketHold.set(ticket);
     this.resetDirectoryLinkForm();
     this.stickToBottom = true;
     queueMicrotask(() => this.resizeComposer());
-    await Promise.all([this.loadMessages(ticket.id, true), this.loadIdPhoto(ticket)]);
-    this.startPolling();
+    void this.loadIdPhoto(ticket);
+    await this.loadMessages(ticket.id, true);
+    if (this.selectedTicketId() === ticket.id) {
+      this.startPolling();
+    }
   }
 
   protected clearSelection(): void {
@@ -414,6 +363,7 @@ export class AdminTickets implements OnInit, OnDestroy {
     this.requesterOnline.set(false);
     this.revokeIdPhoto();
     this.resetDirectoryLinkForm();
+    this.selectedTicketHold.set(null);
   }
 
   protected async sendMessage(): Promise<void> {
@@ -592,20 +542,26 @@ export class AdminTickets implements OnInit, OnDestroy {
     if (this.selectedTicketId() === id) {
       return;
     }
-    const existing = this.tickets().find((t) => t.id === id);
+    const existing = this.tickets().find((t) => t.id === id)
+      ?? (this.selectedTicketHold()?.id === id ? this.selectedTicketHold() : null);
     if (existing) {
       await this.focusTicket(existing);
       return;
     }
-    // Tickets may be outside current filter response — still open conversation shell once listed.
-    this.statusFilter.set('');
-    if (!this.scopeLocked()) {
-      this.scopeFilter.set('all');
-    }
-    await this.loadTickets(false);
-    const found = this.tickets().find((t) => t.id === id);
-    if (found) {
-      await this.focusTicket(found);
+    try {
+      const fetched = await firstValueFrom(this.ticketService.getTicket(id));
+      await this.focusTicket(fetched);
+    } catch {
+      this.statusFilter.set('');
+      if (!this.scopeLocked()) {
+        this.scopeFilter.set('all');
+      }
+      this.listPage.set(1);
+      await this.loadTickets(false);
+      const found = this.tickets().find((t) => t.id === id);
+      if (found) {
+        await this.focusTicket(found);
+      }
     }
   }
 
@@ -619,45 +575,22 @@ export class AdminTickets implements OnInit, OnDestroy {
       return false;
     }
     this.statusFilter.set('');
+    this.categoryFilter.set('');
+    this.subcategoryFilter.set('');
     if (!this.scopeLocked()) {
       this.scopeFilter.set('all');
     }
+    this.listPage.set(1);
+    this.selectedTicketHold.set(ticket);
+    await this.selectTicket(ticket);
+    await this.loadTickets(false);
     this.tickets.update((list) => {
       if (list.some((t) => t.id === ticket.id)) {
-        return list.map((t) => (t.id === ticket.id ? ticket : t));
+        return list;
       }
       return [ticket, ...list];
     });
-    this.listPage.set(1);
-    await this.selectTicket(ticket);
     return true;
-  }
-
-  private compareTickets(a: Ticket, b: Ticket, key: SortKey): number {
-    switch (key) {
-      case 'updatedAt':
-        return new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
-      case 'resolveHours':
-        return (ticketResolveHours(a) ?? -1) - (ticketResolveHours(b) ?? -1);
-      case 'status':
-        return STATUS_RANK[a.status] - STATUS_RANK[b.status];
-      case 'assignedAdminName': {
-        const av = (a.assignedAdminName ?? '').toLowerCase();
-        const bv = (b.assignedAdminName ?? '').toLowerCase();
-        if (!av && bv) return 1;
-        if (av && !bv) return -1;
-        return av.localeCompare(bv);
-      }
-      case 'channel':
-        return a.channel.localeCompare(b.channel);
-      case 'categoryLabel':
-        return ticketCategoryPath(a).toLowerCase().localeCompare(ticketCategoryPath(b).toLowerCase());
-      default: {
-        const av = (a[key] ?? '').toString().toLowerCase();
-        const bv = (b[key] ?? '').toString().toLowerCase();
-        return av.localeCompare(bv);
-      }
-    }
   }
 
   protected async onAssign(ticket: Ticket, adminIdRaw: string): Promise<void> {
@@ -827,10 +760,42 @@ export class AdminTickets implements OnInit, OnDestroy {
   }
 
   private ensureSelectionVisible(): void {
-    const id = this.selectedTicketId();
-    if (id != null && !this.filteredTickets().some((t) => t.id === id)) {
+    const ticket = this.selectedTicket();
+    if (ticket != null && !this.ticketMatchesFilters(ticket)) {
       this.clearSelection();
     }
+  }
+
+  private ticketMatchesFilters(ticket: Ticket): boolean {
+    const statusFilter = this.statusFilter();
+    if (statusFilter && ticket.status !== statusFilter) {
+      return false;
+    }
+    const categoryFilter = this.categoryFilter();
+    if (categoryFilter && ticket.category !== categoryFilter) {
+      return false;
+    }
+    const subcategoryFilter = this.subcategoryFilter();
+    if (subcategoryFilter && (ticket.subcategory ?? '') !== subcategoryFilter) {
+      return false;
+    }
+    const channelLock = this.channelLocked();
+    if (channelLock && ticket.channel !== channelLock) {
+      return false;
+    }
+    const scope = this.scopeFilter();
+    const myId = this.auth.userId();
+    if (scope === 'mine') {
+      return ticket.assignedAdminId != null && ticket.assignedAdminId === myId;
+    }
+    if (scope === 'unassigned') {
+      return ticket.assignedAdminId == null;
+    }
+    if (scope.startsWith('admin:')) {
+      const adminId = Number(scope.slice(6));
+      return Number.isFinite(adminId) && ticket.assignedAdminId === adminId;
+    }
+    return true;
   }
 
   private readLayoutMode(): LayoutMode {
@@ -872,21 +837,24 @@ export class AdminTickets implements OnInit, OnDestroy {
     }
     try {
       const thread = await firstValueFrom(this.ticketService.listMessages(ticketId));
+      if (this.selectedTicketId() !== ticketId) {
+        return;
+      }
       const previousCount = this.messages().length;
       this.messages.set(thread.messages);
-      await this.ensureAttachmentUrls(thread.messages);
       this.requesterOnline.set(thread.requesterOnline);
+      void this.ensureAttachmentUrls(thread.messages);
       if (showSpinner || thread.messages.length > previousCount) {
         this.keepThreadAtBottom(showSpinner);
       }
     } catch (err) {
-      if (showSpinner) {
+      if (showSpinner && this.selectedTicketId() === ticketId) {
         this.messages.set([]);
         this.revokeAttachmentUrls();
         this.messageError.set(this.describeError(err));
       }
     } finally {
-      if (showSpinner) {
+      if (showSpinner && this.selectedTicketId() === ticketId) {
         this.loadingMessages.set(false);
       }
     }
@@ -907,7 +875,7 @@ export class AdminTickets implements OnInit, OnDestroy {
       const newcomers = thread.messages.filter((m) => !previousIds.has(m.id));
       const hasNewFromOther = newcomers.some((m) => !this.isMine(m));
       this.messages.set(thread.messages);
-      await this.ensureAttachmentUrls(thread.messages);
+      void this.ensureAttachmentUrls(thread.messages);
       this.requesterOnline.set(thread.requesterOnline);
       this.clearUnreadLocally(ticketId);
       if (hasNewFromOther) {
@@ -926,21 +894,37 @@ export class AdminTickets implements OnInit, OnDestroy {
   }
 
   private async ensureAttachmentUrls(messages: TicketMessage[]): Promise<void> {
-    const current = { ...this.attachmentUrls() };
-    const needed = messages.filter((m) => m.hasAttachment && !current[m.id]);
+    const ticketId = messages[0]?.ticketId;
+    const needed = messages.filter((m) => m.hasAttachment && !this.attachmentUrls()[m.id]);
+    const created: Record<number, string> = {};
     await Promise.all(
       needed.map(async (message) => {
         try {
           const blob = await firstValueFrom(
             this.ticketService.getMessageAttachment(message.ticketId, message.id),
           );
-          current[message.id] = URL.createObjectURL(blob);
+          created[message.id] = URL.createObjectURL(blob);
         } catch {
           // leave missing
         }
       }),
     );
-    this.attachmentUrls.set(current);
+    if (ticketId != null && this.selectedTicketId() !== ticketId) {
+      for (const url of Object.values(created)) {
+        URL.revokeObjectURL(url);
+      }
+      return;
+    }
+    const next = { ...this.attachmentUrls() };
+    for (const [idStr, url] of Object.entries(created)) {
+      const id = Number(idStr);
+      if (next[id]) {
+        URL.revokeObjectURL(url);
+      } else {
+        next[id] = url;
+      }
+    }
+    this.attachmentUrls.set(next);
   }
 
   private revokeAttachmentUrls(): void {
@@ -973,12 +957,19 @@ export class AdminTickets implements OnInit, OnDestroy {
     this.idPhotoLoading.set(true);
     try {
       const blob = await firstValueFrom(this.ticketService.getIdPhoto(ticket.id));
+      if (this.selectedTicketId() !== ticket.id) {
+        return;
+      }
       this.idPhotoIsPdf.set(blob.type === 'application/pdf' || blob.type.includes('pdf'));
       this.idPhotoUrl.set(URL.createObjectURL(blob));
     } catch {
-      this.idPhotoError.set('Could not load ID photo.');
+      if (this.selectedTicketId() === ticket.id) {
+        this.idPhotoError.set('Could not load ID photo.');
+      }
     } finally {
-      this.idPhotoLoading.set(false);
+      if (this.selectedTicketId() === ticket.id) {
+        this.idPhotoLoading.set(false);
+      }
     }
   }
 
@@ -1042,25 +1033,49 @@ export class AdminTickets implements OnInit, OnDestroy {
   }
 
   private async loadTickets(showSpinner: boolean): Promise<void> {
-    if (this.listPollInFlight && !showSpinner) {
-      return;
-    }
-    this.listPollInFlight = true;
+    const requestId = ++this.listRequestId;
     if (showSpinner) {
       this.loading.set(true);
       this.error.set(null);
     }
     try {
-      const tickets = await firstValueFrom(this.adminService.listTickets(this.statusFilter()));
+      const page = await firstValueFrom(
+        this.adminService.listTickets({
+          status: this.statusFilter(),
+          channel: this.channelLocked(),
+          scope: this.scopeFilter(),
+          category: this.categoryFilter(),
+          subcategory: this.subcategoryFilter(),
+          sort: this.sortKey(),
+          dir: this.sortDir(),
+          offset: (this.listPage() - 1) * PAGE_SIZE,
+          limit: PAGE_SIZE,
+        }),
+      );
+      if (requestId !== this.listRequestId) {
+        return;
+      }
+      if (page.items.length === 0 && page.total > 0 && this.listPage() > 1) {
+        const lastPage = Math.max(1, Math.ceil(page.total / PAGE_SIZE));
+        if (lastPage !== this.listPage()) {
+          this.listPage.set(lastPage);
+          await this.loadTickets(showSpinner);
+          return;
+        }
+      }
       const selectedId = this.selectedTicketId();
-      const normalized = tickets.map((t) =>
+      const normalized = page.items.map((t) =>
         selectedId != null && t.id === selectedId ? { ...t, unreadCount: 0 } : t,
       );
       this.tickets.set(normalized);
+      this.listTotal.set(page.total);
+      const fromPage = normalized.find((t) => t.id === selectedId);
+      if (fromPage) {
+        this.selectedTicketHold.set(fromPage);
+      }
 
-      const otherUnread = normalized
-        .filter((t) => t.id !== selectedId)
-        .reduce((sum, t) => sum + (t.unreadCount ?? 0), 0);
+      const selectedUnread = fromPage?.unreadCount ?? 0;
+      const otherUnread = Math.max(0, page.unreadTotal - selectedUnread);
       if (this.unreadPrimed && otherUnread > this.knownOtherUnread) {
         unlockAudio();
         playMessageCue();
@@ -1070,23 +1085,21 @@ export class AdminTickets implements OnInit, OnDestroy {
 
       this.ensureSelectionVisible();
 
-      const visible = this.filteredTickets();
       if (
         showSpinner
         && this.selectedTicketId() == null
-        && visible.length > 0
+        && normalized.length > 0
         && this.layoutMode() !== 'list'
         && window.matchMedia('(min-width: 1024px)').matches
       ) {
-        await this.selectTicket(visible[0]);
+        void this.selectTicket(normalized[0]);
       }
     } catch (err) {
-      if (showSpinner) {
+      if (showSpinner && requestId === this.listRequestId) {
         this.error.set(this.describeError(err));
       }
     } finally {
-      this.listPollInFlight = false;
-      if (showSpinner) {
+      if (showSpinner && requestId === this.listRequestId) {
         this.loading.set(false);
       }
     }
@@ -1120,6 +1133,9 @@ export class AdminTickets implements OnInit, OnDestroy {
 
   private replaceTicket(updated: Ticket): void {
     this.tickets.update((current) => current.map((t) => (t.id === updated.id ? updated : t)));
+    if (this.selectedTicketHold()?.id === updated.id) {
+      this.selectedTicketHold.set(updated);
+    }
   }
 
   private setBusy(ticketId: number, busy: boolean): void {

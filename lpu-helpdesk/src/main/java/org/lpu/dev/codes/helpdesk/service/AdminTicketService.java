@@ -7,10 +7,12 @@ import java.util.List;
 import java.util.Set;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.lpu.dev.codes.helpdesk.dto.TicketListQuery;
 import org.lpu.dev.codes.helpdesk.model.Role;
 import org.lpu.dev.codes.helpdesk.model.Ticket;
 import org.lpu.dev.codes.helpdesk.model.TicketStatus;
 import org.lpu.dev.codes.helpdesk.model.User;
+import org.lpu.dev.codes.helpdesk.repository.TicketPage;
 import org.lpu.dev.codes.helpdesk.repository.TicketRepository;
 import org.lpu.dev.codes.helpdesk.repository.UserRepository;
 import org.lpu.dev.codes.helpdesk.security.AuthenticatedUser;
@@ -45,8 +47,8 @@ public class AdminTicketService {
     }
 
     @Transactional(readOnly = true)
-    public List<Ticket> listTickets(TicketStatus status) {
-        return ticketRepository.findAllOrderByCreatedAtDesc(status);
+    public TicketPage listTickets(TicketListQuery query, Long unreadUserId) {
+        return ticketRepository.page(query, unreadUserId);
     }
 
     @Transactional(readOnly = true)

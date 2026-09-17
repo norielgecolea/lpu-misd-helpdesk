@@ -2,10 +2,15 @@ package org.lpu.dev.codes.helpdesk.repository;
 
 import jakarta.persistence.LockModeType;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
+import org.hibernate.query.NativeQuery;
+import org.lpu.dev.codes.helpdesk.dto.TicketListQuery;
 import org.lpu.dev.codes.helpdesk.model.PendingRequesterEmail;
 import org.lpu.dev.codes.helpdesk.model.Ticket;
 import org.lpu.dev.codes.helpdesk.model.TicketChannel;
@@ -219,6 +224,176 @@ public class TicketRepository {
             query.setParameter("status", status);
         }
         return query.getResultList();
+    }
+
+    @Transactional(readOnly = true)
+    public TicketPage page(TicketListQuery query, Long unreadUserId) {
+        Object[] stats = loadPageStats(query);
+        long total = ((Number) stats[0]).longValue();
+        long openCount = ((Number) stats[1]).longValue();
+        long inProgressCount = ((Number) stats[2]).longValue();
+        List<Ticket> items = total == 0 ? List.of() : loadPageItems(query);
+        long unreadTotal = unreadUserId == null || total == 0 ? 0 : countUnread(query, unreadUserId);
+        return new TicketPage(items, total, unreadTotal, openCount, inProgressCount);
+    }
+
+    private Object[] loadPageStats(TicketListQuery query) {
+        String sql = """
+                SELECT count(*)::bigint,
+                       count(*) FILTER (WHERE t.status = 'OPEN')::bigint,
+                       count(*) FILTER (WHERE t.status = 'IN_PROGRESS')::bigint
+                FROM tickets t
+                """
+                + ticketWhereSql(query);
+        Object raw = bindTicketFilters(currentSession().createNativeQuery(sql), query).getSingleResult();
+        if (raw instanceof Object[] row) {
+            return row;
+        }
+        return new Object[]{raw, 0L, 0L};
+    }
+
+    private List<Ticket> loadPageItems(TicketListQuery query) {
+        String sql = """
+                SELECT t.id
+                FROM tickets t
+                LEFT JOIN users u ON u.id = t.assigned_admin_id
+                LEFT JOIN ticket_categories cat ON cat.code = t.category
+                LEFT JOIN ticket_categories sub ON sub.code = t.subcategory
+                """
+                + ticketWhereSql(query)
+                + " ORDER BY "
+                + orderBySql(query.sort(), query.ascending());
+        List<?> idRows = bindTicketFilters(currentSession().createNativeQuery(sql), query)
+                .setFirstResult(query.offset())
+                .setMaxResults(query.limit())
+                .getResultList();
+        if (idRows.isEmpty()) {
+            return List.of();
+        }
+        List<Long> ids = new ArrayList<>(idRows.size());
+        for (Object row : idRows) {
+            if (row instanceof Number number) {
+                ids.add(number.longValue());
+            } else if (row instanceof Object[] cells && cells.length > 0 && cells[0] instanceof Number number) {
+                ids.add(number.longValue());
+            }
+        }
+        List<Ticket> loaded = currentSession()
+                .createQuery("FROM Ticket t WHERE t.id IN :ids", Ticket.class)
+                .setParameter("ids", ids)
+                .getResultList();
+        Map<Long, Ticket> byId = new LinkedHashMap<>();
+        for (Ticket ticket : loaded) {
+            byId.put(ticket.getId(), ticket);
+        }
+        List<Ticket> ordered = new ArrayList<>(ids.size());
+        for (Long id : ids) {
+            Ticket ticket = byId.get(id);
+            if (ticket != null) {
+                ordered.add(ticket);
+            }
+        }
+        return ordered;
+    }
+
+    private long countUnread(TicketListQuery query, Long userId) {
+        String sql = """
+                SELECT count(*)::bigint
+                FROM ticket_messages m
+                INNER JOIN tickets t ON t.id = m.ticket_id
+                LEFT JOIN ticket_message_reads r
+                    ON r.ticket_id = m.ticket_id AND r.user_id = :unreadUserId
+                """
+                + ticketWhereSql(query)
+                + """
+                 AND m.id > COALESCE(r.last_read_message_id, 0)
+                 AND (m.author_user_id IS NULL OR m.author_user_id <> :unreadUserId)
+                """;
+        Number count = (Number) bindTicketFilters(currentSession().createNativeQuery(sql), query)
+                .setParameter("unreadUserId", userId)
+                .getSingleResult();
+        return count == null ? 0 : count.longValue();
+    }
+
+    private static String ticketWhereSql(TicketListQuery query) {
+        List<String> clauses = new ArrayList<>();
+        if (query.status() != null) {
+            clauses.add("t.status = :status");
+        }
+        if (query.channel() != null) {
+            clauses.add("t.channel = :channel");
+        }
+        if (query.unassignedOnly()) {
+            clauses.add("t.assigned_admin_id IS NULL");
+        } else if (query.assignedAdminId() != null) {
+            clauses.add("t.assigned_admin_id = :assignedAdminId");
+        }
+        if (query.category() != null) {
+            clauses.add("t.category = :category");
+        }
+        if (query.subcategory() != null) {
+            clauses.add("t.subcategory = :subcategory");
+        }
+        if (query.requesterUserId() != null && query.requesterEmail() != null) {
+            clauses.add("""
+                    (t.requester_user_id = :requesterUserId
+                     OR lower(t.requester_email) = lower(:requesterEmail)
+                     OR (t.requester_lpu_email IS NOT NULL
+                         AND lower(t.requester_lpu_email) = lower(:requesterEmail)))
+                    """.trim());
+        } else if (query.requesterUserId() != null) {
+            clauses.add("t.requester_user_id = :requesterUserId");
+        }
+        if (clauses.isEmpty()) {
+            return "";
+        }
+        return " WHERE " + String.join(" AND ", clauses) + " ";
+    }
+
+    private static NativeQuery<?> bindTicketFilters(NativeQuery<?> nativeQuery, TicketListQuery query) {
+        if (query.status() != null) {
+            nativeQuery.setParameter("status", query.status().name());
+        }
+        if (query.channel() != null) {
+            nativeQuery.setParameter("channel", query.channel().name());
+        }
+        if (query.assignedAdminId() != null && !query.unassignedOnly()) {
+            nativeQuery.setParameter("assignedAdminId", query.assignedAdminId());
+        }
+        if (query.category() != null) {
+            nativeQuery.setParameter("category", query.category());
+        }
+        if (query.subcategory() != null) {
+            nativeQuery.setParameter("subcategory", query.subcategory());
+        }
+        if (query.requesterUserId() != null) {
+            nativeQuery.setParameter("requesterUserId", query.requesterUserId());
+            if (query.requesterEmail() != null) {
+                nativeQuery.setParameter("requesterEmail", query.requesterEmail());
+            }
+        }
+        return nativeQuery;
+    }
+
+    private static String orderBySql(String sort, boolean ascending) {
+        String dir = ascending ? "ASC" : "DESC";
+        String order = switch (sort) {
+            case "ticketNumber" -> "lower(t.ticket_number) " + dir;
+            case "subject" -> "lower(t.subject) " + dir;
+            case "categoryLabel" -> "lower(coalesce(cat.label, t.category)) " + dir
+                    + ", lower(coalesce(sub.label, t.subcategory)) " + dir;
+            case "requesterName" -> "lower(t.requester_name) " + dir;
+            case "requesterEmail" -> "lower(t.requester_email) " + dir;
+            case "assignedAdminName" -> "lower(u.name) " + dir + " NULLS LAST";
+            case "status" -> "CASE t.status WHEN 'OPEN' THEN 0 WHEN 'IN_PROGRESS' THEN 1 "
+                    + "WHEN 'RESOLVED' THEN 2 WHEN 'CLOSED' THEN 3 ELSE 4 END " + dir;
+            case "channel" -> "t.channel " + dir;
+            case "resolveHours" -> "(CASE WHEN t.resolved_at IS NULL THEN -1 "
+                    + "ELSE EXTRACT(EPOCH FROM (t.resolved_at - t.created_at)) END) " + dir;
+            case "createdAt" -> "t.created_at " + dir;
+            default -> "t.updated_at " + dir;
+        };
+        return order + ", t.id " + dir;
     }
 
     /** Open onsite tickets waiting on the line, oldest first. */
