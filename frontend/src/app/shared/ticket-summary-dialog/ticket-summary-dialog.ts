@@ -222,6 +222,7 @@ export class TicketSummaryDialog implements OnDestroy {
       ticket.id,
       ticket.requesterPersonType ?? '',
       ticket.requesterPersonNo ?? '',
+      ticket.requesterLpuEmail ?? '',
       ticket.requesterEmail ?? '',
     ].join('|');
   }
@@ -235,9 +236,7 @@ export class TicketSummaryDialog implements OnDestroy {
     try {
       const profile = await firstValueFrom(
         this.directoryService.lookupProfile({
-          email: isPendingRequesterEmail(ticket.requesterEmail, ticket.pendingEmail)
-            ? null
-            : ticket.requesterEmail,
+          email: this.inputtedLpuEmail(ticket) || null,
           personType: ticket.requesterPersonType,
           personNo: ticket.requesterPersonNo,
         }),
@@ -321,11 +320,30 @@ export class TicketSummaryDialog implements OnDestroy {
     this.idLightboxOpen.set(false);
   }
 
+  private inputtedLpuEmail(ticket: Ticket): string {
+    const declared = ticket.requesterLpuEmail?.trim() ?? '';
+    if (declared) {
+      return declared;
+    }
+    const sender = ticket.requesterEmail?.trim() ?? '';
+    if (
+      sender
+      && isAllowedUserEmail(sender)
+      && !isPendingRequesterEmail(sender, ticket.pendingEmail)
+    ) {
+      return sender;
+    }
+    return '';
+  }
+
   private buildPersonRows(ticket: Ticket, profile: DirectoryProfile | null): TicketSummaryRow[] {
     const type = (profile?.found ? profile.personType : ticket.requesterPersonType)?.toUpperCase() ?? null;
     const name = (profile?.found && profile.name) || ticket.requesterName || '—';
-    const emailRaw = (profile?.found && profile.email) || ticket.requesterEmail || '';
-    const email = displayRequesterEmail(emailRaw, ticket.pendingEmail && !(profile?.found && profile.email));
+    const inputtedLpu = this.inputtedLpuEmail(ticket);
+    const emailRaw = (profile?.found && profile.email?.trim()) || inputtedLpu;
+    const email = emailRaw
+      ? displayRequesterEmail(emailRaw, false)
+      : (isPendingRequesterEmail(ticket.requesterEmail, ticket.pendingEmail) ? 'No LPU email yet' : '—');
     const personNoRaw = (profile?.found && profile.personNo) || ticket.requesterPersonNo || '';
     const personNo = personNoRaw || '—';
     const department = (profile?.found && profile.department) || '—';
@@ -335,9 +353,7 @@ export class TicketSummaryDialog implements OnDestroy {
     const emailRow: TicketSummaryRow = {
       label: 'LPU Email',
       value: email,
-      copyValue: isPendingRequesterEmail(emailRaw, ticket.pendingEmail && !(profile?.found && profile.email))
-        ? null
-        : emailRaw || null,
+      copyValue: emailRaw || null,
     };
 
     if (type === 'EMPLOYEE') {

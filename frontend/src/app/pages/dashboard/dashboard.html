@@ -687,12 +687,24 @@
               autocomplete="email"
               maxlength="255"
               placeholder="juan.delacruz@lpulaguna.edu.ph"
-              class="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-[#8d2546] focus:outline-none"
+              pattern=".+@(lpulaguna|lpusc)\.edu\.ph"
+              title="Must be @lpulaguna.edu.ph or @lpusc.edu.ph"
+              class="w-full rounded-md border px-3 py-2 text-sm focus:outline-none"
+              [class.border-zinc-300]="!lpuEmailFieldError()"
+              [class.focus:border-[#8d2546]]="!lpuEmailFieldError()"
+              [class.border-red-400]="!!lpuEmailFieldError()"
+              [class.focus:border-red-500]="!!lpuEmailFieldError()"
               [ngModel]="lpuEmail()"
-              (ngModelChange)="lpuEmail.set($event)"
+              (ngModelChange)="onLpuEmailChange($event)"
               [ngModelOptions]="{ standalone: true }"
               [disabled]="savingStudentInfo()"
+              [attr.aria-invalid]="lpuEmailFieldError() ? true : null"
+              aria-describedby="lpuEmailHint"
             />
+            <p id="lpuEmailHint" class="text-[11px] text-zinc-500">Must be @lpulaguna.edu.ph or @lpusc.edu.ph.</p>
+            @if (lpuEmailFieldError()) {
+              <p class="text-xs text-red-700" role="alert">{{ lpuEmailFieldError() }}</p>
+            }
           </div>
 
           @if (studentInfoError()) {
@@ -703,7 +715,7 @@
 
           <button
             type="submit"
-            [disabled]="savingStudentInfo()"
+            [disabled]="savingStudentInfo() || !!lpuEmailFieldError()"
             class="mt-5 w-full cursor-pointer rounded-md bg-[#8d2546] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#7a1f3c] disabled:cursor-not-allowed disabled:opacity-40"
           >
             {{ savingStudentInfo() ? 'Saving…' : 'Save and continue' }}

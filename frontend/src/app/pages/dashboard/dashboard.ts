@@ -122,8 +122,19 @@ export class Dashboard implements OnInit, OnDestroy {
   protected readonly studentName = signal('');
   protected readonly studentNo = signal('');
   protected readonly lpuEmail = signal('');
+  protected readonly lpuEmailHint = allowedUserEmailLabel();
   protected readonly savingStudentInfo = signal(false);
   protected readonly studentInfoError = signal<string | null>(null);
+  protected readonly lpuEmailFieldError = computed(() => {
+    const value = this.lpuEmail().trim();
+    if (!value) {
+      return null;
+    }
+    if (!isAllowedUserEmail(value)) {
+      return `LPU email must end with ${this.lpuEmailHint}.`;
+    }
+    return null;
+  });
 
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private listPollTimer: ReturnType<typeof setInterval> | null = null;
@@ -273,6 +284,13 @@ export class Dashboard implements OnInit, OnDestroy {
     this.showForm.set(true);
   }
 
+  protected onLpuEmailChange(value: string): void {
+    this.lpuEmail.set(value);
+    if (this.studentInfoError()) {
+      this.studentInfoError.set(null);
+    }
+  }
+
   protected async submitStudentInfo(): Promise<void> {
     if (this.savingStudentInfo()) {
       return;
@@ -291,7 +309,7 @@ export class Dashboard implements OnInit, OnDestroy {
       return;
     }
     if (!isAllowedUserEmail(lpuEmail)) {
-      this.studentInfoError.set(`LPU email must be a campus address (${allowedUserEmailLabel()}).`);
+      this.studentInfoError.set(`LPU email must end with ${this.lpuEmailHint}.`);
       return;
     }
     this.studentInfoError.set(null);
