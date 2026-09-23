@@ -23,6 +23,7 @@ interface NavItem {
     | 'students'
     | 'employees'
     | 'accounts'
+    | 'audit'
     | 'kiosk';
   superAdminOnly?: boolean;
 }
@@ -119,6 +120,7 @@ export class AdminShell implements OnDestroy {
       items: [
         { label: 'Kiosk choices', route: '/admin/kiosk-choices', icon: 'kiosk' },
         { label: 'Accounts', route: '/admin/accounts', icon: 'accounts', superAdminOnly: true },
+        { label: 'Audit trail', route: '/admin/audit', icon: 'audit', superAdminOnly: true },
       ],
     },
   ];
@@ -150,6 +152,7 @@ export class AdminShell implements OnDestroy {
       || url.startsWith('/admin/queue')
       || url.startsWith('/admin/students')
       || url.startsWith('/admin/employees')
+      || url.startsWith('/admin/audit')
     );
   });
 

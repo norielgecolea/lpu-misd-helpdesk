@@ -253,3 +253,26 @@ export interface StaffNotificationList {
   items: StaffNotification[];
   unreadCount: number;
 }
+
+export type AuditResourceType = 'AUTH' | 'ACCOUNT' | 'TICKET' | 'QUEUE' | 'CATEGORY' | 'DIRECTORY';
+
+export interface AuditLogEntry {
+  id: number;
+  actorId: number | null;
+  actorEmail: string | null;
+  actorName: string | null;
+  actorRole: string | null;
+  action: string;
+  actionLabel: string;
+  resourceType: AuditResourceType;
+  resourceId: string | null;
+  resourceLabel: string | null;
+  summary: string;
+  details: string | null;
+  createdAt: string;
+}
+
+export interface AuditLogPage {
+  items: AuditLogEntry[];
+  total: number;
+}

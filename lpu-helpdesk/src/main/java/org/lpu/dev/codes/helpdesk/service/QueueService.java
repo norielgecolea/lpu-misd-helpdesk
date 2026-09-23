@@ -14,6 +14,7 @@ import org.lpu.dev.codes.helpdesk.dto.QueueSnapshotResponse;
 import org.lpu.dev.codes.helpdesk.dto.QueueTransferResponse;
 import org.lpu.dev.codes.helpdesk.dto.TicketResponse;
 import org.lpu.dev.codes.helpdesk.dto.WalkInTicketRequest;
+import org.lpu.dev.codes.helpdesk.model.AuditAction;
 import org.lpu.dev.codes.helpdesk.model.PendingRequesterEmail;
 import org.lpu.dev.codes.helpdesk.model.QueueTransferRequest;
 import org.lpu.dev.codes.helpdesk.model.QueueTransferStatus;
@@ -50,6 +51,7 @@ public class QueueService {
     private final TicketCsmService ticketCsmService;
     private final TicketThreadEmailService ticketThreadEmailService;
     private final StaffNotificationService staffNotificationService;
+    private final AuditLogService auditLogService;
 
     public QueueService(
             TicketRepository ticketRepository,
@@ -59,7 +61,8 @@ public class QueueService {
             TicketCategoryService ticketCategoryService,
             TicketCsmService ticketCsmService,
             TicketThreadEmailService ticketThreadEmailService,
-            StaffNotificationService staffNotificationService
+            StaffNotificationService staffNotificationService,
+            AuditLogService auditLogService
     ) {
         this.ticketRepository = ticketRepository;
         this.queueCounterRepository = queueCounterRepository;
@@ -69,6 +72,7 @@ public class QueueService {
         this.ticketCsmService = ticketCsmService;
         this.ticketThreadEmailService = ticketThreadEmailService;
         this.staffNotificationService = staffNotificationService;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -113,6 +117,12 @@ public class QueueService {
         Ticket saved = ticketRepository.save(ticket);
         log.info("Walk-in ticket created queueNumber={} ticketNumber={}", queueNumber, saved.getTicketNumber());
         staffNotificationService.notifyNewTicket(saved);
+        auditLogService.record(
+                AuditAction.QUEUE_WALK_IN,
+                String.valueOf(saved.getId()),
+                saved.getTicketNumber(),
+                "Logged walk-in " + ticketLabel(saved) + " for " + saved.getRequesterName()
+        );
         return saved;
     }
 
@@ -130,7 +140,15 @@ public class QueueService {
             );
         }
 
-        return beginServing(next, actingAdmin.getId());
+        Ticket saved = beginServing(next, actingAdmin.getId());
+        auditLogService.record(
+                actingAdmin,
+                AuditAction.QUEUE_CLAIMED,
+                String.valueOf(saved.getId()),
+                saved.getTicketNumber(),
+                actingAdmin.getName() + " called next: " + ticketLabel(saved)
+        );
+        return saved;
     }
 
     /** Mark a waiting onsite ticket as in progress and assign it to the acting admin. */
@@ -144,6 +162,13 @@ public class QueueService {
 
         Ticket saved = beginServing(ticket, actingAdmin.getId());
         cancelPendingTransfersForTicket(ticketId);
+        auditLogService.record(
+                actingAdmin,
+                AuditAction.QUEUE_CLAIMED,
+                String.valueOf(saved.getId()),
+                saved.getTicketNumber(),
+                actingAdmin.getName() + " claimed " + ticketLabel(saved)
+        );
         return saved;
     }
 
@@ -186,6 +211,13 @@ public class QueueService {
                 ticket.getTicketNumber(),
                 actingAdmin.getEmail(),
                 target.getEmail()
+        );
+        auditLogService.record(
+                actingAdmin,
+                AuditAction.QUEUE_TRANSFER_REQUESTED,
+                String.valueOf(ticket.getId()),
+                ticket.getTicketNumber(),
+                actingAdmin.getName() + " requested transfer of " + ticketLabel(ticket) + " to " + target.getName()
         );
         return toTransferResponse(saved, ticket, actingAdmin.getName(), target.getName());
     }
@@ -231,6 +263,13 @@ public class QueueService {
                 saved.getTicketNumber(),
                 actingAdmin.getEmail()
         );
+        auditLogService.record(
+                actingAdmin,
+                AuditAction.QUEUE_TRANSFER_APPROVED,
+                String.valueOf(saved.getId()),
+                saved.getTicketNumber(),
+                actingAdmin.getName() + " approved transfer of " + ticketLabel(saved)
+        );
         return saved;
     }
 
@@ -249,6 +288,13 @@ public class QueueService {
         Ticket ticket = ticketRepository.findById(saved.getTicketId()).orElse(null);
         Map<Long, User> admins = loadTransferAdmins(List.of(saved));
         log.info("Queue transfer rejected id={} by={}", transferId, actingAdmin.getEmail());
+        auditLogService.record(
+                actingAdmin,
+                AuditAction.QUEUE_TRANSFER_REJECTED,
+                ticket != null ? String.valueOf(ticket.getId()) : String.valueOf(saved.getTicketId()),
+                ticket != null ? ticket.getTicketNumber() : null,
+                actingAdmin.getName() + " rejected a queue transfer"
+        );
         return toTransferResponse(
                 saved,
                 ticket,
@@ -272,6 +318,13 @@ public class QueueService {
         Ticket ticket = ticketRepository.findById(saved.getTicketId()).orElse(null);
         Map<Long, User> admins = loadTransferAdmins(List.of(saved));
         log.info("Queue transfer cancelled id={} by={}", transferId, actingAdmin.getEmail());
+        auditLogService.record(
+                actingAdmin,
+                AuditAction.QUEUE_TRANSFER_CANCELLED,
+                ticket != null ? String.valueOf(ticket.getId()) : String.valueOf(saved.getTicketId()),
+                ticket != null ? ticket.getTicketNumber() : null,
+                actingAdmin.getName() + " cancelled a queue transfer"
+        );
         return toTransferResponse(
                 saved,
                 ticket,
@@ -293,6 +346,12 @@ public class QueueService {
         cancelPendingTransfersForTicket(ticketId);
         notifyStatus(saved, TicketStatus.CLOSED);
         log.info("Queue ticket {} completed and closed", saved.getTicketNumber());
+        auditLogService.record(
+                AuditAction.QUEUE_COMPLETED,
+                String.valueOf(saved.getId()),
+                saved.getTicketNumber(),
+                "Completed and closed " + ticketLabel(saved)
+        );
         return saved;
     }
 
@@ -309,6 +368,12 @@ public class QueueService {
         Ticket saved = ticketRepository.save(ticket);
         cancelPendingTransfersForTicket(ticketId);
         log.info("Queue ticket {} removed from queue and held in progress", saved.getTicketNumber());
+        auditLogService.record(
+                AuditAction.QUEUE_HELD,
+                String.valueOf(saved.getId()),
+                saved.getTicketNumber(),
+                "Held " + ticketLabel(saved) + " in progress"
+        );
         return saved;
     }
 
@@ -324,6 +389,12 @@ public class QueueService {
         Ticket saved = ticketRepository.save(ticket);
         cancelPendingTransfersForTicket(ticketId);
         log.info("Queue ticket {} sent back to the line", saved.getTicketNumber());
+        auditLogService.record(
+                AuditAction.QUEUE_REQUEUED,
+                String.valueOf(saved.getId()),
+                saved.getTicketNumber(),
+                "Returned " + ticketLabel(saved) + " to the queue"
+        );
         return saved;
     }
 
@@ -530,6 +601,13 @@ public class QueueService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not a queue ticket");
         }
         return ticket;
+    }
+
+    private static String ticketLabel(Ticket ticket) {
+        if (ticket.getTicketNumber() != null && !ticket.getTicketNumber().isBlank()) {
+            return ticket.getTicketNumber();
+        }
+        return "ticket #" + ticket.getId();
     }
 
 }

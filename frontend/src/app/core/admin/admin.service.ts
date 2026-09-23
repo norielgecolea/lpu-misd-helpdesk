@@ -11,6 +11,8 @@ import {
   AnalyticsSummary,
   AnalyticsTicketList,
   AnalyticsCsmByAssignee,
+  AuditLogPage,
+  AuditResourceType,
   CreateAdminRequest,
   UpdateAdminRequest,
   CreateCategoryRequest,
@@ -41,6 +43,32 @@ export class AdminService {
 
   setAdminActive(id: number, active: boolean): Observable<AdminAccount> {
     return this.http.patch<AdminAccount>(`${environment.apiBaseUrl}/admin/accounts/${id}/active`, { active });
+  }
+
+  listAuditLogs(params: {
+    q?: string;
+    resourceType?: AuditResourceType | '';
+    from?: string;
+    to?: string;
+    offset?: number;
+    limit?: number;
+  } = {}): Observable<AuditLogPage> {
+    let httpParams = new HttpParams()
+      .set('offset', String(params.offset ?? 0))
+      .set('limit', String(params.limit ?? 50));
+    if (params.q?.trim()) {
+      httpParams = httpParams.set('q', params.q.trim());
+    }
+    if (params.resourceType) {
+      httpParams = httpParams.set('resourceType', params.resourceType);
+    }
+    if (params.from) {
+      httpParams = httpParams.set('from', params.from);
+    }
+    if (params.to) {
+      httpParams = httpParams.set('to', params.to);
+    }
+    return this.http.get<AuditLogPage>(`${environment.apiBaseUrl}/admin/audit-logs`, { params: httpParams });
   }
 
   // --- Analytics ---

@@ -8,6 +8,7 @@ import org.lpu.dev.codes.helpdesk.config.AuthProperties;
 import org.lpu.dev.codes.helpdesk.dto.EncodeLpuEmailRequest;
 import org.lpu.dev.codes.helpdesk.dto.EncodeLpuEmailResponse;
 import org.lpu.dev.codes.helpdesk.dto.LinkTicketPersonRequest;
+import org.lpu.dev.codes.helpdesk.model.AuditAction;
 import org.lpu.dev.codes.helpdesk.model.Employee;
 import org.lpu.dev.codes.helpdesk.model.PendingRequesterEmail;
 import org.lpu.dev.codes.helpdesk.model.Student;
@@ -39,6 +40,7 @@ public class DirectoryEmailService {
     private final TicketMessageRepository ticketMessageRepository;
     private final UserRepository userRepository;
     private final AuthProperties authProperties;
+    private final AuditLogService auditLogService;
 
     public DirectoryEmailService(
             StudentRepository studentRepository,
@@ -46,7 +48,8 @@ public class DirectoryEmailService {
             TicketRepository ticketRepository,
             TicketMessageRepository ticketMessageRepository,
             UserRepository userRepository,
-            AuthProperties authProperties
+            AuthProperties authProperties,
+            AuditLogService auditLogService
     ) {
         this.studentRepository = studentRepository;
         this.employeeRepository = employeeRepository;
@@ -54,6 +57,7 @@ public class DirectoryEmailService {
         this.ticketMessageRepository = ticketMessageRepository;
         this.userRepository = userRepository;
         this.authProperties = authProperties;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -74,6 +78,13 @@ public class DirectoryEmailService {
                 person.type(),
                 person.number(),
                 linked
+        );
+        auditLogService.record(
+                AuditAction.DIRECTORY_EMAIL_ENCODED,
+                person.number(),
+                person.name(),
+                "Encoded " + email + " onto " + person.type().toLowerCase() + " " + person.number(),
+                "ticketsLinked=" + linked
         );
         return new EncodeLpuEmailResponse(email, person.type(), person.number(), person.name(), linked);
     }
@@ -137,6 +148,13 @@ public class DirectoryEmailService {
                 person.type(),
                 person.number(),
                 ticket.getTicketNumber()
+        );
+        auditLogService.record(
+                AuditAction.DIRECTORY_PERSON_LINKED,
+                String.valueOf(ticket.getId()),
+                ticket.getTicketNumber(),
+                "Linked " + person.type().toLowerCase() + " " + person.number() + " to " + ticket.getTicketNumber(),
+                person.name()
         );
         return new EncodeLpuEmailResponse(resultEmail, person.type(), person.number(), person.name(), 1);
     }

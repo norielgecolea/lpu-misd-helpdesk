@@ -8,6 +8,7 @@ import java.util.Set;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.lpu.dev.codes.helpdesk.dto.TicketListQuery;
+import org.lpu.dev.codes.helpdesk.model.AuditAction;
 import org.lpu.dev.codes.helpdesk.model.Role;
 import org.lpu.dev.codes.helpdesk.model.Ticket;
 import org.lpu.dev.codes.helpdesk.model.TicketStatus;
@@ -35,15 +36,18 @@ public class AdminTicketService {
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
     private final TicketThreadEmailService ticketThreadEmailService;
+    private final AuditLogService auditLogService;
 
     public AdminTicketService(
             TicketRepository ticketRepository,
             UserRepository userRepository,
-            TicketThreadEmailService ticketThreadEmailService
+            TicketThreadEmailService ticketThreadEmailService,
+            AuditLogService auditLogService
     ) {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
         this.ticketThreadEmailService = ticketThreadEmailService;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional(readOnly = true)
@@ -81,6 +85,19 @@ public class AdminTicketService {
         ticket.setUpdatedAt(Instant.now());
         Ticket saved = ticketRepository.save(ticket);
         log.info("Ticket {} assigned to adminId={} by={}", saved.getTicketNumber(), targetAdminId, actingAdmin.getEmail());
+        String targetName = targetAdminId == null
+                ? "unassigned"
+                : userRepository.findById(targetAdminId).map(User::getName).orElse("admin #" + targetAdminId);
+        auditLogService.record(
+                actingAdmin,
+                AuditAction.TICKET_ASSIGNED,
+                String.valueOf(saved.getId()),
+                saved.getTicketNumber(),
+                actingAdmin.getName()
+                        + (targetAdminId == null ? " unassigned " : " assigned ")
+                        + ticketLabel(saved)
+                        + (targetAdminId == null ? "" : " to " + targetName)
+        );
         return saved;
     }
 
@@ -115,6 +132,21 @@ public class AdminTicketService {
 
         Ticket saved = ticketRepository.save(ticket);
         log.info("Ticket {} status set to {} by={}", saved.getTicketNumber(), newStatus, actingAdmin.getEmail());
+        if (previousStatus != newStatus) {
+            auditLogService.record(
+                    actingAdmin,
+                    AuditAction.TICKET_STATUS_CHANGED,
+                    String.valueOf(saved.getId()),
+                    saved.getTicketNumber(),
+                    actingAdmin.getName()
+                            + " changed "
+                            + ticketLabel(saved)
+                            + " from "
+                            + previousStatus
+                            + " to "
+                            + newStatus
+            );
+        }
 
         if (previousStatus != newStatus
                 && (newStatus == TicketStatus.IN_PROGRESS
@@ -156,6 +188,12 @@ public class AdminTicketService {
             );
             closed++;
             log.info("Ticket {} auto-closed after 2 days resolved", saved.getTicketNumber());
+            auditLogService.recordSystem(
+                    AuditAction.TICKET_AUTO_CLOSED,
+                    String.valueOf(saved.getId()),
+                    saved.getTicketNumber(),
+                    "System auto-closed " + ticketLabel(saved) + " after 2 days resolved"
+            );
         }
         return closed;
     }
@@ -181,5 +219,12 @@ public class AdminTicketService {
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown ticket status: " + rawStatus);
         }
+    }
+
+    private static String ticketLabel(Ticket ticket) {
+        if (ticket.getTicketNumber() != null && !ticket.getTicketNumber().isBlank()) {
+            return ticket.getTicketNumber();
+        }
+        return "ticket #" + ticket.getId();
     }
 }

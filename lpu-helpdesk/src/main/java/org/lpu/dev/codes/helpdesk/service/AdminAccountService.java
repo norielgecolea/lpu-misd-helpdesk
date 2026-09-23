@@ -8,6 +8,7 @@ import org.lpu.dev.codes.helpdesk.config.AuthProperties;
 import org.lpu.dev.codes.helpdesk.dto.CreateAdminRequest;
 import org.lpu.dev.codes.helpdesk.dto.UpdateAdminRequest;
 import org.lpu.dev.codes.helpdesk.dto.UpdateOwnProfileRequest;
+import org.lpu.dev.codes.helpdesk.model.AuditAction;
 import org.lpu.dev.codes.helpdesk.model.Role;
 import org.lpu.dev.codes.helpdesk.model.User;
 import org.lpu.dev.codes.helpdesk.repository.UserRepository;
@@ -28,11 +29,18 @@ public class AdminAccountService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthProperties authProperties;
+    private final AuditLogService auditLogService;
 
-    public AdminAccountService(UserRepository userRepository, PasswordEncoder passwordEncoder, AuthProperties authProperties) {
+    public AdminAccountService(
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            AuthProperties authProperties,
+            AuditLogService auditLogService
+    ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authProperties = authProperties;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -67,6 +75,14 @@ public class AdminAccountService {
                 created.getRole(),
                 actingAdmin.getEmail()
         );
+        auditLogService.record(
+                actingAdmin,
+                AuditAction.ACCOUNT_CREATED,
+                String.valueOf(created.getId()),
+                created.getEmail(),
+                actingAdmin.getName() + " created " + roleLabel(created.getRole()) + " account " + created.getEmail(),
+                "username=" + created.getUsername() + "; role=" + created.getRole()
+        );
         return created;
     }
 
@@ -83,6 +99,11 @@ public class AdminAccountService {
     @Transactional
     public User updateAdmin(AuthenticatedUser actingAdmin, Long userId, UpdateAdminRequest request) {
         User user = requireStaffAccount(userId);
+        String previousEmail = user.getEmail();
+        String previousUsername = user.getUsername();
+        String previousName = user.getName();
+        Role previousRole = user.getRole();
+        boolean passwordChanged = false;
         applyIdentity(user, request.email(), request.username(), request.name());
 
         if (request.role() != null && !request.role().isBlank()) {
@@ -97,6 +118,7 @@ public class AdminAccountService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password must be at least 8 characters");
             }
             user.setPasswordHash(passwordEncoder.encode(request.password()));
+            passwordChanged = true;
         }
 
         user.setUpdatedAt(Instant.now());
@@ -108,12 +130,30 @@ public class AdminAccountService {
                 saved.getRole(),
                 actingAdmin.getEmail()
         );
+        String details = AuditLogService.changes(
+                "name", previousName, saved.getName(),
+                "username", previousUsername, saved.getUsername(),
+                "email", previousEmail, saved.getEmail(),
+                "role", previousRole != null ? previousRole.name() : null, saved.getRole().name()
+        );
+        if (passwordChanged) {
+            details = details == null ? "password changed" : details + "; password changed";
+        }
+        auditLogService.record(
+                actingAdmin,
+                AuditAction.ACCOUNT_UPDATED,
+                String.valueOf(saved.getId()),
+                saved.getEmail(),
+                actingAdmin.getName() + " updated staff account " + saved.getEmail(),
+                details
+        );
         return saved;
     }
 
     @Transactional
     public User updateOwnProfile(AuthenticatedUser acting, UpdateOwnProfileRequest request) {
         User user = requireStaffAccount(acting.getId());
+        boolean passwordChanged = false;
         applyIdentity(user, request.email(), request.username(), request.name());
 
         if (request.newPassword() != null && !request.newPassword().isBlank()) {
@@ -129,11 +169,22 @@ public class AdminAccountService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New password must be different from the current password");
             }
             user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+            passwordChanged = true;
         }
 
         user.setUpdatedAt(Instant.now());
         User saved = userRepository.save(user);
         log.info("Staff profile updated userId={} email={}", saved.getId(), saved.getEmail());
+        auditLogService.record(
+                acting,
+                AuditAction.PROFILE_UPDATED,
+                String.valueOf(saved.getId()),
+                saved.getEmail(),
+                acting.getName() + " updated their staff profile",
+                passwordChanged
+                        ? "name/username/email updated; password changed"
+                        : "name/username/email updated"
+        );
         return saved;
     }
 
@@ -153,6 +204,15 @@ public class AdminAccountService {
         user.setUpdatedAt(Instant.now());
         User saved = userRepository.save(user);
         log.info("Admin account {} email={} by={}", active ? "activated" : "deactivated", saved.getEmail(), actingAdmin.getEmail());
+        auditLogService.record(
+                actingAdmin,
+                active ? AuditAction.ACCOUNT_ACTIVATED : AuditAction.ACCOUNT_DEACTIVATED,
+                String.valueOf(saved.getId()),
+                saved.getEmail(),
+                actingAdmin.getName()
+                        + (active ? " activated " : " deactivated ")
+                        + saved.getEmail()
+        );
         return saved;
     }
 
@@ -204,6 +264,16 @@ public class AdminAccountService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only a Super Admin can create another Super Admin");
         }
         return role;
+    }
+
+    private static String roleLabel(Role role) {
+        if (role == Role.SUPER_ADMIN) {
+            return "Super Admin";
+        }
+        if (role == Role.MONITORING) {
+            return "Monitoring";
+        }
+        return "Admin";
     }
 
     private void requireAllowedDomain(String email) {

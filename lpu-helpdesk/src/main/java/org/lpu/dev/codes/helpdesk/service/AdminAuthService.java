@@ -6,9 +6,11 @@ import java.util.Set;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.lpu.dev.codes.helpdesk.dto.LoginResponse;
+import org.lpu.dev.codes.helpdesk.model.AuditAction;
 import org.lpu.dev.codes.helpdesk.model.Role;
 import org.lpu.dev.codes.helpdesk.model.User;
 import org.lpu.dev.codes.helpdesk.repository.UserRepository;
+import org.lpu.dev.codes.helpdesk.security.AuthenticatedUser;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -24,11 +26,18 @@ public class AdminAuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final AuditLogService auditLogService;
 
-    public AdminAuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
+    public AdminAuthService(
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            JwtService jwtService,
+            AuditLogService auditLogService
+    ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -40,11 +49,25 @@ public class AdminAuthService {
                 || user.getPasswordHash() == null
                 || !passwordEncoder.matches(password, user.getPasswordHash())) {
             log.warn("Admin login failed for login={}", normalizedLogin);
+            auditLogService.recordIndependent(
+                    new AuthenticatedUser(null, normalizedLogin, "Unknown", null),
+                    AuditAction.STAFF_LOGIN_FAILED,
+                    normalizedLogin,
+                    normalizedLogin,
+                    "Failed staff sign-in for " + normalizedLogin
+            );
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username/email or password");
         }
 
         if (!user.isActive()) {
             log.warn("Admin login blocked for inactive account login={}", normalizedLogin);
+            auditLogService.recordIndependent(
+                    new AuthenticatedUser(user.getId(), user.getEmail(), user.getName(), user.getRole()),
+                    AuditAction.STAFF_LOGIN_FAILED,
+                    String.valueOf(user.getId()),
+                    user.getEmail(),
+                    "Blocked sign-in for deactivated account " + user.getEmail()
+            );
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This account has been deactivated");
         }
 
@@ -53,6 +76,13 @@ public class AdminAuthService {
         userRepository.save(user);
 
         log.info("Admin login success for email={} role={}", user.getEmail(), user.getRole());
+        auditLogService.record(
+                user,
+                AuditAction.STAFF_LOGIN,
+                String.valueOf(user.getId()),
+                user.getEmail(),
+                user.getName() + " signed in"
+        );
 
         String token = jwtService.generateToken(user, rememberMe);
         return new LoginResponse(

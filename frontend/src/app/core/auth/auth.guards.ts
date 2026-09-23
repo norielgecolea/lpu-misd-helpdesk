@@ -66,7 +66,7 @@ export const monitoringGuard: CanActivateFn = () => {
   return router.createUrlTree(['/admin']);
 };
 
-/** Account management is Super Admin only. */
+/** Super Admin-only pages (accounts, audit trail). */
 export const superAdminGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);

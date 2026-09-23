@@ -9,6 +9,7 @@ import { AdminShell } from './pages/admin/admin-shell/admin-shell';
 import { AdminTickets } from './pages/admin/admin-tickets/admin-tickets';
 import { AdminQueue } from './pages/admin/admin-queue/admin-queue';
 import { AdminAccounts } from './pages/admin/admin-accounts/admin-accounts';
+import { AdminAuditTrail } from './pages/admin/admin-audit-trail/admin-audit-trail';
 import { AdminKioskChoices } from './pages/admin/admin-kiosk-choices/admin-kiosk-choices';
 import { AdminCsm } from './pages/admin/admin-csm/admin-csm';
 import { AdminAnalytics } from './pages/admin/admin-analytics/admin-analytics';
@@ -63,6 +64,7 @@ export const routes: Routes = [
       { path: 'employees', component: AdminEmployees },
       { path: 'kiosk-choices', component: AdminKioskChoices },
       { path: 'accounts', component: AdminAccounts, canActivate: [superAdminGuard] },
+      { path: 'audit', component: AdminAuditTrail, canActivate: [superAdminGuard] },
     ],
   },
 

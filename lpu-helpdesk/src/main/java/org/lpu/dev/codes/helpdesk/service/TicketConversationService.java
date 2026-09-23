@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.lpu.dev.codes.helpdesk.dto.TicketMessageResponse;
 import org.lpu.dev.codes.helpdesk.dto.TicketMessagesResponse;
+import org.lpu.dev.codes.helpdesk.model.AuditAction;
 import org.lpu.dev.codes.helpdesk.model.Role;
 import org.lpu.dev.codes.helpdesk.model.Ticket;
 import org.lpu.dev.codes.helpdesk.model.TicketMessage;
@@ -32,6 +33,7 @@ public class TicketConversationService {
     private final IdPhotoStorageService idPhotoStorageService;
     private final TicketPresenceService ticketPresenceService;
     private final StaffNotificationService staffNotificationService;
+    private final AuditLogService auditLogService;
 
     public TicketConversationService(
             TicketRepository ticketRepository,
@@ -40,7 +42,8 @@ public class TicketConversationService {
             TicketUnreadService ticketUnreadService,
             IdPhotoStorageService idPhotoStorageService,
             TicketPresenceService ticketPresenceService,
-            StaffNotificationService staffNotificationService
+            StaffNotificationService staffNotificationService,
+            AuditLogService auditLogService
     ) {
         this.ticketRepository = ticketRepository;
         this.ticketMessageRepository = ticketMessageRepository;
@@ -49,6 +52,7 @@ public class TicketConversationService {
         this.idPhotoStorageService = idPhotoStorageService;
         this.ticketPresenceService = ticketPresenceService;
         this.staffNotificationService = staffNotificationService;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional(readOnly = true)
@@ -121,6 +125,16 @@ public class TicketConversationService {
 
         TicketMessage message = persistMessage(user, ticket, body, hasAttachment ? attachment : null, true);
         staffNotificationService.notifyRequesterMessage(ticket, user, message.getBody());
+        if (isStaff(user)) {
+            auditLogService.record(
+                    user,
+                    AuditAction.TICKET_REPLIED,
+                    String.valueOf(ticket.getId()),
+                    ticket.getTicketNumber(),
+                    user.getName() + " replied on " + (ticket.getTicketNumber() != null ? ticket.getTicketNumber() : "ticket #" + ticket.getId()),
+                    hasAttachment ? "message with attachment" : AuditLogService.clip(body, 240)
+            );
+        }
         return TicketMessageResponse.from(message);
     }
 

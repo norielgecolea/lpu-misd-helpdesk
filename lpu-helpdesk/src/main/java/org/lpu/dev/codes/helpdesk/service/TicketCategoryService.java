@@ -12,6 +12,7 @@ import org.lpu.dev.codes.helpdesk.dto.AdminCategoryResponse;
 import org.lpu.dev.codes.helpdesk.dto.CreateCategoryRequest;
 import org.lpu.dev.codes.helpdesk.dto.TicketCategoryOption;
 import org.lpu.dev.codes.helpdesk.dto.UpdateCategoryRequest;
+import org.lpu.dev.codes.helpdesk.model.AuditAction;
 import org.lpu.dev.codes.helpdesk.model.PendingRequesterEmail;
 import org.lpu.dev.codes.helpdesk.model.TicketCategoryDefinition;
 import org.lpu.dev.codes.helpdesk.repository.TicketCategoryRepository;
@@ -28,13 +29,16 @@ public class TicketCategoryService {
 
     private final TicketCategoryRepository ticketCategoryRepository;
     private final CategoryLabelCache categoryLabelCache;
+    private final AuditLogService auditLogService;
 
     public TicketCategoryService(
             TicketCategoryRepository ticketCategoryRepository,
-            CategoryLabelCache categoryLabelCache
+            CategoryLabelCache categoryLabelCache,
+            AuditLogService auditLogService
     ) {
         this.ticketCategoryRepository = ticketCategoryRepository;
         this.categoryLabelCache = categoryLabelCache;
+        this.auditLogService = auditLogService;
     }
 
     @PostConstruct
@@ -165,6 +169,14 @@ public class TicketCategoryService {
 
         TicketCategoryDefinition saved = ticketCategoryRepository.persist(category);
         categoryLabelCache.reload();
+        String kind = saved.isRoot() ? "category" : "concern";
+        auditLogService.record(
+                AuditAction.CATEGORY_CREATED,
+                String.valueOf(saved.getId()),
+                saved.getLabel(),
+                "Created kiosk " + kind + " \"" + saved.getLabel() + "\"",
+                "code=" + saved.getCode()
+        );
         return AdminCategoryResponse.from(saved);
     }
 
@@ -172,6 +184,12 @@ public class TicketCategoryService {
     public AdminCategoryResponse update(Long id, UpdateCategoryRequest request) {
         TicketCategoryDefinition category = ticketCategoryRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Choice not found"));
+        String previousLabel = category.getLabel();
+        boolean previousActive = category.isActive();
+        boolean previousKiosk = category.isShowOnKiosk();
+        boolean previousOnline = category.isShowOnline();
+        int previousSort = category.getSortOrder();
+        boolean previousDetail = category.isRequiresDetail();
 
         String label = request.label().trim();
         if (label.isBlank()) {
@@ -206,6 +224,21 @@ public class TicketCategoryService {
 
         TicketCategoryDefinition saved = ticketCategoryRepository.save(category);
         categoryLabelCache.reload();
+        String details = AuditLogService.changes(
+                "label", previousLabel, saved.getLabel(),
+                "active", String.valueOf(previousActive), String.valueOf(saved.isActive()),
+                "kiosk", String.valueOf(previousKiosk), String.valueOf(saved.isShowOnKiosk()),
+                "online", String.valueOf(previousOnline), String.valueOf(saved.isShowOnline()),
+                "sort", String.valueOf(previousSort), String.valueOf(saved.getSortOrder()),
+                "requires detail", String.valueOf(previousDetail), String.valueOf(saved.isRequiresDetail())
+        );
+        auditLogService.record(
+                AuditAction.CATEGORY_UPDATED,
+                String.valueOf(saved.getId()),
+                saved.getLabel(),
+                "Updated kiosk choice \"" + saved.getLabel() + "\"",
+                details
+        );
         return AdminCategoryResponse.from(saved);
     }
 
@@ -224,6 +257,13 @@ public class TicketCategoryService {
         }
         ticketCategoryRepository.delete(category);
         categoryLabelCache.reload();
+        auditLogService.record(
+                AuditAction.CATEGORY_DELETED,
+                String.valueOf(category.getId()),
+                category.getLabel(),
+                "Deleted kiosk choice \"" + category.getLabel() + "\"",
+                "code=" + category.getCode()
+        );
     }
 
     private List<TicketCategoryOption> listNested(boolean kiosk, boolean online) {

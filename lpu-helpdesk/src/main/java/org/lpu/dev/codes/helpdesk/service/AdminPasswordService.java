@@ -9,6 +9,7 @@ import java.util.Set;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.lpu.dev.codes.helpdesk.config.MailProperties;
+import org.lpu.dev.codes.helpdesk.model.AuditAction;
 import org.lpu.dev.codes.helpdesk.model.PasswordResetToken;
 import org.lpu.dev.codes.helpdesk.model.Role;
 import org.lpu.dev.codes.helpdesk.model.User;
@@ -33,6 +34,7 @@ public class AdminPasswordService {
     private final PasswordEncoder passwordEncoder;
     private final AdminAuthEmailService adminAuthEmailService;
     private final MailProperties mailProperties;
+    private final AuditLogService auditLogService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public AdminPasswordService(
@@ -40,13 +42,15 @@ public class AdminPasswordService {
             PasswordResetTokenRepository tokenRepository,
             PasswordEncoder passwordEncoder,
             AdminAuthEmailService adminAuthEmailService,
-            MailProperties mailProperties
+            MailProperties mailProperties,
+            AuditLogService auditLogService
     ) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.adminAuthEmailService = adminAuthEmailService;
         this.mailProperties = mailProperties;
+        this.auditLogService = auditLogService;
     }
 
     /**
@@ -84,6 +88,13 @@ public class AdminPasswordService {
                 RESET_EXPIRES_MINUTES
         );
         log.info("Password reset token created for userId={}", user.getId());
+        auditLogService.record(
+                user,
+                AuditAction.PASSWORD_RESET_REQUESTED,
+                String.valueOf(user.getId()),
+                user.getEmail(),
+                "Password reset requested for " + user.getEmail()
+        );
     }
 
     @Transactional
@@ -118,6 +129,13 @@ public class AdminPasswordService {
         tokenRepository.save(matched);
         tokenRepository.invalidateActiveByUserId(user.getId());
         log.info("Password reset completed for userId={}", user.getId());
+        auditLogService.record(
+                user,
+                AuditAction.PASSWORD_RESET_COMPLETED,
+                String.valueOf(user.getId()),
+                user.getEmail(),
+                user.getName() + " reset their password"
+        );
     }
 
     @Transactional
@@ -140,6 +158,13 @@ public class AdminPasswordService {
         userRepository.save(user);
         tokenRepository.invalidateActiveByUserId(user.getId());
         log.info("Password changed for userId={}", user.getId());
+        auditLogService.record(
+                acting,
+                AuditAction.PASSWORD_CHANGED,
+                String.valueOf(user.getId()),
+                user.getEmail(),
+                acting.getName() + " changed their password"
+        );
     }
 
     private static void requireStrongPassword(String password) {
