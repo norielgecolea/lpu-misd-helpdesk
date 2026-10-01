@@ -609,7 +609,33 @@
                         <p class="whitespace-pre-wrap text-sm leading-relaxed">{{ message.body }}</p>
                       }
                       @if (message.hasAttachment) {
-                        @if (attachmentUrl(message.id); as photoUrl) {
+                        @if (isPdfAttachment(message)) {
+                          <button
+                            type="button"
+                            class="mt-2 flex w-full max-w-xs cursor-pointer items-center gap-2 rounded-md border px-2.5 py-2 text-left text-sm focus:outline-none focus:ring-2 focus:ring-white/50 disabled:cursor-wait"
+                            [class.border-white/30]="isMine(message)"
+                            [class.bg-white/10]="isMine(message)"
+                            [class.hover:bg-white/20]="isMine(message)"
+                            [class.border-sky-200]="!isMine(message) && isOtherStaff(message)"
+                            [class.border-zinc-200]="!isMine(message) && !isOtherStaff(message)"
+                            [class.bg-white]="!isMine(message)"
+                            [class.text-zinc-800]="!isMine(message)"
+                            [disabled]="!attachmentUrl(message.id)"
+                            (click)="downloadPdf(message)"
+                          >
+                            <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5 shrink-0" aria-hidden="true">
+                              <path
+                                fill-rule="evenodd"
+                                d="M4.5 2A1.5 1.5 0 0 0 3 3.5v13A1.5 1.5 0 0 0 4.5 18h11a1.5 1.5 0 0 0 1.5-1.5V7.621a1.5 1.5 0 0 0-.44-1.06l-4.12-4.122A1.5 1.5 0 0 0 11.378 2H4.5Zm4.75 6.75a.75.75 0 0 0-1.5 0v2.69l-.72-.72a.75.75 0 0 0-1.06 1.06l2 2a.75.75 0 0 0 1.06 0l2-2a.75.75 0 1 0-1.06-1.06l-.72.72V8.75Z"
+                                clip-rule="evenodd"
+                              />
+                            </svg>
+                            <span class="min-w-0 flex-1 truncate font-medium">
+                              {{ attachmentUrl(message.id) ? (message.attachmentOriginalName || 'Document.pdf') : 'Loading PDF…' }}
+                            </span>
+                            <span class="shrink-0 text-[11px] font-semibold uppercase tracking-wide">Download</span>
+                          </button>
+                        } @else if (attachmentUrl(message.id); as photoUrl) {
                           <button
                             type="button"
                             class="mt-2 block cursor-pointer overflow-hidden rounded-md focus:outline-none focus:ring-2 focus:ring-white/50"
@@ -647,7 +673,25 @@
                 @if (messageError() && messages().length > 0) {
                   <p class="mb-2 text-xs text-red-600">{{ messageError() }}</p>
                 }
-                @if (draftAttachmentPreview(); as preview) {
+                @if (draftPdfName(); as pdfName) {
+                  <div class="mb-2 flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-2">
+                    <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5 shrink-0 text-zinc-500" aria-hidden="true">
+                      <path
+                        fill-rule="evenodd"
+                        d="M4.5 2A1.5 1.5 0 0 0 3 3.5v13A1.5 1.5 0 0 0 4.5 18h11a1.5 1.5 0 0 0 1.5-1.5V7.621a1.5 1.5 0 0 0-.44-1.06l-4.12-4.122A1.5 1.5 0 0 0 11.378 2H4.5Z"
+                        clip-rule="evenodd"
+                      />
+                    </svg>
+                    <span class="min-w-0 flex-1 truncate text-sm text-zinc-800">{{ pdfName }}</span>
+                    <button
+                      type="button"
+                      (click)="clearDraftAttachment()"
+                      class="cursor-pointer text-xs font-medium text-zinc-500 hover:text-zinc-800"
+                    >
+                      Remove PDF
+                    </button>
+                  </div>
+                } @else if (draftAttachmentPreview(); as preview) {
                   <div class="mb-2 flex items-center gap-2">
                     <img [src]="preview" alt="Selected picture" class="h-14 w-14 rounded-md object-cover ring-1 ring-zinc-200" />
                     <button
@@ -679,6 +723,26 @@
                       />
                     </svg>
                     <span class="sr-only">Attach picture</span>
+                  </label>
+                  <label
+                    class="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-zinc-300 text-zinc-600 transition-colors hover:bg-zinc-50"
+                    title="Attach PDF"
+                  >
+                    <input
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      class="sr-only"
+                      (change)="onDraftAttachmentSelected($event)"
+                      [disabled]="sending()"
+                    />
+                    <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5" aria-hidden="true">
+                      <path
+                        fill-rule="evenodd"
+                        d="M4.5 2A1.5 1.5 0 0 0 3 3.5v13A1.5 1.5 0 0 0 4.5 18h11a1.5 1.5 0 0 0 1.5-1.5V7.621a1.5 1.5 0 0 0-.44-1.06l-4.12-4.122A1.5 1.5 0 0 0 11.378 2H4.5Zm2.25 8.5a.75.75 0 0 0 0 1.5h6.5a.75.75 0 0 0 0-1.5h-6.5Zm0 3a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5h-4.5Z"
+                        clip-rule="evenodd"
+                      />
+                    </svg>
+                    <span class="sr-only">Attach PDF</span>
                   </label>
                   <textarea
                     #composer

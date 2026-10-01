@@ -24,6 +24,10 @@ import {
   TicketCategoryOption,
   TicketMessage,
   TicketStatus,
+  downloadBlob,
+  isPdfAttachment,
+  isPdfFile,
+  pdfDownloadName,
 } from '../../core/tickets/ticket.models';
 import { TicketService } from '../../core/tickets/ticket.service';
 import { CSM_LABEL } from '../../core/csm/csm-labels';
@@ -32,6 +36,7 @@ const MAX_ID_BYTES = 5 * 1024 * 1024;
 const MAX_ATTACHMENTS = 5;
 const ALLOWED_ID_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const ALLOWED_CHAT_TYPES = new Set([...ALLOWED_IMAGE_TYPES, 'application/pdf']);
 const POLL_MS = 3000;
 const LIST_POLL_MS = 5000;
 const PAGE_SIZE = 50;
@@ -77,7 +82,6 @@ export class Dashboard implements OnInit, OnDestroy {
   protected readonly draft = signal('');
   protected readonly sendingMessage = signal(false);
   protected readonly statusUpdating = signal(false);
-  protected readonly staffOnline = signal(false);
 
   protected readonly showForm = signal(false);
   protected readonly submitting = signal(false);
@@ -243,7 +247,6 @@ export class Dashboard implements OnInit, OnDestroy {
     this.clearDraftAttachment();
     this.revokeAttachmentUrls();
     this.messageError.set(null);
-    this.staffOnline.set(false);
     this.clearUnreadLocally(ticket.id);
     this.selectedTicketHold.set(ticket);
     this.stickToBottom = true;
@@ -261,7 +264,6 @@ export class Dashboard implements OnInit, OnDestroy {
     this.clearDraftAttachment();
     this.revokeAttachmentUrls();
     this.messageError.set(null);
-    this.staffOnline.set(false);
     this.selectedTicketHold.set(null);
   }
 
@@ -447,17 +449,20 @@ export class Dashboard implements OnInit, OnDestroy {
     if (!file) {
       return;
     }
-    if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
-      this.messageError.set('Pictures must be JPG, PNG, or WEBP.');
+    const pdf = isPdfFile(file);
+    if (!pdf && !ALLOWED_CHAT_TYPES.has(file.type)) {
+      this.messageError.set('Attach a JPG, PNG, WEBP, or PDF.');
       return;
     }
     if (file.size > MAX_ID_BYTES) {
-      this.messageError.set('Picture must be 5 MB or smaller.');
+      this.messageError.set('File must be 5 MB or smaller.');
       return;
     }
     this.clearDraftAttachment();
     this.draftAttachment.set(file);
-    this.draftAttachmentPreview.set(URL.createObjectURL(file));
+    if (!pdf) {
+      this.draftAttachmentPreview.set(URL.createObjectURL(file));
+    }
   }
 
   protected clearDraftAttachment(): void {
@@ -469,8 +474,23 @@ export class Dashboard implements OnInit, OnDestroy {
     this.draftAttachmentPreview.set(null);
   }
 
+  protected readonly isPdfAttachment = isPdfAttachment;
+
+  protected draftPdfName(): string | null {
+    const file = this.draftAttachment();
+    return file && isPdfFile(file) ? file.name : null;
+  }
+
   protected attachmentUrl(messageId: number): string | null {
     return this.attachmentUrls()[messageId] ?? null;
+  }
+
+  protected downloadPdf(message: TicketMessage): void {
+    const url = this.attachmentUrl(message.id);
+    if (!url) {
+      return;
+    }
+    downloadBlob(url, pdfDownloadName(message));
   }
 
   protected openAttachmentLightbox(url: string): void {
@@ -634,7 +654,6 @@ export class Dashboard implements OnInit, OnDestroy {
       }
       const previousCount = this.messages().length;
       this.messages.set(thread.messages);
-      this.staffOnline.set(thread.staffOnline);
       void this.ensureAttachmentUrls(thread.messages);
       if (showSpinner || thread.messages.length > previousCount) {
         this.keepThreadAtBottom(showSpinner);
@@ -668,7 +687,6 @@ export class Dashboard implements OnInit, OnDestroy {
       const hasNewFromOther = newcomers.some((m) => !this.isMine(m));
       this.messages.set(thread.messages);
       void this.ensureAttachmentUrls(thread.messages);
-      this.staffOnline.set(thread.staffOnline);
       this.clearUnreadLocally(ticketId);
       if (hasNewFromOther) {
         playMessageCue();

@@ -3,6 +3,7 @@ package org.lpu.dev.codes.helpdesk.service;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import org.lpu.dev.codes.helpdesk.dto.TicketMessageResponse;
 import org.lpu.dev.codes.helpdesk.dto.TicketMessagesResponse;
 import org.lpu.dev.codes.helpdesk.model.AuditAction;
@@ -117,7 +118,7 @@ public class TicketConversationService {
         String body = rawBody != null ? rawBody.trim() : "";
         boolean hasAttachment = attachment != null && !attachment.isEmpty();
         if (body.isBlank() && !hasAttachment) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Message or picture is required");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Message or attachment is required");
         }
         if (body.length() > 5000) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Message must be at most 5000 characters");
@@ -153,6 +154,12 @@ public class TicketConversationService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public String attachmentDownloadName(AuthenticatedUser user, Long ticketId, Long messageId) {
+        TicketMessage message = requireMessageWithAttachment(user, ticketId, messageId);
+        return safeDownloadName(message.getAttachmentOriginalName());
+    }
+
     private TicketMessage requireMessageWithAttachment(AuthenticatedUser user, Long ticketId, Long messageId) {
         getAccessibleTicket(user, ticketId);
         TicketMessage message = ticketMessageRepository.findById(messageId)
@@ -183,10 +190,13 @@ public class TicketConversationService {
         message.setCreatedAt(Instant.now());
 
         if (attachment != null && !attachment.isEmpty()) {
-            String filename = idPhotoStorageService.storeMessageAttachment(ticket.getId(), attachment);
-            message.setAttachmentFilename(filename);
-            message.setAttachmentContentType(normalizeContentType(attachment.getContentType()));
-            message.setAttachmentOriginalName(safeOriginalName(attachment.getOriginalFilename()));
+            IdPhotoStorageService.StoredMessageFile stored =
+                    idPhotoStorageService.storeMessageAttachment(ticket.getId(), attachment);
+            message.setAttachmentFilename(stored.filename());
+            message.setAttachmentContentType(stored.contentType());
+            message.setAttachmentOriginalName(
+                    safeOriginalName(attachment.getOriginalFilename(), stored.contentType())
+            );
         }
 
         ticketMessageRepository.persist(message);
@@ -208,7 +218,13 @@ public class TicketConversationService {
         if (notifyEmail && isStaff(user)) {
             String emailBody = message.getBody();
             if (emailBody == null || emailBody.isBlank()) {
-                emailBody = message.hasAttachment() ? "(Image attached)" : "";
+                if (!message.hasAttachment()) {
+                    emailBody = "";
+                } else if (isPdfContentType(message.getAttachmentContentType())) {
+                    emailBody = "(PDF attached)";
+                } else {
+                    emailBody = "(Image attached)";
+                }
             }
             ticketThreadEmailService.sendAgentReplyAsync(
                     ticket.getTicketNumber(),
@@ -251,12 +267,31 @@ public class TicketConversationService {
         return semi >= 0 ? type.substring(0, semi).trim() : type;
     }
 
-    private static String safeOriginalName(String name) {
+    private static String safeOriginalName(String name, String contentType) {
+        String fallback = isPdfContentType(contentType) ? "document.pdf" : "image";
         if (name == null || name.isBlank()) {
-            return "image";
+            return fallback;
         }
-        String trimmed = name.trim();
+        String trimmed = name.trim().replace('\\', '_').replace('/', '_');
+        if (trimmed.isBlank()) {
+            return fallback;
+        }
         return trimmed.length() > 255 ? trimmed.substring(0, 255) : trimmed;
+    }
+
+    private static String safeDownloadName(String name) {
+        String cleaned = name == null ? "" : name.replaceAll("[\\\\/\\r\\n\"]", "_").trim();
+        if (cleaned.isBlank()) {
+            return "attachment.pdf";
+        }
+        if (!cleaned.toLowerCase(Locale.ROOT).endsWith(".pdf")) {
+            cleaned = cleaned + ".pdf";
+        }
+        return cleaned.length() > 180 ? cleaned.substring(0, 180) : cleaned;
+    }
+
+    private static boolean isPdfContentType(String contentType) {
+        return contentType != null && contentType.toLowerCase(Locale.ROOT).contains("pdf");
     }
 
     private void requireAccess(AuthenticatedUser user, Ticket ticket) {

@@ -18,7 +18,7 @@ import { playMessageCue, unlockAudio } from '../../../core/audio/cue-sounds';
 import { AdminService } from '../../../core/admin/admin.service';
 import { AdminCategory, AdminSummary } from '../../../core/admin/admin.models';
 import { AuthService, isAllowedUserEmail, allowedUserEmailLabel } from '../../../core/auth/auth.service';
-import { Ticket, TicketChannel, TicketMessage, TicketStatus, adminTicketsPathForChannel, canEncodeLpuEmail, displayRequesterEmail, formatResolveDuration, isStaffMessage, messageAuthorLabel as formatMessageAuthor, needsDirectoryLink, ticketCategoryPath, ticketResolveHours } from '../../../core/tickets/ticket.models';
+import { Ticket, TicketChannel, TicketMessage, TicketStatus, adminTicketsPathForChannel, canEncodeLpuEmail, displayRequesterEmail, downloadBlob, formatResolveDuration, isPdfAttachment, isPdfFile, isStaffMessage, messageAuthorLabel as formatMessageAuthor, needsDirectoryLink, pdfDownloadName, ticketCategoryPath, ticketResolveHours } from '../../../core/tickets/ticket.models';
 import { TicketService } from '../../../core/tickets/ticket.service';
 import { DirectoryService } from '../../../core/directory/directory.service';
 import { TicketSummaryDialog } from '../../../shared/ticket-summary-dialog/ticket-summary-dialog';
@@ -30,6 +30,7 @@ const LAYOUT_STORAGE_KEY = 'admin-tickets-layout-v3';
 const PAGE_SIZE = 20;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const ALLOWED_CHAT_TYPES = new Set([...ALLOWED_IMAGE_TYPES, 'application/pdf']);
 
 type StatusFilter = TicketStatus | '';
 /** all | unassigned | mine | admin:<id> */
@@ -403,17 +404,20 @@ export class AdminTickets implements OnInit, OnDestroy {
     if (!file) {
       return;
     }
-    if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
-      this.messageError.set('Pictures must be JPG, PNG, or WEBP.');
+    const pdf = isPdfFile(file);
+    if (!pdf && !ALLOWED_CHAT_TYPES.has(file.type)) {
+      this.messageError.set('Attach a JPG, PNG, WEBP, or PDF.');
       return;
     }
     if (file.size > MAX_IMAGE_BYTES) {
-      this.messageError.set('Picture must be 5 MB or smaller.');
+      this.messageError.set('File must be 5 MB or smaller.');
       return;
     }
     this.clearDraftAttachment();
     this.draftAttachment.set(file);
-    this.draftAttachmentPreview.set(URL.createObjectURL(file));
+    if (!pdf) {
+      this.draftAttachmentPreview.set(URL.createObjectURL(file));
+    }
   }
 
   protected clearDraftAttachment(): void {
@@ -425,8 +429,23 @@ export class AdminTickets implements OnInit, OnDestroy {
     this.draftAttachmentPreview.set(null);
   }
 
+  protected readonly isPdfAttachment = isPdfAttachment;
+
+  protected draftPdfName(): string | null {
+    const file = this.draftAttachment();
+    return file && isPdfFile(file) ? file.name : null;
+  }
+
   protected attachmentUrl(messageId: number): string | null {
     return this.attachmentUrls()[messageId] ?? null;
+  }
+
+  protected downloadPdf(message: TicketMessage): void {
+    const url = this.attachmentUrl(message.id);
+    if (!url) {
+      return;
+    }
+    downloadBlob(url, pdfDownloadName(message));
   }
 
   protected openAttachmentLightbox(url: string): void {

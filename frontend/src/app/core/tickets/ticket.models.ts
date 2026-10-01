@@ -150,6 +150,40 @@ export function isRequesterMessage(message: Pick<TicketMessage, 'authorRole'>): 
   return (message.authorRole ?? '').toUpperCase() === 'USER';
 }
 
+export function isPdfFile(file: File): boolean {
+  const type = (file.type || '').toLowerCase();
+  return type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+}
+
+export function isPdfAttachment(
+  message: Pick<TicketMessage, 'attachmentContentType' | 'attachmentOriginalName'>,
+): boolean {
+  const type = (message.attachmentContentType ?? '').toLowerCase();
+  if (type === 'application/pdf' || type.includes('pdf')) {
+    return true;
+  }
+  return (message.attachmentOriginalName ?? '').toLowerCase().endsWith('.pdf');
+}
+
+export function pdfDownloadName(
+  message: Pick<TicketMessage, 'attachmentOriginalName'>,
+): string {
+  const name = (message.attachmentOriginalName ?? '').trim();
+  if (!name) {
+    return 'attachment.pdf';
+  }
+  return name.toLowerCase().endsWith('.pdf') ? name : `${name}.pdf`;
+}
+
+export function downloadBlob(url: string, filename: string): void {
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+}
+
 export function isStaffMessage(message: Pick<TicketMessage, 'authorRole'>): boolean {
   const role = (message.authorRole ?? '').toUpperCase();
   return role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'MONITORING';

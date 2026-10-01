@@ -3,6 +3,7 @@ package org.lpu.dev.codes.helpdesk.controller;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -25,6 +26,7 @@ import org.lpu.dev.codes.helpdesk.service.TicketCsmService;
 import org.lpu.dev.codes.helpdesk.service.TicketService;
 import org.lpu.dev.codes.helpdesk.service.TicketUnreadService;
 import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -175,10 +177,20 @@ public class TicketController {
     ) {
         Resource resource = conversationService.loadAttachment(user, id, messageId);
         MediaType mediaType = conversationService.attachmentMediaType(user, id, messageId);
-        return ResponseEntity.ok()
+        ResponseEntity.BodyBuilder response = ResponseEntity.ok()
                 .header(HttpHeaders.CACHE_CONTROL, "private, no-store")
-                .contentType(mediaType)
-                .body(resource);
+                .contentType(mediaType);
+        if (MediaType.APPLICATION_PDF.includes(mediaType)) {
+            String filename = conversationService.attachmentDownloadName(user, id, messageId);
+            response.header(
+                    HttpHeaders.CONTENT_DISPOSITION,
+                    ContentDisposition.attachment()
+                            .filename(filename, StandardCharsets.UTF_8)
+                            .build()
+                            .toString()
+            );
+        }
+        return response.body(resource);
     }
 
     @GetMapping("/categories")

@@ -1,10 +1,8 @@
 package org.lpu.dev.codes.helpdesk.service;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -49,11 +47,15 @@ public class IdPhotoStorageService {
         return store(ticketIdDir(), "ticket-" + ticketId + "-", file);
     }
 
-    /** Images only (JPEG/PNG/WEBP) for chat / ticket thread attachments. */
-    public String storeMessageAttachment(Long ticketId, MultipartFile file) {
-        validate(file);
-        return store(messageAttachmentDir(), "msg-" + ticketId + "-", file);
+    /** JPEG, PNG, WEBP, or PDF for chat / ticket thread attachments. */
+    public StoredMessageFile storeMessageAttachment(Long ticketId, MultipartFile file) {
+        byte[] bytes = readLimited(file);
+        String contentType = requireMessageContentType(file, bytes);
+        String filename = storeBytes(messageAttachmentDir(), "msg-" + ticketId + "-", bytes, contentType);
+        return new StoredMessageFile(filename, contentType);
     }
+
+    public record StoredMessageFile(String filename, String contentType) {}
 
     public Resource load(String filename) {
         return loadFrom(ticketIdDir(), filename, "No ID photo on file");
@@ -98,8 +100,19 @@ public class IdPhotoStorageService {
     }
 
     private String store(Path dir, String prefix, MultipartFile file) {
-        String contentType = normalizeContentType(file.getContentType());
+        try {
+            return storeBytes(dir, prefix, file.getBytes(), normalizeContentType(file.getContentType()));
+        } catch (IOException ex) {
+            log.error("Failed to read upload for {}", dir, ex);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Could not save the file");
+        }
+    }
+
+    private String storeBytes(Path dir, String prefix, byte[] bytes, String contentType) {
         String extension = EXT_BY_CONTENT_TYPE.get(contentType);
+        if (extension == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only JPG, PNG, WEBP, or PDF files are allowed");
+        }
         String filename = prefix + UUID.randomUUID().toString().substring(0, 8) + extension;
         try {
             Files.createDirectories(dir);
@@ -107,9 +120,7 @@ public class IdPhotoStorageService {
             if (!target.startsWith(dir)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid file path");
             }
-            try (InputStream in = file.getInputStream()) {
-                Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
-            }
+            Files.write(target, bytes);
             return filename;
         } catch (IOException ex) {
             log.error("Failed to store attachment in {}", dir, ex);
@@ -153,6 +164,54 @@ public class IdPhotoStorageService {
         if (!IMAGE_CONTENT_TYPES.contains(contentType)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only JPG, PNG, or WEBP images are allowed");
         }
+    }
+
+    private byte[] readLimited(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Please choose a file");
+        }
+        if (file.getSize() > storageProperties.getMaxIdBytes()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File is too large (max 5 MB)");
+        }
+        try {
+            byte[] bytes = file.getBytes();
+            if (bytes.length > storageProperties.getMaxIdBytes()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File is too large (max 5 MB)");
+            }
+            return bytes;
+        } catch (IOException ex) {
+            log.error("Failed to read chat attachment", ex);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Could not read the file");
+        }
+    }
+
+    private String requireMessageContentType(MultipartFile file, byte[] bytes) {
+        String contentType = normalizeContentType(file.getContentType());
+        if (IMAGE_CONTENT_TYPES.contains(contentType)) {
+            return contentType;
+        }
+        boolean declaredPdf = MediaType.APPLICATION_PDF_VALUE.equals(contentType);
+        String name = file.getOriginalFilename() != null
+                ? file.getOriginalFilename().toLowerCase(Locale.ROOT)
+                : "";
+        boolean namedPdf = name.endsWith(".pdf");
+        boolean looseType = contentType.isBlank() || "application/octet-stream".equals(contentType);
+        if (declaredPdf || (namedPdf && looseType)) {
+            if (!looksLikePdf(bytes)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "That file is not a valid PDF");
+            }
+            return MediaType.APPLICATION_PDF_VALUE;
+        }
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only JPG, PNG, WEBP, or PDF files are allowed");
+    }
+
+    private static boolean looksLikePdf(byte[] bytes) {
+        return bytes.length >= 5
+                && bytes[0] == '%'
+                && bytes[1] == 'P'
+                && bytes[2] == 'D'
+                && bytes[3] == 'F'
+                && bytes[4] == '-';
     }
 
     private Path ticketIdDir() {
