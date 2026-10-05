@@ -18,7 +18,7 @@ import { playMessageCue, unlockAudio } from '../../../core/audio/cue-sounds';
 import { AdminService } from '../../../core/admin/admin.service';
 import { AdminCategory, AdminSummary } from '../../../core/admin/admin.models';
 import { AuthService, isAllowedUserEmail, allowedUserEmailLabel } from '../../../core/auth/auth.service';
-import { Ticket, TicketChannel, TicketMessage, TicketStatus, adminTicketsPathForChannel, canEncodeLpuEmail, displayRequesterEmail, downloadBlob, formatResolveDuration, isPdfAttachment, isPdfFile, isStaffMessage, messageAuthorLabel as formatMessageAuthor, needsDirectoryLink, pdfDownloadName, ticketCategoryPath, ticketResolveHours } from '../../../core/tickets/ticket.models';
+import { Ticket, TicketChannel, TicketMessage, TicketStatus, LINK_LPU_EMAIL_CATEGORY, adminTicketsPathForChannel, canEncodeLpuEmail, displayRequesterEmail, downloadBlob, formatResolveDuration, isPdfAttachment, isPdfFile, isStaffMessage, messageAuthorLabel as formatMessageAuthor, needsDirectoryLink, pdfDownloadName, ticketCategoryPath, ticketResolveHours } from '../../../core/tickets/ticket.models';
 import { TicketService } from '../../../core/tickets/ticket.service';
 import { DirectoryService } from '../../../core/directory/directory.service';
 import { TicketSummaryDialog } from '../../../shared/ticket-summary-dialog/ticket-summary-dialog';
@@ -85,6 +85,8 @@ export class AdminTickets implements OnInit, OnDestroy {
   protected readonly categoryFilter = signal('');
   protected readonly subcategoryFilter = signal('');
   protected readonly categories = signal<AdminCategory[]>([]);
+  /** Unsaved main category while the admin still needs to pick a concern. */
+  private readonly categoryDraft = signal<{ ticketId: number; category: string } | null>(null);
   protected readonly scopeFilter = signal<ScopeFilter>('all');
   /** When true, scope is fixed to Mine (My tickets route). */
   protected readonly scopeLocked = signal(false);
@@ -334,6 +336,7 @@ export class AdminTickets implements OnInit, OnDestroy {
     }
     unlockAudio();
     this.stopPolling();
+    this.categoryDraft.set(null);
     this.selectedTicketId.set(ticket.id);
     this.draft.set('');
     this.clearDraftAttachment();
@@ -355,6 +358,7 @@ export class AdminTickets implements OnInit, OnDestroy {
 
   protected clearSelection(): void {
     this.stopPolling();
+    this.categoryDraft.set(null);
     this.selectedTicketId.set(null);
     this.messages.set([]);
     this.draft.set('');
@@ -617,6 +621,91 @@ export class AdminTickets implements OnInit, OnDestroy {
     this.setBusy(ticket.id, true);
     try {
       const updated = await firstValueFrom(this.adminService.assignTicket(ticket.id, adminId));
+      this.replaceTicket(updated);
+      this.ensureSelectionVisible();
+    } catch (err) {
+      this.error.set(this.describeError(err));
+    } finally {
+      this.setBusy(ticket.id, false);
+    }
+  }
+
+  protected categoryDraftCode(ticket: Ticket): string {
+    const draft = this.categoryDraft();
+    if (draft?.ticketId === ticket.id) {
+      return draft.category;
+    }
+    return ticket.category;
+  }
+
+  protected concernDraftCode(ticket: Ticket): string {
+    if (this.categoryChangePending(ticket)) {
+      return '';
+    }
+    return ticket.subcategory ?? '';
+  }
+
+  protected categoryChangePending(ticket: Ticket): boolean {
+    const draft = this.categoryDraft();
+    return draft?.ticketId === ticket.id && draft.category !== ticket.category;
+  }
+
+  protected categoryEditOptions(ticket: Ticket): { value: string; label: string }[] {
+    const options = this.categories()
+      .filter((category) => this.isAssignableCategory(category))
+      .map((category) => ({ value: category.code, label: category.label }));
+    if (ticket.category && !options.some((option) => option.value === ticket.category)) {
+      options.unshift({
+        value: ticket.category,
+        label: ticket.categoryLabel || ticket.category,
+      });
+    }
+    return options;
+  }
+
+  protected concernEditOptions(ticket: Ticket): { value: string; label: string }[] {
+    const categoryCode = this.categoryDraftCode(ticket);
+    const parent = this.categories().find((category) => category.code === categoryCode);
+    const options = (parent?.children ?? [])
+      .filter((concern) => concern.active && concern.code !== LINK_LPU_EMAIL_CATEGORY)
+      .map((concern) => ({ value: concern.code, label: concern.label }));
+    if (
+      ticket.subcategory
+      && categoryCode === ticket.category
+      && !options.some((option) => option.value === ticket.subcategory)
+    ) {
+      options.unshift({
+        value: ticket.subcategory,
+        label: ticket.subcategoryLabel || ticket.subcategory,
+      });
+    }
+    return options;
+  }
+
+  protected onCategoryDraftChange(ticket: Ticket, category: string): void {
+    if (!category || category === ticket.category) {
+      if (this.categoryDraft()?.ticketId === ticket.id) {
+        this.categoryDraft.set(null);
+      }
+      return;
+    }
+    this.categoryDraft.set({ ticketId: ticket.id, category });
+  }
+
+  protected async onConcernChange(ticket: Ticket, subcategory: string): Promise<void> {
+    if (!subcategory) {
+      return;
+    }
+    const category = this.categoryDraftCode(ticket);
+    if (category === ticket.category && subcategory === (ticket.subcategory ?? '')) {
+      return;
+    }
+    this.setBusy(ticket.id, true);
+    try {
+      const updated = await firstValueFrom(
+        this.adminService.updateTicketCategory(ticket.id, category, subcategory),
+      );
+      this.categoryDraft.set(null);
       this.replaceTicket(updated);
       this.ensureSelectionVisible();
     } catch (err) {
@@ -1140,6 +1229,15 @@ export class AdminTickets implements OnInit, OnDestroy {
     } catch {
       // Non-fatal
     }
+  }
+
+  private isAssignableCategory(category: AdminCategory): boolean {
+    if (!category.active || category.code === LINK_LPU_EMAIL_CATEGORY) {
+      return false;
+    }
+    return (category.children ?? []).some(
+      (concern) => concern.active && concern.code !== LINK_LPU_EMAIL_CATEGORY,
+    );
   }
 
   private async loadCategories(): Promise<void> {

@@ -15,6 +15,7 @@ public enum AuditAction {
 
     TICKET_ASSIGNED(AuditResourceType.TICKET, "Assigned ticket"),
     TICKET_STATUS_CHANGED(AuditResourceType.TICKET, "Changed ticket status"),
+    TICKET_CATEGORY_CHANGED(AuditResourceType.TICKET, "Changed ticket category"),
     TICKET_AUTO_CLOSED(AuditResourceType.TICKET, "Auto-closed ticket"),
     TICKET_REPLIED(AuditResourceType.TICKET, "Replied on ticket"),
 

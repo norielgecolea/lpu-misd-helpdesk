@@ -217,6 +217,13 @@ export class AdminService {
     return this.http.patch<Ticket>(`${environment.apiBaseUrl}/admin/tickets/${ticketId}/status`, { status });
   }
 
+  updateTicketCategory(ticketId: number, category: string, subcategory: string): Observable<Ticket> {
+    return this.http.patch<Ticket>(`${environment.apiBaseUrl}/admin/tickets/${ticketId}/category`, {
+      category,
+      subcategory,
+    });
+  }
+
   // --- Onsite tickets (queue page) ---
 
   getQueueSnapshot(): Observable<QueueSnapshot> {

@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,9 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Ticket assignment and status changes for the admin portal. Visibility is a
+ * Ticket assignment, category, and status changes for the admin portal. Visibility is a
  * shared pool across online and onsite tickets: any admin can see, assign, and
- * change status regardless of who a ticket is assigned to.
+ * change status or category regardless of who a ticket is assigned to.
  */
 @Service
 public class AdminTicketService {
@@ -36,17 +37,23 @@ public class AdminTicketService {
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
     private final TicketThreadEmailService ticketThreadEmailService;
+    private final TicketCategoryService ticketCategoryService;
+    private final CategoryLabelCache categoryLabelCache;
     private final AuditLogService auditLogService;
 
     public AdminTicketService(
             TicketRepository ticketRepository,
             UserRepository userRepository,
             TicketThreadEmailService ticketThreadEmailService,
+            TicketCategoryService ticketCategoryService,
+            CategoryLabelCache categoryLabelCache,
             AuditLogService auditLogService
     ) {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
         this.ticketThreadEmailService = ticketThreadEmailService;
+        this.ticketCategoryService = ticketCategoryService;
+        this.categoryLabelCache = categoryLabelCache;
         this.auditLogService = auditLogService;
     }
 
@@ -97,6 +104,45 @@ public class AdminTicketService {
                         + (targetAdminId == null ? " unassigned " : " assigned ")
                         + ticketLabel(saved)
                         + (targetAdminId == null ? "" : " to " + targetName)
+        );
+        return saved;
+    }
+
+    @Transactional
+    public Ticket updateCategory(
+            AuthenticatedUser actingAdmin,
+            Long ticketId,
+            String category,
+            String subcategory
+    ) {
+        Ticket ticket = getTicketOrThrow(ticketId);
+        TicketCategoryService.CategorySelection selection = ticketCategoryService.requireLeaf(category, subcategory);
+        String nextCategory = selection.parent().getCode();
+        String nextSubcategory = selection.child().getCode();
+        if (nextCategory.equals(ticket.getCategory()) && Objects.equals(nextSubcategory, ticket.getSubcategory())) {
+            return ticket;
+        }
+
+        String previousPath = categoryLabelCache.pathOf(ticket.getCategory(), ticket.getSubcategory());
+        ticket.setCategory(nextCategory);
+        ticket.setSubcategory(nextSubcategory);
+        ticket.setUpdatedAt(Instant.now());
+        Ticket saved = ticketRepository.save(ticket);
+        String nextPath = categoryLabelCache.pathOf(nextCategory, nextSubcategory);
+        log.info(
+                "Ticket {} category set to {} / {} by={}",
+                saved.getTicketNumber(),
+                nextCategory,
+                nextSubcategory,
+                actingAdmin.getEmail()
+        );
+        auditLogService.record(
+                actingAdmin,
+                AuditAction.TICKET_CATEGORY_CHANGED,
+                String.valueOf(saved.getId()),
+                saved.getTicketNumber(),
+                actingAdmin.getName() + " changed " + ticketLabel(saved) + " from " + previousPath + " to " + nextPath,
+                AuditLogService.changes("category", previousPath, nextPath)
         );
         return saved;
     }

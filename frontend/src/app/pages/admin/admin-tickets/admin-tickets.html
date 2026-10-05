@@ -467,6 +467,36 @@
                 <option value="RESOLVED">Resolved</option>
                 <option value="CLOSED">Closed</option>
               </select>
+              <select
+                class="h-7 min-w-[7rem] max-w-[14rem] flex-1 rounded-md border border-zinc-300 bg-white px-2 text-[11px] sm:flex-none disabled:opacity-50"
+                [ngModel]="categoryDraftCode(ticket)"
+                (ngModelChange)="onCategoryDraftChange(ticket, $event)"
+                [ngModelOptions]="{ standalone: true }"
+                [disabled]="isBusy(ticket.id) || categoryEditOptions(ticket).length === 0"
+                aria-label="Category"
+              >
+                @for (option of categoryEditOptions(ticket); track option.value) {
+                  <option [value]="option.value">{{ option.label }}</option>
+                }
+              </select>
+              <select
+                class="h-7 min-w-[7rem] max-w-[14rem] flex-1 rounded-md border border-zinc-300 bg-white px-2 text-[11px] sm:flex-none disabled:opacity-50"
+                [ngModel]="concernDraftCode(ticket)"
+                (ngModelChange)="onConcernChange(ticket, $event)"
+                [ngModelOptions]="{ standalone: true }"
+                [disabled]="isBusy(ticket.id) || concernEditOptions(ticket).length === 0"
+                aria-label="Concern"
+              >
+                @if (!concernDraftCode(ticket)) {
+                  <option value="" disabled>Select concern</option>
+                }
+                @for (option of concernEditOptions(ticket); track option.value) {
+                  <option [value]="option.value">{{ option.label }}</option>
+                }
+              </select>
+              @if (categoryChangePending(ticket)) {
+                <span class="text-[10px] text-zinc-500">Pick a concern to save</span>
+              }
               @if (ticket.status === 'RESOLVED') {
                 <span class="text-[10px] text-zinc-500">Auto-closes after 2 days</span>
               }

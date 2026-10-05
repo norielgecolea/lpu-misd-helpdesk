@@ -8,6 +8,7 @@ import org.lpu.dev.codes.helpdesk.dto.AssignTicketRequest;
 import org.lpu.dev.codes.helpdesk.dto.TicketListQuery;
 import org.lpu.dev.codes.helpdesk.dto.TicketPageResponse;
 import org.lpu.dev.codes.helpdesk.dto.TicketResponse;
+import org.lpu.dev.codes.helpdesk.dto.UpdateTicketCategoryRequest;
 import org.lpu.dev.codes.helpdesk.dto.UpdateTicketStatusRequest;
 import org.lpu.dev.codes.helpdesk.model.Role;
 import org.lpu.dev.codes.helpdesk.model.Ticket;
@@ -106,6 +107,21 @@ public class AdminTicketController {
             @RequestBody AssignTicketRequest request
     ) {
         Ticket ticket = adminTicketService.assignTicket(actingAdmin, id, request.adminId());
+        return ResponseEntity.ok(enrich(List.of(ticket), actingAdmin).get(0));
+    }
+
+    @PatchMapping("/{id}/category")
+    public ResponseEntity<TicketResponse> updateCategory(
+            @AuthenticationPrincipal AuthenticatedUser actingAdmin,
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateTicketCategoryRequest request
+    ) {
+        Ticket ticket = adminTicketService.updateCategory(
+                actingAdmin,
+                id,
+                request.category(),
+                request.subcategory()
+        );
         return ResponseEntity.ok(enrich(List.of(ticket), actingAdmin).get(0));
     }
 
