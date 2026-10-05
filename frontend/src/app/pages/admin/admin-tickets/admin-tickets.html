@@ -441,6 +441,14 @@
               >
                 History
               </button>
+              <button
+                type="button"
+                (click)="openCategoryModal(ticket)"
+                [disabled]="isBusy(ticket.id)"
+                class="h-7 cursor-pointer rounded-md border border-zinc-300 bg-white px-2.5 text-[11px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Category
+              </button>
               <select
                 class="h-7 min-w-[7rem] flex-1 rounded-md border border-zinc-300 bg-white px-2 text-[11px] sm:flex-none sm:min-w-[8rem] disabled:opacity-50"
                 [ngModel]="ticket.assignedAdminId ?? ''"
@@ -467,36 +475,6 @@
                 <option value="RESOLVED">Resolved</option>
                 <option value="CLOSED">Closed</option>
               </select>
-              <select
-                class="h-7 min-w-[7rem] max-w-[14rem] flex-1 rounded-md border border-zinc-300 bg-white px-2 text-[11px] sm:flex-none disabled:opacity-50"
-                [ngModel]="categoryDraftCode(ticket)"
-                (ngModelChange)="onCategoryDraftChange(ticket, $event)"
-                [ngModelOptions]="{ standalone: true }"
-                [disabled]="isBusy(ticket.id) || categoryEditOptions(ticket).length === 0"
-                aria-label="Category"
-              >
-                @for (option of categoryEditOptions(ticket); track option.value) {
-                  <option [value]="option.value">{{ option.label }}</option>
-                }
-              </select>
-              <select
-                class="h-7 min-w-[7rem] max-w-[14rem] flex-1 rounded-md border border-zinc-300 bg-white px-2 text-[11px] sm:flex-none disabled:opacity-50"
-                [ngModel]="concernDraftCode(ticket)"
-                (ngModelChange)="onConcernChange(ticket, $event)"
-                [ngModelOptions]="{ standalone: true }"
-                [disabled]="isBusy(ticket.id) || concernEditOptions(ticket).length === 0"
-                aria-label="Concern"
-              >
-                @if (!concernDraftCode(ticket)) {
-                  <option value="" disabled>Select concern</option>
-                }
-                @for (option of concernEditOptions(ticket); track option.value) {
-                  <option [value]="option.value">{{ option.label }}</option>
-                }
-              </select>
-              @if (categoryChangePending(ticket)) {
-                <span class="text-[10px] text-zinc-500">Pick a concern to save</span>
-              }
               @if (ticket.status === 'RESOLVED') {
                 <span class="text-[10px] text-zinc-500">Auto-closes after 2 days</span>
               }
@@ -843,6 +821,102 @@
       </button>
     </div>
   </div>
+}
+
+@if (categoryModalOpen()) {
+  @if (selectedTicket(); as ticket) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="change-category-title"
+    >
+      <button
+        type="button"
+        class="dialog-backdrop-enter absolute inset-0 cursor-pointer bg-zinc-950/45 backdrop-blur-[2px]"
+        (click)="closeCategoryModal()"
+        aria-label="Close category dialog"
+      ></button>
+      <div class="dialog-panel-enter relative z-10 w-full max-w-md rounded-2xl border border-zinc-950/10 bg-white p-5 shadow-2xl sm:p-6">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">{{ ticket.ticketNumber }}</p>
+            <h3 id="change-category-title" class="mt-0.5 text-base font-bold text-gray-950">Change category</h3>
+            <p class="mt-1 text-sm text-gray-600">{{ categoryPath(ticket) }}</p>
+          </div>
+          <button
+            type="button"
+            (click)="closeCategoryModal()"
+            [disabled]="isBusy(ticket.id)"
+            class="cursor-pointer rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50"
+            aria-label="Close"
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5">
+              <path
+                d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <form class="mt-4 flex flex-col gap-3" (ngSubmit)="saveCategory(ticket)">
+          <label class="flex flex-col gap-1 text-sm font-semibold text-gray-800">
+            Category
+            <select
+              class="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-normal text-zinc-900 focus:border-[#8d2546] focus:outline-none disabled:opacity-50"
+              [ngModel]="categoryDraftCategory()"
+              (ngModelChange)="onCategoryModalCategoryChange(ticket, $event)"
+              name="category"
+              [disabled]="isBusy(ticket.id) || categoryEditOptions(ticket).length === 0"
+            >
+              @for (option of categoryEditOptions(ticket); track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
+            </select>
+          </label>
+          <label class="flex flex-col gap-1 text-sm font-semibold text-gray-800">
+            Concern
+            <select
+              class="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-normal text-zinc-900 focus:border-[#8d2546] focus:outline-none disabled:opacity-50"
+              [ngModel]="categoryDraftConcern()"
+              (ngModelChange)="categoryDraftConcern.set($event); categoryModalError.set(null)"
+              name="concern"
+              [disabled]="isBusy(ticket.id) || concernEditOptions(ticket).length === 0"
+            >
+              @if (!categoryDraftConcern()) {
+                <option value="" disabled>Select a concern</option>
+              }
+              @for (option of concernEditOptions(ticket); track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
+            </select>
+          </label>
+          @if (categoryModalError(); as message) {
+            <p class="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+              {{ message }}
+            </p>
+          }
+          <div class="flex items-center justify-end gap-3 pt-1">
+            <button
+              type="button"
+              (click)="closeCategoryModal()"
+              [disabled]="isBusy(ticket.id)"
+              class="cursor-pointer rounded-lg px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              [disabled]="isBusy(ticket.id) || !categoryDraftConcern()"
+              class="bg-primary hover:bg-primary/90 inline-flex cursor-pointer items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {{ isBusy(ticket.id) ? 'Saving…' : 'Save' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
 }
 
 <app-ticket-summary-dialog

@@ -85,8 +85,10 @@ export class AdminTickets implements OnInit, OnDestroy {
   protected readonly categoryFilter = signal('');
   protected readonly subcategoryFilter = signal('');
   protected readonly categories = signal<AdminCategory[]>([]);
-  /** Unsaved main category while the admin still needs to pick a concern. */
-  private readonly categoryDraft = signal<{ ticketId: number; category: string } | null>(null);
+  protected readonly categoryModalOpen = signal(false);
+  protected readonly categoryDraftCategory = signal('');
+  protected readonly categoryDraftConcern = signal('');
+  protected readonly categoryModalError = signal<string | null>(null);
   protected readonly scopeFilter = signal<ScopeFilter>('all');
   /** When true, scope is fixed to Mine (My tickets route). */
   protected readonly scopeLocked = signal(false);
@@ -336,7 +338,7 @@ export class AdminTickets implements OnInit, OnDestroy {
     }
     unlockAudio();
     this.stopPolling();
-    this.categoryDraft.set(null);
+    this.closeCategoryModal();
     this.selectedTicketId.set(ticket.id);
     this.draft.set('');
     this.clearDraftAttachment();
@@ -358,7 +360,7 @@ export class AdminTickets implements OnInit, OnDestroy {
 
   protected clearSelection(): void {
     this.stopPolling();
-    this.categoryDraft.set(null);
+    this.closeCategoryModal();
     this.selectedTicketId.set(null);
     this.messages.set([]);
     this.draft.set('');
@@ -630,24 +632,20 @@ export class AdminTickets implements OnInit, OnDestroy {
     }
   }
 
-  protected categoryDraftCode(ticket: Ticket): string {
-    const draft = this.categoryDraft();
-    if (draft?.ticketId === ticket.id) {
-      return draft.category;
-    }
-    return ticket.category;
+  protected openCategoryModal(ticket: Ticket): void {
+    this.categoryDraftCategory.set(ticket.category);
+    this.categoryDraftConcern.set(ticket.subcategory ?? '');
+    this.categoryModalError.set(null);
+    this.categoryModalOpen.set(true);
   }
 
-  protected concernDraftCode(ticket: Ticket): string {
-    if (this.categoryChangePending(ticket)) {
-      return '';
+  protected closeCategoryModal(): void {
+    const ticket = this.selectedTicket();
+    if (ticket && this.isBusy(ticket.id)) {
+      return;
     }
-    return ticket.subcategory ?? '';
-  }
-
-  protected categoryChangePending(ticket: Ticket): boolean {
-    const draft = this.categoryDraft();
-    return draft?.ticketId === ticket.id && draft.category !== ticket.category;
+    this.categoryModalOpen.set(false);
+    this.categoryModalError.set(null);
   }
 
   protected categoryEditOptions(ticket: Ticket): { value: string; label: string }[] {
@@ -664,7 +662,7 @@ export class AdminTickets implements OnInit, OnDestroy {
   }
 
   protected concernEditOptions(ticket: Ticket): { value: string; label: string }[] {
-    const categoryCode = this.categoryDraftCode(ticket);
+    const categoryCode = this.categoryDraftCategory();
     const parent = this.categories().find((category) => category.code === categoryCode);
     const options = (parent?.children ?? [])
       .filter((concern) => concern.active && concern.code !== LINK_LPU_EMAIL_CATEGORY)
@@ -682,34 +680,40 @@ export class AdminTickets implements OnInit, OnDestroy {
     return options;
   }
 
-  protected onCategoryDraftChange(ticket: Ticket, category: string): void {
-    if (!category || category === ticket.category) {
-      if (this.categoryDraft()?.ticketId === ticket.id) {
-        this.categoryDraft.set(null);
-      }
-      return;
+  protected onCategoryModalCategoryChange(ticket: Ticket, category: string): void {
+    this.categoryDraftCategory.set(category);
+    this.categoryModalError.set(null);
+    const stillValid = this.concernEditOptions(ticket).some(
+      (option) => option.value === this.categoryDraftConcern(),
+    );
+    if (!stillValid) {
+      this.categoryDraftConcern.set('');
     }
-    this.categoryDraft.set({ ticketId: ticket.id, category });
   }
 
-  protected async onConcernChange(ticket: Ticket, subcategory: string): Promise<void> {
-    if (!subcategory) {
+  protected async saveCategory(ticket: Ticket): Promise<void> {
+    const category = this.categoryDraftCategory().trim();
+    const subcategory = this.categoryDraftConcern().trim();
+    if (!category || !subcategory) {
+      this.categoryModalError.set('Pick a category and a concern.');
       return;
     }
-    const category = this.categoryDraftCode(ticket);
     if (category === ticket.category && subcategory === (ticket.subcategory ?? '')) {
+      this.categoryModalOpen.set(false);
+      this.categoryModalError.set(null);
       return;
     }
+    this.categoryModalError.set(null);
     this.setBusy(ticket.id, true);
     try {
       const updated = await firstValueFrom(
         this.adminService.updateTicketCategory(ticket.id, category, subcategory),
       );
-      this.categoryDraft.set(null);
       this.replaceTicket(updated);
+      this.categoryModalOpen.set(false);
       this.ensureSelectionVisible();
     } catch (err) {
-      this.error.set(this.describeError(err));
+      this.categoryModalError.set(this.describeError(err));
     } finally {
       this.setBusy(ticket.id, false);
     }
