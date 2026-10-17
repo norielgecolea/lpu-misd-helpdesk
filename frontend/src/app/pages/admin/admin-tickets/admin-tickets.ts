@@ -133,6 +133,8 @@ export class AdminTickets implements OnInit, OnDestroy {
   private listRequestId = 0;
   private unreadPrimed = false;
   private knownOtherUnread = 0;
+  /** Filters that scope unreadTotal. A change here is not a new message. */
+  private unreadQueryKey = '';
   private ticketsReady = false;
   private pendingFocusTicket: Ticket | null = null;
   private stickToBottom = true;
@@ -1188,11 +1190,14 @@ export class AdminTickets implements OnInit, OnDestroy {
 
       const selectedUnread = fromPage?.unreadCount ?? 0;
       const otherUnread = Math.max(0, page.unreadTotal - selectedUnread);
-      if (this.unreadPrimed && otherUnread > this.knownOtherUnread) {
+      const queryKey = this.unreadFilterKey();
+      const filterChanged = queryKey !== this.unreadQueryKey;
+      if (this.unreadPrimed && !filterChanged && otherUnread > this.knownOtherUnread) {
         unlockAudio();
         playMessageCue();
       }
       this.knownOtherUnread = otherUnread;
+      this.unreadQueryKey = queryKey;
       this.unreadPrimed = true;
 
       this.ensureSelectionVisible();
@@ -1215,6 +1220,16 @@ export class AdminTickets implements OnInit, OnDestroy {
         this.loading.set(false);
       }
     }
+  }
+
+  private unreadFilterKey(): string {
+    return [
+      this.statusFilter(),
+      this.channelLocked() ?? '',
+      this.scopeFilter(),
+      this.categoryFilter(),
+      this.subcategoryFilter(),
+    ].join('|');
   }
 
   private clearUnreadLocally(ticketId: number): void {
