@@ -5,6 +5,7 @@ import org.lpu.dev.codes.helpdesk.model.PendingRequesterEmail;
 import org.lpu.dev.codes.helpdesk.model.Ticket;
 import org.lpu.dev.codes.helpdesk.model.TicketStatus;
 import org.lpu.dev.codes.helpdesk.service.CategoryLabelCache;
+import org.lpu.dev.codes.helpdesk.service.DirectoryLookupService;
 import org.lpu.dev.codes.helpdesk.service.TicketService;
 
 public record TicketResponse(
@@ -84,13 +85,14 @@ public record TicketResponse(
         );
     }
 
-    /** Real LPU email on the ticket, but no student/employee number attached yet. */
+    /**
+     * True when the ticket's declared identity is not a local student or employee,
+     * including a personal-email login that typed an institution email and ID the directory does not have.
+     */
     private static boolean isDirectoryUnlinked(Ticket ticket, boolean pendingEmail) {
         if (pendingEmail) {
             return false;
         }
-        String type = ticket.getRequesterPersonType();
-        String number = ticket.getRequesterPersonNo();
-        return type == null || type.isBlank() || number == null || number.isBlank();
+        return DirectoryLookupService.ticketUnlinked(ticket);
     }
 }
