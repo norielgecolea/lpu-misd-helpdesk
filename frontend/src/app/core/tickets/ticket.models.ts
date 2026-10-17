@@ -102,19 +102,17 @@ export function canEncodeLpuEmail(ticket: Pick<Ticket, 'requesterPersonType' | '
   return isPendingRequesterEmail(ticket.requesterEmail, ticket.pendingEmail);
 }
 
+/** Encode an LPU address onto a directory record: the ticket has no student/employee number yet. */
 export function needsDirectoryLink(
   ticket: Pick<Ticket, 'requesterPersonType' | 'requesterPersonNo' | 'requesterEmail' | 'pendingEmail' | 'directoryUnlinked'>,
 ): boolean {
-  if (ticket.directoryUnlinked === true) {
-    return true;
-  }
-  if (ticket.directoryUnlinked === false) {
-    return false;
-  }
   if (isPendingRequesterEmail(ticket.requesterEmail, ticket.pendingEmail)) {
     return false;
   }
-  return !ticket.requesterPersonType?.trim() || !ticket.requesterPersonNo?.trim();
+  if (ticket.requesterPersonType?.trim() && ticket.requesterPersonNo?.trim()) {
+    return false;
+  }
+  return ticket.directoryUnlinked !== false;
 }
 
 export interface CreateTicketRequest {

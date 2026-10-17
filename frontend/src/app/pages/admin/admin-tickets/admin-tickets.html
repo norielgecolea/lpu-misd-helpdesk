@@ -224,7 +224,7 @@
                 <td class="max-w-0 overflow-hidden px-2.5 py-1.5 align-middle" [title]="requesterEmailLabel(ticket)">
                   <span class="flex min-w-0 items-center gap-1">
                     <span class="truncate">{{ requesterEmailLabel(ticket) }}</span>
-                    @if (canLinkDirectory(ticket)) {
+                    @if (ticket.directoryUnlinked) {
                       <span class="shrink-0 rounded bg-amber-100 px-1 py-0.5 text-[9px] font-bold tracking-wide text-amber-800 uppercase">
                         Unlinked
                       </span>

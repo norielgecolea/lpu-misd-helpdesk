@@ -1,9 +1,13 @@
 package org.lpu.dev.codes.helpdesk.service;
 
+import jakarta.annotation.PostConstruct;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import org.lpu.dev.codes.helpdesk.config.AuthProperties;
 import org.lpu.dev.codes.helpdesk.dto.DirectoryIdentity;
 import org.lpu.dev.codes.helpdesk.dto.DirectoryProfileResponse;
+import org.lpu.dev.codes.helpdesk.model.PendingRequesterEmail;
+import org.lpu.dev.codes.helpdesk.model.Ticket;
 import org.lpu.dev.codes.helpdesk.repository.EmployeeRepository;
 import org.lpu.dev.codes.helpdesk.repository.StudentRepository;
 import org.springframework.stereotype.Service;
@@ -14,13 +18,61 @@ public class DirectoryLookupService {
 
     private static final long CACHE_TTL_MS = 120_000;
 
+    private static volatile DirectoryLookupService instance;
+
     private final StudentRepository studentRepository;
     private final EmployeeRepository employeeRepository;
+    private final AuthProperties authProperties;
     private final ConcurrentHashMap<String, CacheEntry> profileCache = new ConcurrentHashMap<>();
 
-    public DirectoryLookupService(StudentRepository studentRepository, EmployeeRepository employeeRepository) {
+    public DirectoryLookupService(
+            StudentRepository studentRepository,
+            EmployeeRepository employeeRepository,
+            AuthProperties authProperties
+    ) {
         this.studentRepository = studentRepository;
         this.employeeRepository = employeeRepository;
+        this.authProperties = authProperties;
+    }
+
+    @PostConstruct
+    void register() {
+        instance = this;
+    }
+
+    /**
+     * Same check the ticket summary runs: the declared institution email, person type,
+     * and ID number do not resolve to a local student or employee.
+     * Pending placeholder addresses are a missing-email state, not this one.
+     */
+    public static boolean ticketUnlinked(Ticket ticket) {
+        if (ticket == null || PendingRequesterEmail.isPending(ticket.getRequesterEmail())) {
+            return false;
+        }
+        DirectoryLookupService lookup = instance;
+        if (lookup == null) {
+            String type = ticket.getRequesterPersonType();
+            String number = ticket.getRequesterPersonNo();
+            return type == null || type.isBlank() || number == null || number.isBlank();
+        }
+        return !lookup.resolveProfile(
+                lookup.directoryEmail(ticket),
+                ticket.getRequesterPersonType(),
+                ticket.getRequesterPersonNo()
+        ).found();
+    }
+
+    /** Institution email the requester declared, or their login address when that is already an LPU email. */
+    private String directoryEmail(Ticket ticket) {
+        String declared = blankToNull(ticket.getRequesterLpuEmail());
+        if (declared != null) {
+            return declared;
+        }
+        String sender = blankToNull(ticket.getRequesterEmail());
+        if (sender != null && !PendingRequesterEmail.isPending(sender) && authProperties.isAllowedEmail(sender)) {
+            return sender;
+        }
+        return null;
     }
 
     public Optional<String> findNameByLpuEmail(String email) {
