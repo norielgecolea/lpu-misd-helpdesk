@@ -317,7 +317,13 @@ public class TicketRepository {
 
     private static String ticketWhereSql(TicketListQuery query) {
         List<String> clauses = new ArrayList<>();
-        if (query.status() != null) {
+        if (query.statuses() != null) {
+            if (query.statuses().isEmpty()) {
+                clauses.add("1 = 0");
+            } else {
+                clauses.add("t.status IN (:statuses)");
+            }
+        } else if (query.status() != null) {
             clauses.add("t.status = :status");
         }
         if (query.channel() != null) {
@@ -351,7 +357,12 @@ public class TicketRepository {
     }
 
     private static NativeQuery<?> bindTicketFilters(NativeQuery<?> nativeQuery, TicketListQuery query) {
-        if (query.status() != null) {
+        if (query.statuses() != null && !query.statuses().isEmpty()) {
+            nativeQuery.setParameterList(
+                    "statuses",
+                    query.statuses().stream().map(TicketStatus::name).toList()
+            );
+        } else if (query.status() != null) {
             nativeQuery.setParameter("status", query.status().name());
         }
         if (query.channel() != null) {
@@ -386,7 +397,8 @@ public class TicketRepository {
             case "requesterEmail" -> "lower(t.requester_email) " + dir;
             case "assignedAdminName" -> "lower(u.name) " + dir + " NULLS LAST";
             case "status" -> "CASE t.status WHEN 'OPEN' THEN 0 WHEN 'IN_PROGRESS' THEN 1 "
-                    + "WHEN 'RESOLVED' THEN 2 WHEN 'CLOSED' THEN 3 ELSE 4 END " + dir;
+                    + "WHEN 'RESOLVED' THEN 2 WHEN 'CLOSED' THEN 3 ELSE 4 END " + dir
+                    + ", t.updated_at DESC";
             case "channel" -> "t.channel " + dir;
             case "resolveHours" -> "(CASE WHEN t.resolved_at IS NULL THEN -1 "
                     + "ELSE EXTRACT(EPOCH FROM (t.resolved_at - t.created_at)) END) " + dir;
