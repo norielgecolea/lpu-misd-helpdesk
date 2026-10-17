@@ -1,10 +1,12 @@
 package org.lpu.dev.codes.helpdesk.dto;
 
+import java.util.List;
 import org.lpu.dev.codes.helpdesk.model.TicketChannel;
 import org.lpu.dev.codes.helpdesk.model.TicketStatus;
 
 public record TicketListQuery(
         TicketStatus status,
+        List<TicketStatus> statuses,
         TicketChannel channel,
         Long assignedAdminId,
         boolean unassignedOnly,

@@ -1,6 +1,7 @@
 package org.lpu.dev.codes.helpdesk.controller;
 
 import jakarta.validation.Valid;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -56,17 +57,19 @@ public class AdminTicketController {
     public ResponseEntity<TicketPageResponse> list(
             @AuthenticationPrincipal AuthenticatedUser actingAdmin,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String statuses,
             @RequestParam(required = false) String channel,
             @RequestParam(required = false) String scope,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String subcategory,
-            @RequestParam(defaultValue = "updatedAt") String sort,
-            @RequestParam(defaultValue = "desc") String dir,
+            @RequestParam(defaultValue = "status") String sort,
+            @RequestParam(defaultValue = "asc") String dir,
             @RequestParam(defaultValue = "0") int offset,
             @RequestParam(defaultValue = "20") int limit
     ) {
         TicketListQuery query = new TicketListQuery(
                 parseStatus(status),
+                parseStatuses(statuses),
                 parseChannel(channel),
                 assignedAdminId(scope, actingAdmin),
                 isUnassignedScope(scope),
@@ -169,6 +172,27 @@ public class AdminTicketController {
                     );
                 })
                 .toList();
+    }
+
+    /** Null means the param was omitted. An empty list means no status is selected. */
+    private static List<TicketStatus> parseStatuses(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        if (raw.isBlank()) {
+            return List.of();
+        }
+        List<TicketStatus> statuses = new ArrayList<>();
+        for (String part : raw.split(",")) {
+            if (part.isBlank()) {
+                continue;
+            }
+            TicketStatus parsed = parseStatus(part);
+            if (parsed != null) {
+                statuses.add(parsed);
+            }
+        }
+        return statuses;
     }
 
     private static TicketStatus parseStatus(String status) {

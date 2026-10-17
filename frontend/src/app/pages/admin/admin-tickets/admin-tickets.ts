@@ -32,7 +32,8 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const ALLOWED_CHAT_TYPES = new Set([...ALLOWED_IMAGE_TYPES, 'application/pdf']);
 
-type StatusFilter = TicketStatus | '';
+const ALL_TICKET_STATUSES: TicketStatus[] = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
+
 /** all | unassigned | mine | admin:<id> */
 type ScopeFilter = string;
 type LayoutMode = 'split' | 'list' | 'chat';
@@ -59,6 +60,7 @@ type SortDir = 'asc' | 'desc';
 })
 export class AdminTickets implements OnInit, OnDestroy {
   @ViewChild('messageList') private messageList?: ElementRef<HTMLElement>;
+  @ViewChild('statusMenu') private statusMenu?: ElementRef<HTMLElement>;
   @ViewChild('composer') private composer?: ElementRef<HTMLTextAreaElement>;
   private readonly composerMinHeightPx = 44;
 
@@ -81,7 +83,9 @@ export class AdminTickets implements OnInit, OnDestroy {
   protected readonly assignees = signal<AdminSummary[]>([]);
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
-  protected readonly statusFilter = signal<StatusFilter>('');
+  protected readonly selectedStatuses = signal<TicketStatus[]>([...ALL_TICKET_STATUSES]);
+  protected readonly statusMenuOpen = signal(false);
+  protected readonly statusMenuPos = signal<{ top: number; left: number } | null>(null);
   protected readonly categoryFilter = signal('');
   protected readonly subcategoryFilter = signal('');
   protected readonly categories = signal<AdminCategory[]>([]);
@@ -96,8 +100,8 @@ export class AdminTickets implements OnInit, OnDestroy {
   protected readonly channelLocked = signal<TicketChannel | null>(null);
   protected readonly layoutMode = signal<LayoutMode>(this.readLayoutMode());
   protected readonly listPage = signal(1);
-  protected readonly sortKey = signal<SortKey>('updatedAt');
-  protected readonly sortDir = signal<SortDir>('desc');
+  protected readonly sortKey = signal<SortKey>('status');
+  protected readonly sortDir = signal<SortDir>('asc');
   protected readonly busyTicketIds = signal<Set<number>>(new Set());
 
   protected readonly selectedTicketId = signal<number | null>(null);
@@ -175,13 +179,30 @@ export class AdminTickets implements OnInit, OnDestroy {
     return ticket ? [ticket] : [];
   });
 
-  protected readonly statusOptions: { value: StatusFilter; label: string }[] = [
-    { value: '', label: 'All statuses' },
+  protected readonly statusOptions: { value: TicketStatus; label: string }[] = [
     { value: 'OPEN', label: 'Open' },
     { value: 'IN_PROGRESS', label: 'In Progress' },
     { value: 'RESOLVED', label: 'Resolved' },
     { value: 'CLOSED', label: 'Closed' },
   ];
+
+  protected readonly allStatusesChecked = computed(
+    () => this.selectedStatuses().length === ALL_TICKET_STATUSES.length,
+  );
+
+  protected readonly statusFilterLabel = computed(() => {
+    const selected = this.selectedStatuses();
+    if (selected.length === ALL_TICKET_STATUSES.length) {
+      return 'All statuses';
+    }
+    if (selected.length === 0) {
+      return 'No status';
+    }
+    if (selected.length === 1) {
+      return this.statusOptions.find((option) => option.value === selected[0])?.label ?? '1 status';
+    }
+    return `${selected.length} statuses`;
+  });
 
   protected readonly scopeOptions = computed(() => {
     const options: { value: string; label: string }[] = [
@@ -218,7 +239,7 @@ export class AdminTickets implements OnInit, OnDestroy {
       this.scopeLocked.set(mine);
       this.scopeFilter.set(mine ? 'mine' : 'all');
       this.channelLocked.set(mine ? null : data['channel'] === 'ONSITE_RFID' ? 'ONSITE_RFID' : 'ONLINE');
-      this.statusFilter.set('');
+      this.selectedStatuses.set([...ALL_TICKET_STATUSES]);
       this.categoryFilter.set('');
       this.subcategoryFilter.set('');
       this.listPage.set(1);
@@ -258,6 +279,18 @@ export class AdminTickets implements OnInit, OnDestroy {
     this.revokeIdPhoto();
   }
 
+  @HostListener('document:click', ['$event'])
+  protected onDocumentClick(event: MouseEvent): void {
+    if (!this.statusMenuOpen()) {
+      return;
+    }
+    const target = event.target;
+    if (target instanceof Node && this.statusMenu?.nativeElement.contains(target)) {
+      return;
+    }
+    this.statusMenuOpen.set(false);
+  }
+
   @HostListener('document:visibilitychange')
   protected onVisibilityChange(): void {
     if (document.visibilityState === 'visible') {
@@ -266,6 +299,37 @@ export class AdminTickets implements OnInit, OnDestroy {
         void this.pollMessages(false);
       }
     }
+  }
+
+  protected isStatusChecked(status: TicketStatus): boolean {
+    return this.selectedStatuses().includes(status);
+  }
+
+  protected toggleStatusMenu(event: MouseEvent): void {
+    event.stopPropagation();
+    if (this.statusMenuOpen()) {
+      this.statusMenuOpen.set(false);
+      return;
+    }
+    const button = event.currentTarget;
+    if (button instanceof HTMLElement) {
+      const rect = button.getBoundingClientRect();
+      this.statusMenuPos.set({ top: rect.bottom + 4, left: rect.left });
+    }
+    this.statusMenuOpen.set(true);
+  }
+
+  protected onAllStatusesChange(checked: boolean): void {
+    this.selectedStatuses.set(checked ? [...ALL_TICKET_STATUSES] : []);
+    void this.onFilterChange();
+  }
+
+  protected onStatusChecked(status: TicketStatus, checked: boolean): void {
+    const next = checked
+      ? [...this.selectedStatuses(), status]
+      : this.selectedStatuses().filter((value) => value !== status);
+    this.selectedStatuses.set(ALL_TICKET_STATUSES.filter((value) => next.includes(value)));
+    void this.onFilterChange();
   }
 
   protected async onFilterChange(): Promise<void> {
@@ -579,7 +643,7 @@ export class AdminTickets implements OnInit, OnDestroy {
       const fetched = await firstValueFrom(this.ticketService.getTicket(id));
       await this.focusTicket(fetched);
     } catch {
-      this.statusFilter.set('');
+      this.selectedStatuses.set([...ALL_TICKET_STATUSES]);
       if (!this.scopeLocked()) {
         this.scopeFilter.set('all');
       }
@@ -601,7 +665,7 @@ export class AdminTickets implements OnInit, OnDestroy {
       });
       return false;
     }
-    this.statusFilter.set('');
+    this.selectedStatuses.set([...ALL_TICKET_STATUSES]);
     this.categoryFilter.set('');
     this.subcategoryFilter.set('');
     if (!this.scopeLocked()) {
@@ -881,8 +945,7 @@ export class AdminTickets implements OnInit, OnDestroy {
   }
 
   private ticketMatchesFilters(ticket: Ticket): boolean {
-    const statusFilter = this.statusFilter();
-    if (statusFilter && ticket.status !== statusFilter) {
+    if (!this.selectedStatuses().includes(ticket.status)) {
       return false;
     }
     const categoryFilter = this.categoryFilter();
@@ -1155,7 +1218,7 @@ export class AdminTickets implements OnInit, OnDestroy {
     try {
       const page = await firstValueFrom(
         this.adminService.listTickets({
-          status: this.statusFilter(),
+          statuses: this.selectedStatuses().join(','),
           channel: this.channelLocked(),
           scope: this.scopeFilter(),
           category: this.categoryFilter(),
@@ -1224,7 +1287,7 @@ export class AdminTickets implements OnInit, OnDestroy {
 
   private unreadFilterKey(): string {
     return [
-      this.statusFilter(),
+      this.selectedStatuses().join(','),
       this.channelLocked() ?? '',
       this.scopeFilter(),
       this.categoryFilter(),

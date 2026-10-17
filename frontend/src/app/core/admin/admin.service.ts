@@ -155,6 +155,8 @@ export class AdminService {
 
   listTickets(params: {
     status?: TicketStatus | '';
+    /** Comma-separated statuses. Empty string means none are selected. */
+    statuses?: string;
     channel?: TicketChannel | null;
     scope?: string;
     category?: string;
@@ -167,9 +169,11 @@ export class AdminService {
     let httpParams = new HttpParams()
       .set('offset', String(params.offset ?? 0))
       .set('limit', String(params.limit ?? 20))
-      .set('sort', params.sort ?? 'updatedAt')
-      .set('dir', params.dir ?? 'desc');
-    if (params.status) {
+      .set('sort', params.sort ?? 'status')
+      .set('dir', params.dir ?? 'asc');
+    if (params.statuses !== undefined) {
+      httpParams = httpParams.set('statuses', params.statuses);
+    } else if (params.status) {
       httpParams = httpParams.set('status', params.status);
     }
     if (params.channel) {
