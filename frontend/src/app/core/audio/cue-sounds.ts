@@ -55,9 +55,9 @@ function tone(
  * (Previously a soft F5→C6 bell; now a brighter C–E–G chirp.)
  */
 export function playNewTicketCue(): void {
-  tone(523.25, 0, 0.11, 0.16, 'triangle'); // C5
-  tone(659.25, 0.09, 0.11, 0.15, 'triangle'); // E5
-  tone(783.99, 0.18, 0.28, 0.14, 'sine'); // G5
+  tone(523.25, 0, 0.11, 0.85, 'triangle'); // C5
+  tone(659.25, 0.09, 0.11, 0.8, 'triangle'); // E5
+  tone(783.99, 0.18, 0.28, 0.75, 'sine'); // G5
 }
 
 /**
