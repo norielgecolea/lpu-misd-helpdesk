@@ -11,14 +11,12 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import {
-  ArcElement,
   BarController,
   BarElement,
   CategoryScale,
   Chart,
-  DoughnutController,
   Filler,
   Legend,
   LineController,
@@ -29,18 +27,7 @@ import {
 } from 'chart.js';
 import { firstValueFrom } from 'rxjs';
 import { AdminService } from '../../../core/admin/admin.service';
-import {
-  AnalyticsAssigneeLoad,
-  AnalyticsConcernCount,
-  AnalyticsCsmRating,
-  AnalyticsDayVolume,
-  AnalyticsSummary,
-  AnalyticsTicketList,
-  AnalyticsTicketListItem,
-} from '../../../core/admin/admin.models';
-import { adminTicketsPathForChannel, formatResolveDuration, ticketResolveHours } from '../../../core/tickets/ticket.models';
-import { CSM_CHART_LABELS, CSM_LABEL } from '../../../core/csm/csm-labels';
-import { AnalyticsTicketListDialog } from '../../../shared/analytics-ticket-list-dialog/analytics-ticket-list-dialog';
+import { AnalyticsDayVolume, AnalyticsSummary } from '../../../core/admin/admin.models';
 
 Chart.register(
   CategoryScale,
@@ -50,41 +37,31 @@ Chart.register(
   LineController,
   BarElement,
   BarController,
-  ArcElement,
-  DoughnutController,
   Tooltip,
   Legend,
   Filler,
 );
 
 const MAROON = '#8d2546';
-const SKY = '#0ea5e9';
-const AMBER = '#f59e0b';
 const EMERALD = '#10b981';
-const ZINC = '#71717a';
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 type DashboardPeriod = 'today' | '7d' | '30d' | 'year';
 
 @Component({
   selector: 'app-admin-dashboard',
-  imports: [AnalyticsTicketListDialog, RouterLink],
+  imports: [RouterLink],
   templateUrl: './admin-dashboard.html',
 })
 export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
   private readonly adminService = inject(AdminService);
-  private readonly router = inject(Router);
   private readonly injector = inject(Injector);
 
   @ViewChild('volumeCanvas') private volumeCanvas?: ElementRef<HTMLCanvasElement>;
-  @ViewChild('statusCanvas') private statusCanvas?: ElementRef<HTMLCanvasElement>;
-  @ViewChild('channelCanvas') private channelCanvas?: ElementRef<HTMLCanvasElement>;
-  @ViewChild('csmCanvas') private csmCanvas?: ElementRef<HTMLCanvasElement>;
 
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
   protected readonly summary = signal<AnalyticsSummary | null>(null);
-  protected readonly resolvedTickets = signal<AnalyticsTicketListItem[]>([]);
   protected readonly period = signal<DashboardPeriod>('30d');
   protected readonly periods: { id: DashboardPeriod; label: string }[] = [
     { id: 'today', label: 'Today' },
@@ -92,12 +69,6 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
     { id: '30d', label: '30 days' },
     { id: 'year', label: 'This year' },
   ];
-
-  protected readonly ticketListOpen = signal(false);
-  protected readonly ticketListLoading = signal(false);
-  protected readonly ticketListError = signal<string | null>(null);
-  protected readonly ticketList = signal<AnalyticsTicketList | null>(null);
-  protected readonly csmLabels = CSM_LABEL;
 
   protected readonly periodLabel = computed(() => {
     switch (this.period()) {
@@ -124,16 +95,12 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
     return Math.round((data.totals.closed * 1000) / data.totals.created) / 10;
   });
 
-  protected readonly topConcerns = computed(() => (this.summary()?.byConcern ?? []).slice(0, 10));
-
-  protected readonly maxConcernCount = computed(() => {
-    const first = this.topConcerns()[0];
-    return first?.count || 1;
-  });
-
-  protected readonly maxAssigneeActive = computed(() => {
-    const rows = this.summary()?.byAssignee ?? [];
-    return Math.max(1, ...rows.map((row) => row.open + row.inProgress));
+  protected readonly activeNow = computed(() => {
+    const data = this.summary();
+    if (!data) {
+      return 0;
+    }
+    return data.totals.open + data.totals.inProgress;
   });
 
   private charts: Chart[] = [];
@@ -175,110 +142,23 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
     return `${value}%`;
   }
 
-  protected shareOfCreated(count: number): string {
-    const created = this.summary()?.totals.created ?? 0;
-    if (!created) {
-      return '—';
-    }
-    return `${Math.round((count * 1000) / created) / 10}%`;
-  }
-
-  protected assigneeActive(row: AnalyticsAssigneeLoad): number {
-    return row.open + row.inProgress;
-  }
-
-  protected concernBarWidth(row: AnalyticsConcernCount): string {
-    return `${Math.max(4, Math.round((row.count * 100) / this.maxConcernCount()))}%`;
-  }
-
-  protected assigneeBarWidth(row: AnalyticsAssigneeLoad): string {
-    return `${Math.max(4, Math.round((this.assigneeActive(row) * 100) / this.maxAssigneeActive()))}%`;
-  }
-
-  protected concernTrack(row: AnalyticsConcernCount): string {
-    return `${row.categoryKey}:${row.concernKey}`;
-  }
-
-  protected resolveDuration(item: AnalyticsTicketListItem): string {
-    return formatResolveDuration(ticketResolveHours(item));
-  }
-
-  protected async openAssigneeTickets(row: AnalyticsAssigneeLoad): Promise<void> {
-    const { from, to } = this.periodBounds();
-    this.ticketListOpen.set(true);
-    this.ticketListLoading.set(true);
-    this.ticketListError.set(null);
-    this.ticketList.set(null);
-    try {
-      const list = await firstValueFrom(this.adminService.getAssigneeTickets(row.adminId, from, to));
-      this.ticketList.set(list);
-    } catch (err) {
-      this.ticketListError.set(this.describeError(err));
-    } finally {
-      this.ticketListLoading.set(false);
-    }
-  }
-
-  protected async openCsmTickets(rating: AnalyticsCsmRating): Promise<void> {
-    const { from, to } = this.periodBounds();
-    this.ticketListOpen.set(true);
-    this.ticketListLoading.set(true);
-    this.ticketListError.set(null);
-    this.ticketList.set(null);
-    try {
-      const list = await firstValueFrom(this.adminService.getCsmTickets(rating, from, to));
-      this.ticketList.set(list);
-    } catch (err) {
-      this.ticketListError.set(this.describeError(err));
-    } finally {
-      this.ticketListLoading.set(false);
-    }
-  }
-
-  protected closeTicketList(): void {
-    this.ticketListOpen.set(false);
-    this.ticketList.set(null);
-    this.ticketListError.set(null);
-  }
-
-  protected onTicketSelected(item: AnalyticsTicketListItem): void {
-    this.closeTicketList();
-    void this.router.navigate([adminTicketsPathForChannel(item.channel)], {
-      queryParams: { ticket: item.id },
-    });
-  }
-
-  protected openResolvedTicket(item: AnalyticsTicketListItem): void {
-    void this.router.navigate([adminTicketsPathForChannel(item.channel)], {
-      queryParams: { ticket: item.id },
-    });
-  }
-
   private async load(): Promise<void> {
     const seq = ++this.loadSeq;
     this.loading.set(true);
     this.error.set(null);
     try {
       const { from, to } = this.periodBounds();
-      const [data, resolved] = await Promise.all([
-        firstValueFrom(this.adminService.getAnalyticsSummary(from, to)),
-        firstValueFrom(this.adminService.getResolvedTickets(from, to)),
-      ]);
+      const data = await firstValueFrom(this.adminService.getAnalyticsSummary(from, to));
       if (seq !== this.loadSeq) {
         return;
       }
-      this.summary.set({
-        ...data,
-        byConcern: data.byConcern ?? [],
-      });
-      this.resolvedTickets.set(resolved.items ?? []);
+      this.summary.set(data);
       this.scheduleRenderCharts();
     } catch (err) {
       if (seq !== this.loadSeq) {
         return;
       }
       this.summary.set(null);
-      this.resolvedTickets.set([]);
       this.error.set(this.describeError(err));
       this.destroyCharts();
     } finally {
@@ -298,120 +178,59 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     const data = this.summary();
-    if (!data) {
+    if (!data || !this.volumeCanvas) {
       return;
     }
     this.destroyCharts();
 
-    if (this.volumeCanvas) {
-      const yearly = this.period() === 'year';
-      const monthly = yearly ? this.aggregateByMonth(data.volumeByDay) : [];
-      this.charts.push(
-        new Chart(this.volumeCanvas.nativeElement, {
-          type: yearly ? 'bar' : 'line',
-          data: {
-            labels: yearly ? MONTH_LABELS : data.volumeByDay.map((d) => d.date.slice(5)),
-            datasets: [
-              {
-                label: 'Created',
-                data: yearly ? monthly.map((m) => m.created) : data.volumeByDay.map((d) => d.created),
-                borderColor: MAROON,
-                backgroundColor: yearly ? MAROON : 'rgba(141, 37, 70, 0.12)',
-                fill: !yearly,
-                tension: 0.3,
-              },
-              {
-                label: 'Closed',
-                data: yearly ? monthly.map((m) => m.closed) : data.volumeByDay.map((d) => d.closed),
-                borderColor: EMERALD,
-                backgroundColor: yearly ? EMERALD : 'rgba(16, 185, 129, 0.08)',
-                fill: !yearly,
-                tension: 0.3,
-              },
-            ],
-          },
-          options: this.baseOptions(this.volumeTitle()),
-        }),
-      );
-    }
-
-    if (this.statusCanvas) {
-      this.charts.push(
-        new Chart(this.statusCanvas.nativeElement, {
-          type: 'doughnut',
-          data: {
-            labels: data.byStatus.map((s) => s.label),
-            datasets: [
-              {
-                data: data.byStatus.map((s) => s.count),
-                backgroundColor: [AMBER, SKY, EMERALD, ZINC],
-              },
-            ],
-          },
-          options: this.doughnutOptions('Status mix'),
-        }),
-      );
-    }
-
-    if (this.channelCanvas) {
-      this.charts.push(
-        new Chart(this.channelCanvas.nativeElement, {
-          type: 'doughnut',
-          data: {
-            labels: data.byChannel.map((c) => c.label),
-            datasets: [
-              {
-                data: data.byChannel.map((c) => c.count),
-                backgroundColor: [MAROON, SKY],
-              },
-            ],
-          },
-          options: this.doughnutOptions('Channel mix'),
-        }),
-      );
-    }
-
-    if (this.csmCanvas) {
-      const ratings = data.totals.csmByRating;
-      const ratingKeys: AnalyticsCsmRating[] = ['SAD', 'NEUTRAL', 'HAPPY'];
-      this.charts.push(
-        new Chart(this.csmCanvas.nativeElement, {
-          type: 'bar',
-          data: {
-            labels: [...CSM_CHART_LABELS],
-            datasets: [
-              {
-                label: 'CSM ratings',
-                data: [ratings['SAD'] ?? 0, ratings['NEUTRAL'] ?? 0, ratings['HAPPY'] ?? 0],
-                backgroundColor: ['#ef4444', AMBER, EMERALD],
-              },
-            ],
-          },
-          options: {
-            ...this.baseOptions('CSM ratings'),
-            onClick: (_event, elements) => {
-              if (!elements.length) {
-                return;
-              }
-              const rating = ratingKeys[elements[0].index];
-              if (rating) {
-                void this.openCsmTickets(rating);
-              }
+    const yearly = this.period() === 'year';
+    const monthly = yearly ? this.aggregateByMonth(data.volumeByDay) : [];
+    this.charts.push(
+      new Chart(this.volumeCanvas.nativeElement, {
+        type: yearly ? 'bar' : 'line',
+        data: {
+          labels: yearly ? MONTH_LABELS : data.volumeByDay.map((d) => d.date.slice(5)),
+          datasets: [
+            {
+              label: 'Created',
+              data: yearly ? monthly.map((m) => m.created) : data.volumeByDay.map((d) => d.created),
+              borderColor: MAROON,
+              backgroundColor: yearly ? MAROON : 'rgba(141, 37, 70, 0.12)',
+              fill: !yearly,
+              tension: 0.3,
             },
-            onHover: (event, elements) => {
-              const target = event.native?.target as HTMLElement | undefined;
-              if (target) {
-                target.style.cursor = elements.length ? 'pointer' : 'default';
-              }
+            {
+              label: 'Closed',
+              data: yearly ? monthly.map((m) => m.closed) : data.volumeByDay.map((d) => d.closed),
+              borderColor: EMERALD,
+              backgroundColor: yearly ? EMERALD : 'rgba(16, 185, 129, 0.08)',
+              fill: !yearly,
+              tension: 0.3,
             },
-            plugins: {
-              ...this.baseOptions('CSM ratings').plugins,
-              legend: { display: false },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              labels: { boxWidth: 12, font: { size: 11 } },
             },
           },
-        }),
-      );
-    }
+          scales: {
+            x: {
+              ticks: { font: { size: 10 }, maxRotation: 0 },
+              grid: { display: false },
+            },
+            y: {
+              beginAtZero: true,
+              ticks: { font: { size: 10 }, precision: 0 },
+              grid: { color: 'rgba(24, 24, 27, 0.06)' },
+            },
+          },
+        },
+      }),
+    );
   }
 
   private aggregateByMonth(days: AnalyticsDayVolume[]): { created: number; closed: number }[] {
@@ -424,45 +243,6 @@ export class AdminDashboard implements OnInit, AfterViewInit, OnDestroy {
       }
     }
     return buckets;
-  }
-
-  private baseOptions(title: string) {
-    return {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          labels: { boxWidth: 12, font: { size: 11 } },
-        },
-        title: { display: false, text: title },
-      },
-      scales: {
-        x: {
-          ticks: { font: { size: 10 }, maxRotation: 0 },
-          grid: { display: false },
-        },
-        y: {
-          beginAtZero: true,
-          ticks: { font: { size: 10 }, precision: 0 },
-          grid: { color: 'rgba(24, 24, 27, 0.06)' },
-        },
-      },
-    };
-  }
-
-  private doughnutOptions(title: string) {
-    return {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: '62%',
-      plugins: {
-        legend: {
-          position: 'bottom' as const,
-          labels: { boxWidth: 10, font: { size: 11 } },
-        },
-        title: { display: false, text: title },
-      },
-    };
   }
 
   private destroyCharts(): void {

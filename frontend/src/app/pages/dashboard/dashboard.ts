@@ -118,6 +118,13 @@ export class Dashboard implements OnInit, OnDestroy {
   protected readonly csmRating = signal<CsmRating | null>(null);
   protected readonly csmComment = signal('');
   protected readonly submittingCsm = signal(false);
+  protected readonly csmCanSubmit = computed(() => {
+    const rating = this.csmRating();
+    if (!rating || this.submittingCsm()) {
+      return false;
+    }
+    return rating !== 'SAD' || this.csmComment().trim().length > 0;
+  });
   protected readonly csmError = signal<string | null>(null);
   protected readonly csmLabels = CSM_LABEL;
 
@@ -360,13 +367,18 @@ export class Dashboard implements OnInit, OnDestroy {
     if (!pending || !rating || this.submittingCsm()) {
       return;
     }
+    const comment = rating === 'SAD' ? this.csmComment().trim() : '';
+    if (rating === 'SAD' && !comment) {
+      this.csmError.set('Please tell us why you were not satisfied.');
+      return;
+    }
     this.csmError.set(null);
     this.submittingCsm.set(true);
     try {
       await firstValueFrom(
         this.ticketService.submitCsm(pending.ticketId, {
           rating,
-          comment: rating === 'SAD' ? this.csmComment().trim() || undefined : undefined,
+          comment: comment || undefined,
         }),
       );
       this.csmRating.set(null);

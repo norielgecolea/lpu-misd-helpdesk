@@ -97,6 +97,11 @@ public class TicketCsmService {
         String trimmedComment = comment != null ? comment.trim() : "";
         if (rating != CsmRating.SAD) {
             trimmedComment = "";
+        } else if (trimmedComment.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "A reason is required when you are not satisfied."
+            );
         } else if (trimmedComment.length() > 2000) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Comment is too long");
         }
