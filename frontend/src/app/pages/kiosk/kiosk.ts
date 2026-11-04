@@ -169,6 +169,13 @@ export class Kiosk implements OnInit, AfterViewInit, OnDestroy {
   protected readonly csmRating = signal<CsmRating | null>(null);
   protected readonly csmComment = signal('');
   protected readonly submittingCsm = signal(false);
+  protected readonly csmCanSubmit = computed(() => {
+    const rating = this.csmRating();
+    if (!rating || this.submittingCsm()) {
+      return false;
+    }
+    return rating !== 'SAD' || this.csmComment().trim().length > 0;
+  });
   protected readonly csmLabels = CSM_LABEL;
   protected readonly clock = signal(new Date());
   protected readonly clockLabel = computed(() =>
@@ -291,6 +298,11 @@ export class Kiosk implements OnInit, AfterViewInit, OnDestroy {
     if (!pending || !rating || !identifier || this.submittingCsm()) {
       return;
     }
+    const comment = rating === 'SAD' ? this.csmComment().trim() : '';
+    if (rating === 'SAD' && !comment) {
+      this.error.set('Please tell us why you were not satisfied.');
+      return;
+    }
 
     this.error.set(null);
     this.clearFormIdleTimer();
@@ -299,7 +311,7 @@ export class Kiosk implements OnInit, AfterViewInit, OnDestroy {
       await firstValueFrom(
         this.kioskService.submitCsm(identifier, pending.ticketId, {
           rating,
-          comment: rating === 'SAD' ? this.csmComment().trim() || undefined : undefined,
+          comment: comment || undefined,
         }),
       );
       const next = await firstValueFrom(this.kioskService.getPendingCsm(identifier));

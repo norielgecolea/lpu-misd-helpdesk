@@ -838,19 +838,22 @@
           @if (csmRating() === 'SAD') {
             <div class="mt-4">
               <label class="text-sm font-medium text-zinc-800" for="dashCsmComment">
-                Tell us why <span class="font-normal text-zinc-500">(optional)</span>
+                Tell us why <span class="text-red-600">*</span>
               </label>
               <textarea
                 id="dashCsmComment"
                 rows="3"
                 maxlength="2000"
+                required
                 placeholder="What went wrong?"
                 class="mt-1.5 w-full resize-none rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-[#8d2546] focus:outline-none"
                 [ngModel]="csmComment()"
                 (ngModelChange)="csmComment.set($event)"
                 [ngModelOptions]="{ standalone: true }"
                 [disabled]="submittingCsm()"
+                aria-required="true"
               ></textarea>
+              <p class="mt-1 text-xs text-zinc-500">A reason is required when you are not satisfied.</p>
             </div>
           }
 
@@ -863,7 +866,7 @@
           <button
             type="button"
             (click)="submitCsm()"
-            [disabled]="!csmRating() || submittingCsm()"
+            [disabled]="!csmCanSubmit()"
             class="mt-5 w-full cursor-pointer rounded-md bg-[#8d2546] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#7a1f3c] disabled:cursor-not-allowed disabled:opacity-40"
           >
             {{ submittingCsm() ? 'Submitting…' : 'Submit feedback' }}
