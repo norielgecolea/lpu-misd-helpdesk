@@ -16,13 +16,31 @@ server {
 
     client_max_body_size 50m;
 
-    # Gate student/employee photos. Same files event attendance serves from disk.
-    # Gate HTTP downloads require a signature, so do not proxy them.
-    location ^~ /lpu-helpdesk/api/directory/photos/ {
+    # Same photo path as event attendance. Files come from the gate pictures
+    # directory. Fall back to the gate server only when a file is missing.
+    # GATE_ATTENDANCE_URL has no trailing slash.
+    location ^~ /gate-attendance/attendance-system/pictures/ {
         alias /var/gate-pictures/;
-        expires 6h;
-        add_header Cache-Control "public";
-        default_type image/jpeg;
+        error_page 403 404 = @gate_picture;
+    }
+
+    location @gate_picture {
+        rewrite ^/gate-attendance/(.*)$ /$1 break;
+        proxy_pass ${GATE_ATTENDANCE_URL};
+        proxy_http_version 1.1;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+
+    location /gate-attendance/ {
+        proxy_pass ${GATE_ATTENDANCE_URL}/;
+        proxy_http_version 1.1;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
     }
 
     location /lpu-helpdesk/ {
@@ -76,13 +94,31 @@ server {
         return 404;
     }
 
-    # Gate student/employee photos. Same files event attendance serves from disk.
-    # Gate HTTP downloads require a signature, so do not proxy them.
-    location ^~ /lpu-helpdesk/api/directory/photos/ {
+    # Same photo path as event attendance. Files come from the gate pictures
+    # directory. Fall back to the gate server only when a file is missing.
+    # GATE_ATTENDANCE_URL has no trailing slash.
+    location ^~ /gate-attendance/attendance-system/pictures/ {
         alias /var/gate-pictures/;
-        expires 6h;
-        add_header Cache-Control "public";
-        default_type image/jpeg;
+        error_page 403 404 = @gate_picture;
+    }
+
+    location @gate_picture {
+        rewrite ^/gate-attendance/(.*)$ /$1 break;
+        proxy_pass ${GATE_ATTENDANCE_URL};
+        proxy_http_version 1.1;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+
+    location /gate-attendance/ {
+        proxy_pass ${GATE_ATTENDANCE_URL}/;
+        proxy_http_version 1.1;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
     }
 
     location /lpu-helpdesk/ {
@@ -140,13 +176,31 @@ server {
         return 404;
     }
 
-    # Gate student/employee photos. Same files event attendance serves from disk.
-    # Gate HTTP downloads require a signature, so do not proxy them.
-    location ^~ /lpu-helpdesk/api/directory/photos/ {
+    # Same photo path as event attendance. Files come from the gate pictures
+    # directory. Fall back to the gate server only when a file is missing.
+    # GATE_ATTENDANCE_URL has no trailing slash.
+    location ^~ /gate-attendance/attendance-system/pictures/ {
         alias /var/gate-pictures/;
-        expires 6h;
-        add_header Cache-Control "public";
-        default_type image/jpeg;
+        error_page 403 404 = @gate_picture;
+    }
+
+    location @gate_picture {
+        rewrite ^/gate-attendance/(.*)$ /$1 break;
+        proxy_pass ${GATE_ATTENDANCE_URL};
+        proxy_http_version 1.1;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+
+    location /gate-attendance/ {
+        proxy_pass ${GATE_ATTENDANCE_URL}/;
+        proxy_http_version 1.1;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
     }
 
     location /lpu-helpdesk/ {
@@ -192,13 +246,31 @@ server {
         return 302 /admin;
     }
 
-    # Gate student/employee photos. Same files event attendance serves from disk.
-    # Gate HTTP downloads require a signature, so do not proxy them.
-    location ^~ /lpu-helpdesk/api/directory/photos/ {
+    # Same photo path as event attendance. Files come from the gate pictures
+    # directory. Fall back to the gate server only when a file is missing.
+    # GATE_ATTENDANCE_URL has no trailing slash.
+    location ^~ /gate-attendance/attendance-system/pictures/ {
         alias /var/gate-pictures/;
-        expires 6h;
-        add_header Cache-Control "public";
-        default_type image/jpeg;
+        error_page 403 404 = @gate_picture;
+    }
+
+    location @gate_picture {
+        rewrite ^/gate-attendance/(.*)$ /$1 break;
+        proxy_pass ${GATE_ATTENDANCE_URL};
+        proxy_http_version 1.1;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+
+    location /gate-attendance/ {
+        proxy_pass ${GATE_ATTENDANCE_URL}/;
+        proxy_http_version 1.1;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
     }
 
     location /lpu-helpdesk/ {

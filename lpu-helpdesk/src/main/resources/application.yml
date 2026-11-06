@@ -75,8 +75,8 @@ app:
     db-name: ${GATE_ATTENDANCE_DB_NAME:postgres}
     db-username: ${GATE_ATTENDANCE_DB_USER:postgres}
     db-password: ${GATE_ATTENDANCE_DB_PASSWORD:${SPRING_DATASOURCE_PASSWORD:Lpu-1234}}
-    # Gate Tomcat base URL. Used only when the picture file is not on disk.
-    # Browsers receive same-origin HTTPS URLs under /lpu-helpdesk/api/directory/photos/...
+    # Gate Tomcat base URL. Nginx uses this only when the picture file is not on disk.
+    # Browsers load /gate-attendance/attendance-system/pictures/{file}, same as event attendance.
     url: ${GATE_ATTENDANCE_URL:}
     pictures-path: ${GATE_ATTENDANCE_PICTURES_PATH:/attendance-system/pictures}
     # Same folder event attendance mounts and serves. Gate HTTP photo links require a signature.

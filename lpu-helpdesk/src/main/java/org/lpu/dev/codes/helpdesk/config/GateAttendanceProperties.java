@@ -42,23 +42,16 @@ public class GateAttendanceProperties {
     }
 
     /**
-     * Browser-facing photo URL served by this app over the same origin/protocol.
-     * Upstream gate photos stay on HTTP and are fetched server-side by
-     * {@code GatePhotoProxyService}.
+     * Same browser path event attendance uses. Nginx serves the file from the
+     * gate pictures directory; the gate app rejects unsigned HTTP downloads.
      */
     public String resolvePhotoUrl(String photo) {
         String filename = extractFilename(photo);
         if (filename == null) {
             return null;
         }
-        String context = publicContextPath == null || publicContextPath.isBlank()
-                ? ""
-                : publicContextPath.replaceAll("/+$", "");
-        if (!context.isEmpty() && !context.startsWith("/")) {
-            context = "/" + context;
-        }
         String encoded = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
-        return context + "/api/directory/photos/" + encoded;
+        return "/gate-attendance/attendance-system/pictures/" + encoded;
     }
 
     /**

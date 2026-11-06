@@ -54,6 +54,16 @@ interface MonitorAlert {
       background: rgb(63 63 70 / 0.85);
     }
 
+    .monitor-open {
+      background-color: rgb(245 158 11 / 0.14);
+      box-shadow: inset 3px 0 0 0 rgb(251 191 36 / 0.95);
+    }
+
+    .monitor-progress {
+      background-color: rgb(14 165 233 / 0.14);
+      box-shadow: inset 3px 0 0 0 rgb(56 189 248 / 0.95);
+    }
+
     .unassigned-blink {
       animation: unassigned-blink 1.4s ease-in-out infinite;
     }

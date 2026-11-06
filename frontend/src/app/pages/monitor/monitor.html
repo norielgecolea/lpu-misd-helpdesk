@@ -96,6 +96,8 @@
                 <li
                   class="flex items-center gap-3 px-4 py-2"
                   [class.unassigned-blink]="isUnassigned(ticket)"
+                  [class.monitor-open]="ticket.status === 'OPEN' && !isUnassigned(ticket)"
+                  [class.monitor-progress]="ticket.status === 'IN_PROGRESS'"
                 >
                   <div class="min-w-0 flex-1">
                     <div class="flex flex-wrap items-center gap-1.5">
@@ -119,7 +121,12 @@
                     <p class="text-xs font-semibold tabular-nums text-zinc-200">
                       {{ ticket.createdAt | date: 'h:mm a' }}
                     </p>
-                    <p class="mt-0.5 text-[10px] font-medium tracking-wide text-zinc-500 uppercase">
+                    <p
+                      class="mt-0.5 text-[10px] font-semibold tracking-wide uppercase"
+                      [class.text-amber-300]="ticket.status === 'OPEN'"
+                      [class.text-sky-300]="ticket.status === 'IN_PROGRESS'"
+                      [class.text-zinc-500]="ticket.status !== 'OPEN' && ticket.status !== 'IN_PROGRESS'"
+                    >
                       {{ ticket.status === 'OPEN' ? 'Open' : ticket.status === 'IN_PROGRESS' ? 'In progress' : ticket.status }}
                     </p>
                   </div>
