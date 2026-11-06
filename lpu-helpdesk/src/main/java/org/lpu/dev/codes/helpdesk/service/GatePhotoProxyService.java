@@ -11,6 +11,7 @@ import java.time.Duration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.lpu.dev.codes.helpdesk.config.GateAttendanceProperties;
+import org.lpu.dev.codes.helpdesk.config.GateMediaSigner;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -27,13 +28,18 @@ public class GatePhotoProxyService {
     private static final Logger log = LogManager.getLogger(GatePhotoProxyService.class);
 
     private final GateAttendanceProperties gateAttendanceProperties;
+    private final GateMediaSigner gateMediaSigner;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
 
-    public GatePhotoProxyService(GateAttendanceProperties gateAttendanceProperties) {
+    public GatePhotoProxyService(
+            GateAttendanceProperties gateAttendanceProperties,
+            GateMediaSigner gateMediaSigner
+    ) {
         this.gateAttendanceProperties = gateAttendanceProperties;
+        this.gateMediaSigner = gateMediaSigner;
     }
 
     public ProxiedPhoto fetch(String rawFilename) {
@@ -42,7 +48,10 @@ public class GatePhotoProxyService {
         if (local != null) {
             return local;
         }
-        String upstream = gateAttendanceProperties.upstreamPhotoUrl(filename);
+        String upstream = gateMediaSigner.signUpstreamUrl(
+                filename,
+                gateAttendanceProperties.upstreamPhotoUrl(filename)
+        );
         try {
             HttpRequest request = HttpRequest.newBuilder(URI.create(upstream))
                     .timeout(Duration.ofSeconds(10))
@@ -54,7 +63,7 @@ public class GatePhotoProxyService {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Photo not found");
             }
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                log.warn("Gate photo proxy upstream status={} url={}", response.statusCode(), upstream);
+                log.warn("Gate photo proxy upstream status={} url={}", response.statusCode(), unsignedUrl(upstream));
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Unable to load photo from gate system");
             }
             byte[] body = response.body();
@@ -68,9 +77,14 @@ public class GatePhotoProxyService {
             if (ex instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
-            log.warn("Gate photo proxy failed url={}: {}", upstream, ex.toString());
+            log.warn("Gate photo proxy failed url={}: {}", unsignedUrl(upstream), ex.toString());
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Unable to load photo from gate system");
         }
+    }
+
+    private static String unsignedUrl(String upstream) {
+        int query = upstream.indexOf('?');
+        return query >= 0 ? upstream.substring(0, query) : upstream;
     }
 
     private ProxiedPhoto readLocal(String filename) {

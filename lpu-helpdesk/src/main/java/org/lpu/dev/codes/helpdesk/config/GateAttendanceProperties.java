@@ -29,6 +29,16 @@ public class GateAttendanceProperties {
      * (same-origin HTTPS via nginx/Cloudflare — avoids Safari mixed-content blocks).
      */
     private String publicContextPath = "/lpu-helpdesk";
+    /**
+     * Gate JWT secret text used only to sign picture downloads.
+     * Leave empty to read {@link #mediaSecretFile}. This is not the helpdesk login secret.
+     */
+    private String mediaSecret = "";
+    /**
+     * File containing the gate picture signing key. One line, same contents as
+     * the gate server's jwt-secret file.
+     */
+    private String mediaSecretFile = "/usr/local/tomcat/secrets/gate-jwt-secret";
 
     public String jdbcUrl() {
         return "jdbc:postgresql://" + dbHost + ":" + dbPort + "/" + dbName;
@@ -42,8 +52,7 @@ public class GateAttendanceProperties {
     }
 
     /**
-     * Same browser path event attendance uses. Nginx serves the file from the
-     * gate pictures directory; the gate app rejects unsigned HTTP downloads.
+     * Browser path served by this app. The proxy signs the upstream gate download.
      */
     public String resolvePhotoUrl(String photo) {
         String filename = extractFilename(photo);
@@ -51,7 +60,13 @@ public class GateAttendanceProperties {
             return null;
         }
         String encoded = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
-        return "/gate-attendance/attendance-system/pictures/" + encoded;
+        String context = publicContextPath == null || publicContextPath.isBlank()
+                ? ""
+                : publicContextPath.replaceAll("/+$", "");
+        if (!context.isEmpty() && !context.startsWith("/")) {
+            context = "/" + context;
+        }
+        return context + "/api/directory/photos/" + encoded;
     }
 
     /**
@@ -174,5 +189,21 @@ public class GateAttendanceProperties {
 
     public void setPublicContextPath(String publicContextPath) {
         this.publicContextPath = publicContextPath;
+    }
+
+    public String getMediaSecret() {
+        return mediaSecret;
+    }
+
+    public void setMediaSecret(String mediaSecret) {
+        this.mediaSecret = mediaSecret;
+    }
+
+    public String getMediaSecretFile() {
+        return mediaSecretFile;
+    }
+
+    public void setMediaSecretFile(String mediaSecretFile) {
+        this.mediaSecretFile = mediaSecretFile;
     }
 }

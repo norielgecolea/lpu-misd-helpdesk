@@ -48,6 +48,7 @@ services:
       GATE_ATTENDANCE_DB_PASSWORD: ${GATE_ATTENDANCE_DB_PASSWORD:-}
       GATE_ATTENDANCE_URL: ${GATE_ATTENDANCE_URL:-}
       GATE_ATTENDANCE_PICTURES_DIR: /var/gate-pictures
+      GATE_ATTENDANCE_JWT_SECRET_FILE: /usr/local/tomcat/secrets/gate-jwt-secret
       APP_PICTURES_DIR: /usr/local/tomcat/pictures
       TURNSTILE_SECRET: ${TURNSTILE_SECRET:-}
       TURNSTILE_HOSTNAMES: ${TURNSTILE_HOSTNAMES:-localhost,127.0.0.1}
@@ -59,6 +60,8 @@ services:
       - ./data/pictures:/usr/local/tomcat/pictures
       # Student/employee photos owned by the gate attendance app.
       - ${GATE_PICTURES_DIR:-../lpu-gate-attendance-system/data/pictures}:/var/gate-pictures:ro
+      # Gate picture signing key. Same line as the gate server's jwt-secret file.
+      - ./data/secrets/gate-jwt-secret:/usr/local/tomcat/secrets/gate-jwt-secret:ro
     depends_on:
       postgres:
         condition: service_healthy
