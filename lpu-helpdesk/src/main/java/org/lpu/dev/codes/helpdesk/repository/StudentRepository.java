@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.lpu.dev.codes.helpdesk.dto.DirectoryIdentity;
+import org.lpu.dev.codes.helpdesk.dto.DirectoryPhotoRow;
 import org.lpu.dev.codes.helpdesk.model.Student;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
@@ -152,6 +153,41 @@ public class StudentRepository {
     }
 
     @Transactional(transactionManager = "gateTransactionManager", readOnly = true)
+    public List<DirectoryPhotoRow> findPhotosByIdentifiers(Collection<String> identifiers) {
+        List<String> ids = cleanIds(identifiers);
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return currentSession()
+                .createQuery(
+                        "SELECT new org.lpu.dev.codes.helpdesk.dto.DirectoryPhotoRow("
+                                + "s.studentNo, s.rfid, s.lpuEmail, s.photo) "
+                                + "FROM Student s WHERE s.deleted = false "
+                                + "AND (s.studentNo IN :ids OR s.rfid IN :ids)",
+                        DirectoryPhotoRow.class
+                )
+                .setParameter("ids", ids)
+                .getResultList();
+    }
+
+    @Transactional(transactionManager = "gateTransactionManager", readOnly = true)
+    public List<DirectoryPhotoRow> findPhotosByEmails(Collection<String> emails) {
+        List<String> normalized = normalizeEmails(emails);
+        if (normalized.isEmpty()) {
+            return List.of();
+        }
+        return currentSession()
+                .createQuery(
+                        "SELECT new org.lpu.dev.codes.helpdesk.dto.DirectoryPhotoRow("
+                                + "s.studentNo, s.rfid, s.lpuEmail, s.photo) "
+                                + "FROM Student s WHERE s.deleted = false AND lower(s.lpuEmail) IN :emails",
+                        DirectoryPhotoRow.class
+                )
+                .setParameter("emails", normalized)
+                .getResultList();
+    }
+
+    @Transactional(transactionManager = "gateTransactionManager", readOnly = true)
     public List<Student> findByLpuEmails(Collection<String> emails) {
         List<String> normalized = normalizeEmails(emails);
         if (normalized.isEmpty()) {
@@ -164,6 +200,17 @@ public class StudentRepository {
                 )
                 .setParameter("emails", normalized)
                 .getResultList();
+    }
+
+    private static List<String> cleanIds(Collection<String> values) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+        return values.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
     }
 
     private static List<String> normalizeEmails(Collection<String> emails) {

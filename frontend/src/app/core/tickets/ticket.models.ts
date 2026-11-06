@@ -34,6 +34,8 @@ export interface Ticket {
   requesterName: string;
   requesterPersonType: string | null;
   requesterPersonNo: string | null;
+  /** Gate directory portrait URL. Present on the live monitoring board. */
+  requesterPhoto?: string | null;
   /** Declared campus email for outside-sender tickets (visible under both accounts). */
   requesterLpuEmail?: string | null;
   category: string;

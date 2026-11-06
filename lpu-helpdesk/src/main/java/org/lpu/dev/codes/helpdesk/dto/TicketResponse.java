@@ -1,5 +1,6 @@
 package org.lpu.dev.codes.helpdesk.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.Instant;
 import org.lpu.dev.codes.helpdesk.model.PendingRequesterEmail;
 import org.lpu.dev.codes.helpdesk.model.Ticket;
@@ -36,7 +37,8 @@ public record TicketResponse(
         boolean canReopen,
         Instant createdAt,
         Instant updatedAt,
-        Instant resolvedAt
+        Instant resolvedAt,
+        @JsonInclude(JsonInclude.Include.NON_NULL) String requesterPhoto
 ) {
     public static TicketResponse from(Ticket ticket) {
         return from(ticket, null, 0);
@@ -81,7 +83,45 @@ public record TicketResponse(
                 canReopen,
                 ticket.getCreatedAt(),
                 ticket.getUpdatedAt(),
-                ticket.getResolvedAt()
+                ticket.getResolvedAt(),
+                null
+        );
+    }
+
+    public TicketResponse withRequesterPhoto(String requesterPhoto) {
+        if (requesterPhoto == null || requesterPhoto.isBlank()) {
+            return this;
+        }
+        return new TicketResponse(
+                id,
+                ticketNumber,
+                requesterEmail,
+                requesterName,
+                requesterPersonType,
+                requesterPersonNo,
+                requesterLpuEmail,
+                category,
+                categoryLabel,
+                subcategory,
+                subcategoryLabel,
+                categoryPath,
+                subject,
+                description,
+                status,
+                channel,
+                assignedAdminId,
+                assignedAdminName,
+                queueNumber,
+                hasIdPhoto,
+                unreadCount,
+                pendingEmail,
+                directoryUnlinked,
+                requesterReopenCount,
+                canReopen,
+                createdAt,
+                updatedAt,
+                resolvedAt,
+                requesterPhoto
         );
     }
 

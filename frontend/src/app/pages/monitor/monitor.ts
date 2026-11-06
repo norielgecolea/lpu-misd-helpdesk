@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
@@ -14,15 +14,17 @@ const REFRESH_MS = 1_000;
 const ALERT_MS = 6_000;
 
 interface MonitorAlert {
+  ticketId: number;
   title: string;
   name: string;
   detail: string;
   extraCount: number;
+  photo: string | null;
 }
 
 @Component({
   selector: 'app-monitor',
-  imports: [DatePipe],
+  imports: [DatePipe, NgTemplateOutlet],
   templateUrl: './monitor.html',
   styles: `
     .monitor-scroll {
@@ -118,6 +120,7 @@ export class Monitor implements OnDestroy, OnInit {
   protected readonly recentTickets = signal<Ticket[]>([]);
   protected readonly clock = signal<Date>(new Date());
   protected readonly alert = signal<MonitorAlert | null>(null);
+  private readonly brokenPhotoIds = signal<ReadonlySet<number>>(new Set());
 
   protected readonly recentOnline = computed(() => {
     const open = this.recentTickets().filter(
@@ -176,6 +179,33 @@ export class Monitor implements OnDestroy, OnInit {
     return ticket.assignedAdminId == null;
   }
 
+  protected photoUrl(ticket: Ticket): string | null {
+    return this.visiblePhoto(ticket.id, ticket.requesterPhoto);
+  }
+
+  protected alertPhoto(popup: MonitorAlert): string | null {
+    return this.visiblePhoto(popup.ticketId, popup.photo);
+  }
+
+  protected markPhotoBroken(ticketId: number): void {
+    this.brokenPhotoIds.update((current) => {
+      if (current.has(ticketId)) {
+        return current;
+      }
+      const next = new Set(current);
+      next.add(ticketId);
+      return next;
+    });
+  }
+
+  private visiblePhoto(ticketId: number, photo: string | null | undefined): string | null {
+    const url = photo?.trim();
+    if (!url || this.brokenPhotoIds().has(ticketId)) {
+      return null;
+    }
+    return url;
+  }
+
   private async loadSnapshot(initial: boolean): Promise<void> {
     if (this.pollInFlight) {
       return;
@@ -228,10 +258,12 @@ export class Monitor implements OnDestroy, OnInit {
     const first = tickets[0];
     const walkIn = first.channel === 'ONSITE_RFID';
     this.alert.set({
+      ticketId: first.id,
       title: tickets.length > 1 ? `${tickets.length} new tickets` : walkIn ? 'New walk-in' : 'New online ticket',
       name: first.requesterName,
       detail: [first.ticketNumber, first.categoryPath || first.categoryLabel].filter(Boolean).join(' · '),
       extraCount: Math.max(0, tickets.length - 1),
+      photo: first.requesterPhoto?.trim() || null,
     });
     if (this.alertTimer) {
       clearTimeout(this.alertTimer);
