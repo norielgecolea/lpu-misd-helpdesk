@@ -5,6 +5,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -15,8 +17,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Fetches gate attendance profile photos server-side so browsers on HTTPS
- * (Safari especially) never load mixed-content {@code http://} image URLs.
+ * Serves gate attendance profile photos from the same pictures directory
+ * event attendance uses. Browsers on HTTPS never load mixed-content
+ * {@code http://} image URLs, and unsigned gate HTTP downloads are rejected.
  */
 @Service
 public class GatePhotoProxyService {
@@ -35,6 +38,10 @@ public class GatePhotoProxyService {
 
     public ProxiedPhoto fetch(String rawFilename) {
         String filename = sanitizeFilename(rawFilename);
+        ProxiedPhoto local = readLocal(filename);
+        if (local != null) {
+            return local;
+        }
         String upstream = gateAttendanceProperties.upstreamPhotoUrl(filename);
         try {
             HttpRequest request = HttpRequest.newBuilder(URI.create(upstream))
@@ -63,6 +70,23 @@ public class GatePhotoProxyService {
             }
             log.warn("Gate photo proxy failed url={}: {}", upstream, ex.toString());
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Unable to load photo from gate system");
+        }
+    }
+
+    private ProxiedPhoto readLocal(String filename) {
+        Path file = gateAttendanceProperties.localPhotoPath(filename);
+        if (file == null || !Files.isRegularFile(file)) {
+            return null;
+        }
+        try {
+            byte[] body = Files.readAllBytes(file);
+            if (body.length == 0) {
+                return null;
+            }
+            return new ProxiedPhoto(body, guessFromFilename(filename));
+        } catch (IOException ex) {
+            log.warn("Gate photo local read failed file={}: {}", file, ex.toString());
+            return null;
         }
     }
 

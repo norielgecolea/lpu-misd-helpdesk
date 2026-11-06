@@ -16,6 +16,15 @@ server {
 
     client_max_body_size 50m;
 
+    # Gate student/employee photos. Same files event attendance serves from disk.
+    # Gate HTTP downloads require a signature, so do not proxy them.
+    location ^~ /lpu-helpdesk/api/directory/photos/ {
+        alias /var/gate-pictures/;
+        expires 6h;
+        add_header Cache-Control "public";
+        default_type image/jpeg;
+    }
+
     location /lpu-helpdesk/ {
         proxy_pass http://${TOMCAT_HOST}:${TOMCAT_PORT};
         proxy_http_version 1.1;
@@ -65,6 +74,15 @@ server {
 
     location ^~ /lpu-helpdesk/api/kiosk {
         return 404;
+    }
+
+    # Gate student/employee photos. Same files event attendance serves from disk.
+    # Gate HTTP downloads require a signature, so do not proxy them.
+    location ^~ /lpu-helpdesk/api/directory/photos/ {
+        alias /var/gate-pictures/;
+        expires 6h;
+        add_header Cache-Control "public";
+        default_type image/jpeg;
     }
 
     location /lpu-helpdesk/ {
@@ -122,6 +140,15 @@ server {
         return 404;
     }
 
+    # Gate student/employee photos. Same files event attendance serves from disk.
+    # Gate HTTP downloads require a signature, so do not proxy them.
+    location ^~ /lpu-helpdesk/api/directory/photos/ {
+        alias /var/gate-pictures/;
+        expires 6h;
+        add_header Cache-Control "public";
+        default_type image/jpeg;
+    }
+
     location /lpu-helpdesk/ {
         proxy_pass http://${TOMCAT_HOST}:${TOMCAT_PORT};
         proxy_http_version 1.1;
@@ -163,6 +190,15 @@ server {
 
     location = / {
         return 302 /admin;
+    }
+
+    # Gate student/employee photos. Same files event attendance serves from disk.
+    # Gate HTTP downloads require a signature, so do not proxy them.
+    location ^~ /lpu-helpdesk/api/directory/photos/ {
+        alias /var/gate-pictures/;
+        expires 6h;
+        add_header Cache-Control "public";
+        default_type image/jpeg;
     }
 
     location /lpu-helpdesk/ {

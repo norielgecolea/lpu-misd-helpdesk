@@ -2,6 +2,8 @@ package org.lpu.dev.codes.helpdesk.config;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "app.gate-attendance")
@@ -17,6 +19,11 @@ public class GateAttendanceProperties {
     private String url = "";
     /** Public path on the gate Tomcat WAR for profile pictures. */
     private String picturesPath = "/attendance-system/pictures";
+    /**
+     * Gate profile pictures on disk. Same directory event attendance serves.
+     * Gate HTTP downloads require a signature, so this app reads the files directly.
+     */
+    private String picturesDir = "/var/gate-pictures";
     /**
      * Public WAR context path used in browser-facing photo proxy URLs
      * (same-origin HTTPS via nginx/Cloudflare — avoids Safari mixed-content blocks).
@@ -52,6 +59,22 @@ public class GateAttendanceProperties {
         }
         String encoded = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
         return context + "/api/directory/photos/" + encoded;
+    }
+
+    /**
+     * File under {@link #picturesDir} for a stored photo name.
+     * Returns null when the directory is not configured or the name escapes it.
+     */
+    public Path localPhotoPath(String filename) {
+        if (picturesDir == null || picturesDir.isBlank() || filename == null || filename.isBlank()) {
+            return null;
+        }
+        Path root = Paths.get(picturesDir).toAbsolutePath().normalize();
+        Path file = root.resolve(filename).normalize();
+        if (!file.startsWith(root)) {
+            return null;
+        }
+        return file;
     }
 
     /** Absolute HTTP(S) URL on the gate Tomcat used by the photo proxy. */
@@ -142,6 +165,14 @@ public class GateAttendanceProperties {
 
     public void setPicturesPath(String picturesPath) {
         this.picturesPath = picturesPath;
+    }
+
+    public String getPicturesDir() {
+        return picturesDir;
+    }
+
+    public void setPicturesDir(String picturesDir) {
+        this.picturesDir = picturesDir;
     }
 
     public String getPublicContextPath() {
